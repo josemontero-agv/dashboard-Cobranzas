@@ -1,103 +1,46 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<style>
-    :root {
-        /* ... (Tus variables CSS no cambian) ... */
-        --color-primary-500: #007BFF; --color-primary-600: #0069D9; --color-secondary-500: #6c757d; --color-secondary-600: #5a6268; --color-danger-500: #dc3545; --color-danger-600: #c82333; --color-text-primary: #212529; --color-text-secondary: #495057; --color-surface: #FFFFFF; --color-background: #F8F9FA; --color-border: #DEE2E6; --font-size-xs: 12px; --font-size-sm: 15px; --font-size-md: 18.75px; --font-size-lg: 23.44px; --font-size-xl: 29.3px; --font-size-xxl: 36.62px; --font-weight-regular: 400; --font-weight-semibold: 600; --font-weight-bold: 700; --line-height-heading: 1.2; --line-height-body: 1.5; --line-height-ui: 1.4; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px; --border-radius-sm: 4px; --border-radius-md: 8px;
-    }
-    body { background-color: var(--color-background); color: var(--color-text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: var(--font-size-sm); line-height: var(--line-height-body); font-weight: var(--font-weight-regular); }
-    .dashboard-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: var(--space-4); box-sizing: border-box; }
-    .page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
-    .main-title { font-size: var(--font-size-xxl); font-weight: var(--font-weight-bold); line-height: var(--line-height-heading); letter-spacing: -0.02em; margin: 0; flex-shrink: 1; }
-    .header-actions { display: flex; flex-wrap: nowrap; gap: var(--space-2); }
-    .btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--border-radius-sm); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: var(--line-height-ui); text-decoration: none; cursor: pointer; transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; white-space: nowrap; }
-    .btn:focus-visible { outline: 2px solid var(--color-primary-500); outline-offset: 2px; }
-    .btn-primary { background-color: var(--color-primary-500); color: white; }
-    .btn-primary:hover { background-color: var(--color-primary-600); }
-    .btn-secondary { background-color: var(--color-surface); color: var(--color-text-primary); border-color: var(--color-border); }
-    .btn-secondary:hover { background-color: #F1F3F5; }
-    .btn-danger { background-color: var(--color-danger-500); color: white; }
-    .btn-danger:hover { background-color: var(--color-danger-600); }
-    .custom-card { background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: var(--space-3); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
-    .card-title { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin-top: 0; margin-bottom: var(--space-2); }
-    .grid-layout { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
-    .grid-col-2 { grid-template-columns: 1fr; }
-    .kpi-card { text-align: center; }
-    .kpi-value { font-size: var(--font-size-xxl); font-weight: var(--font-weight-bold); line-height: var(--line-height-heading); color: var(--color-primary-500); margin: 0; }
-    .form-group { display: flex; flex-direction: column; }
-    .form-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-1); }
-    .form-select { height: 40px; padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--border-radius-sm); background-color: var(--color-surface); width: 100%; font-size: var(--font-size-sm); transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-    .form-select:focus-visible { outline: 2px solid var(--color-primary-500); outline-offset: 2px; border-color: var(--color-primary-500); }
-    .filter-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
-    .filter-form .form-group { flex-grow: 1; flex-basis: 200px; }
-    .filter-form .btn { flex-shrink: 0; }
-    
-    /* **CAMBIO 1**: Añadimos una clase para el contenedor del gráfico */
-    .chart-container {
-        position: relative;
-        height: 400px; /* Le damos una altura fija */
-        width: 100%;
-    }
-
-    @media (min-width: 768px) { .grid-col-2 { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 767px) { .dashboard-container { padding: var(--space-2); } .main-title { font-size: var(--font-size-xl); } .kpi-value { font-size: var(--font-size-xl); } }
-</style>
-
-<div class="dashboard-container">
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show mb-4" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <div class="page-header">
-        <h1 class="main-title">Dashboard de Inventario</h1>
-        <div class="header-actions">
-            <a href="{{ url_for('inventory') }}" class="btn btn-secondary">Volver al Inventario</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
-        </div>
+<header class="page-header">
+    <h1 class="page-title">Dashboard de Inventario</h1>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="{{ url_for('inventory') }}" class="btn btn--secondary">Volver al Inventario</a>
+        <a href="{{ url_for('logout') }}" class="btn btn--danger">Cerrar Sesión</a>
     </div>
-    
-    <div class="custom-card grid-layout">
-        <form method="POST" action="{{ url_for('dashboard') }}" class="filter-form">
-            <div class="form-group">
-                <label for="category_id" class="form-label">Filtrar por Categoría</label>
-                <select name="category_id" id="category_id" class="form-select">
-                    <option value="">Todas las Categorías</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}" {% if category.id == selected_id %}selected{% endif %}>
-                            {{ category.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filtrar</button>
-        </form>
-    </div>
+</header>
 
-    <div class="grid-layout grid-col-2">
-        <div class="custom-card kpi-card">
-            <h5 class="card-title">Productos Únicos en Stock</h5>
-            <p class="kpi-value">{{ data.kpi_total_products }}</p>
+<div class="card">
+    <form method="POST" action="{{ url_for('dashboard') }}" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);">
+        <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+            <label for="category_id" class="form-label">Filtrar por Categoría</label>
+            <select name="category_id" id="category_id" class="form-select">
+                <option value="">Todas las Categorías</option>
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id == selected_id %}selected{% endif %}>
+                        {{ category.display_name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-        <div class="custom-card kpi-card">
-            <h5 class="card-title">Cantidad Total de Unidades</h5>
-            <p class="kpi-value">{{ data.kpi_total_quantity }}</p>
-        </div>
+        <button type="submit" class="btn btn--primary">Filtrar</button>
+    </form>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
+    <div class="card" style="text-align: center;">
+        <h3 class="card-title">Productos Únicos</h3>
+        <p style="font-size: var(--font-size-xxl); font-weight: 700; color: var(--color-primary-500); margin: 0;">{{ data.kpi_total_products }}</p>
     </div>
-    
-    <div class="custom-card">
-        <h5 class="card-title">Top 5 Productos por Cantidad</h5>
-        <div class="chart-container">
-            <canvas id="stockChart"></canvas>
-        </div>
+    <div class="card" style="text-align: center;">
+        <h3 class="card-title">Unidades Totales</h3>
+        <p style="font-size: var(--font-size-xxl); font-weight: 700; color: var(--color-primary-500); margin: 0;">{{ data.kpi_total_quantity }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3 class="card-title">Top 5 Productos por Cantidad</h3>
+    <div style="position: relative; height: 400px; width: 100%;">
+        <canvas id="stockChart"></canvas>
     </div>
 </div>
 
@@ -106,13 +49,38 @@
     document.addEventListener('DOMContentLoaded', function() {
         if (document.getElementById('stockChart')) {
             const ctx = document.getElementById('stockChart').getContext('2d');
-            const style = getComputedStyle(document.documentElement);
-            const primaryColor = style.getPropertyValue('--color-primary-500').trim();
-            const primaryColorTransparent = primaryColor + '80'; // Para la transparencia
             const chart = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: {{ data.chart_labels | tojson }}, datasets: [{ label: 'Cantidad en Stock', data: {{ data.chart_data | tojson }}, backgroundColor: primaryColorTransparent, borderColor: primaryColor, borderWidth: 1.5, borderRadius: 4, hoverBackgroundColor: primaryColor, }] },
-                options: { scales: { y: { beginAtZero: true, grid: { color: '#E9ECEF' } }, x: { grid: { display: false } } }, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#212529', titleFont: { weight: 'bold' }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 4, displayColors: false, } }, onClick: (event) => { const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true); if (points.length) { const firstPoint = points[0]; const label = chart.data.labels[firstPoint.index]; const url = new URL("{{ url_for('inventory', _external=True) }}"); url.searchParams.set('search_term', label); window.location.href = url.toString(); } }, onHover: (event, chartElement) => { event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default'; } }
+                data: {
+                    labels: {{ data.chart_labels | tojson }},
+                    datasets: [{
+                        label: 'Cantidad en Stock',
+                        data: {{ data.chart_data | tojson }},
+                        backgroundColor: 'rgba(79, 70, 229, 0.5)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderRadius: 4,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } },
+                    onClick: (event) => {
+                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        if (points.length) {
+                            const firstPoint = points[0];
+                            const label = chart.data.labels[firstPoint.index];
+                            const url = new URL("{{ url_for('inventory', _external=True) }}");
+                            url.searchParams.set('search_term', label);
+                            window.location.href = url.toString();
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                }
             });
         }
     });

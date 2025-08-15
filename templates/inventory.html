@@ -1,23 +1,23 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
-    <h1 class="h1">Inventario de Stock</h1>
-    <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('export_excel', search_term=search_term) }}" class="btn btn-secondary">Exportar a Excel</a>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Ver Dashboard</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
+<header class="page-header">
+    <h1 class="page-title">Inventario de Stock</h1>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="{{ url_for('export_excel', search_term=search_term) }}" class="btn btn--secondary">Exportar a Excel</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn--info">Ver Dashboard</a>
+        <a href="{{ url_for('logout') }}" class="btn btn--danger">Cerrar Sesión</a>
     </div>
-</div>
+</header>
 
-<div class="custom-card" style="margin-bottom: var(--space-3);">
-    <form method="POST" action="{{ url_for('inventory') }}" style="display: flex; gap: var(--space-2);">
-        <input type="text" name="search_term" placeholder="Buscar por nombre de producto..." value="{{ search_term }}" style="flex-grow: 1; height: 40px; padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--border-radius-sm);">
-        <button type="submit" class="btn btn-primary">Buscar</button>
+<div class="card">
+    <form method="POST" action="{{ url_for('inventory') }}" style="display: flex; gap: var(--space-3);">
+        <input type="text" name="search_term" placeholder="Buscar por nombre de producto..." value="{{ search_term }}" class="form-control" style="flex-grow: 1;">
+        <button type="submit" class="btn btn--primary">Buscar</button>
     </form>
 </div>
 
-<div class="custom-card">
+<div class="card">
     <div class="table-responsive">
         <table class="table">
             <thead>
@@ -44,7 +44,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: var(--space-3);">No se encontraron productos para la búsqueda.</td>
+                    <td colspan="7" style="text-align: center; padding: var(--space-4);">No se encontraron productos para la búsqueda.</td>
                 </tr>
                 {% endfor %}
             </tbody>

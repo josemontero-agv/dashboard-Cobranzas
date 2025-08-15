@@ -3,96 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Inventario Odoo</title>
-    <style>
-        :root {
-            /* 1. Paleta de Colores */
-            --color-primary-500: #007BFF;
-            --color-primary-600: #0069D9;
-            --color-danger-500: #dc3545;
-            --color-danger-600: #c82333;
-            --color-text-primary: #212529;
-            --color-surface: #FFFFFF;
-            --color-background: #F8F9FA;
-            --color-border: #DEE2E6;
-
-            /* 2. Escala Tipográfica (Base 12px, Ratio 1.25) */
-            --font-size-xs: 12px;   /* Texto Pequeño */
-            --font-size-sm: 15px;   /* Cuerpo / UI */
-            --font-size-md: 18.75px;/* Título de Tarjeta (h5) */
-            --font-size-lg: 23.44px;/* Título de Sección (h3) */
-            --font-size-xl: 29.3px; /* Título de Sección Grande (h2) */
-            --font-size-xxl: 36.62px;/* Título Principal (h1) */
-
-            /* 3. Pesos de Fuente */
-            --font-weight-regular: 400;
-            --font-weight-semibold: 600;
-            --font-weight-bold: 700;
-
-            /* 4. Interlineado */
-            --line-height-heading: 1.2;
-            --line-height-body: 1.5;
-            --line-height-ui: 1.4;
-
-            /* 5. Sistema de Espaciado (Base 8px) */
-            --space-1: 8px;
-            --space-2: 16px;
-            --space-3: 24px;
-            --space-4: 32px;
-            
-            /* 6. Radios de Borde */
-            --border-radius-sm: 4px;
-            --border-radius-md: 8px;
-        }
-
-        /* Estilos Globales */
-        body {
-            margin: 0;
-            background-color: var(--color-background);
-            color: var(--color-text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: var(--font-size-sm);
-            line-height: var(--line-height-body);
-            font-weight: var(--font-weight-regular);
-        }
-        
-        /* Contenedor Principal */
-        .main-container {
-            width: 100%;
-            /* **CAMBIO**: Aumentamos el ancho máximo para dar más espacio a la tabla */
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: var(--space-4);
-            box-sizing: border-box;
-        }
-
-        /* Títulos */
-        h1, .h1 { font-size: var(--font-size-xxl); font-weight: var(--font-weight-bold); line-height: var(--line-height-heading); margin: 0; }
-        h3, .h3 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-heading); margin: 0; }
-        h5, .h5 { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin-top: 0; margin-bottom: var(--space-2); }
-        
-        /* Botones */
-        .btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--border-radius-sm); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: var(--line-height-ui); text-decoration: none; cursor: pointer; transition: all 0.2s ease-in-out; white-space: nowrap; }
-        .btn-primary { background-color: var(--color-primary-500); color: white; }
-        .btn-primary:hover { background-color: var(--color-primary-600); }
-        .btn-secondary { background-color: var(--color-surface); color: var(--color-text-primary); border-color: var(--color-border); }
-        .btn-secondary:hover { background-color: #F1F3F5; }
-        .btn-danger { background-color: var(--color-danger-500); color: white; }
-        .btn-danger:hover { background-color: var(--color-danger-600); }
-
-        /* Tarjetas */
-        .custom-card { background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: var(--space-3); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-        
-        /* Tabla */
-        .table-responsive { overflow-x: auto; }
-        .table { width: 100%; border-collapse: collapse; }
-        .table th, .table td { padding: var(--space-2); text-align: left; border-bottom: 1px solid var(--color-border); }
-        .table thead th { font-weight: var(--font-weight-semibold); background-color: var(--color-background); }
-    </style>
+    <title>Inventario Odoo | AgrovetMarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <main class="main-container">
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
+    <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
 </body>
 </html>
