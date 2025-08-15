@@ -2,18 +2,31 @@
 
 {% block content %}
 <div style="display: grid; place-items: center; min-height: 80vh;">
-    <div class="card" style="width: 100%; max-width: 400px;">
-        <h1 class="card-title" style="text-align: center;">Bienvenido de nuevo</h1>
-        <form method="post">
-            <div class="form-group">
-                <label for="username" class="form-label">Usuario (Email)</label>
+    <div class="login-card">
+        <h1 style="font-size: var(--font-size-lg); font-weight: 600; text-align: center; margin-bottom: var(--space-4);">
+            Iniciar Sesión
+        </h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" style="margin-bottom: var(--space-3); font-size: var(--font-size-sm); padding: var(--space-2); border-radius: var(--border-radius); background-color: #FEE2E2; color: #991B1B;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('login') }}">
+            <div style="margin-bottom: var(--space-3);">
+                <label for="username" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Usuario (Email)</label>
                 <input type="email" class="form-control" id="username" name="username" required autocomplete="email">
             </div>
-            <div class="form-group">
-                <label for="password" class="form-label">Contraseña</label>
+            <div style="margin-bottom: var(--space-4);">
+                <label for="password" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Contraseña</label>
                 <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn--primary">Entrar</button>
+            <button type="submit" class="btn btn--primary" style="width: 100%;">Entrar</button>
         </form>
     </div>
 </div>

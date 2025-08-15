@@ -2,53 +2,50 @@
 
 {% block content %}
 <header class="page-header">
-    <h1 class="page-title">Inventario de Stock</h1>
-    <div style="display: flex; gap: var(--space-3);">
-        <a href="{{ url_for('export_excel', search_term=search_term) }}" class="btn btn--secondary">Exportar a Excel</a>
-        <a href="{{ url_for('dashboard') }}" class="btn btn--info">Ver Dashboard</a>
-        <a href="{{ url_for('logout') }}" class="btn btn--danger">Cerrar Sesión</a>
+    
+    <form method="POST" action="{{ url_for('inventory') }}" style="display: flex; gap: var(--space-2); flex-grow: 1; max-width: 600px;">
+        <input type="text" name="search_term" placeholder="Buscar por producto o lote..." value="{{ search_term or '' }}" class="form-control" style="flex-grow: 1;">
+        <button type="submit" class="btn btn--primary">Buscar</button>
+        <a href="{{ url_for('inventory') }}" class="btn btn--secondary">Limpiar</a>
+    </form>
+    
+    <div style="display: flex; gap: var(--space-2);">
+        <a href="{{ url_for('export_excel', search_term=search_term, product_id=request.args.get('product_id')) }}" class="btn">Exportar a Excel</a>
+        <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
+        <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>
 
-<div class="card">
-    <form method="POST" action="{{ url_for('inventory') }}" style="display: flex; gap: var(--space-3);">
-        <input type="text" name="search_term" placeholder="Buscar por nombre de producto..." value="{{ search_term }}" class="form-control" style="flex-grow: 1;">
-        <button type="submit" class="btn btn--primary">Buscar</button>
-    </form>
-</div>
-
-<div class="card">
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Categoría</th>
-                    <th>Producto</th>
-                    <th>Nro. de Lote/Serie</th>
-                    <th>Ubicación</th>
-                    <th>Cantidad Disponible</th>
-                    <th>Cantidad Reservada</th>
-                    <th>Unidad de Medida</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in inventory %}
-                <tr>
-                    <td>{{ item.category_name }}</td>
-                    <td>{{ item.product_name }}</td>
-                    <td>{{ item.lot_name }}</td>
-                    <td>{{ item.location_name }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ item.reserved_quantity }}</td>
-                    <td>{{ item.uom_name }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" style="text-align: center; padding: var(--space-4);">No se encontraron productos para la búsqueda.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Categoría</th>
+                <th>Producto</th>
+                <th>Nro. de Lote/Serie</th>
+                <th>Ubicación</th>
+                <th>Cantidad Disponible</th>
+                <th>Cantidad Reservada</th>
+                <th>Unidad de Medida</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inventory %}
+            <tr>
+                <td>{{ item.category_name }}</td>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.lot_name }}</td>
+                <td>{{ item.location_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.reserved_quantity }}</td>
+                <td>{{ item.uom_name }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: var(--space-4);">No se encontraron productos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

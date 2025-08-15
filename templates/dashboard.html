@@ -3,17 +3,17 @@
 {% block content %}
 <header class="page-header">
     <h1 class="page-title">Dashboard de Inventario</h1>
-    <div style="display: flex; gap: var(--space-3);">
-        <a href="{{ url_for('inventory') }}" class="btn btn--secondary">Volver al Inventario</a>
-        <a href="{{ url_for('logout') }}" class="btn btn--danger">Cerrar Sesión</a>
+    <div style="display: flex; gap: var(--space-2);">
+        <a href="{{ url_for('inventory') }}" class="btn">Volver al Inventario</a>
+        <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>
 
-<div class="card">
-    <form method="POST" action="{{ url_for('dashboard') }}" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);">
-        <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
-            <label for="category_id" class="form-label">Filtrar por Categoría</label>
-            <select name="category_id" id="category_id" class="form-select">
+<div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-3); margin-bottom: var(--space-4);">
+    <form method="POST" action="{{ url_for('dashboard') }}" id="categoryFilterForm">
+        <div style="max-width: 400px;">
+            <label for="category_id" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Filtrar por Categoría</label>
+            <select name="category_id" id="category_id" class="form-control" onchange="this.form.submit()">
                 <option value="">Todas las Categorías</option>
                 {% for category in categories %}
                     <option value="{{ category.id }}" {% if category.id == selected_id %}selected{% endif %}>
@@ -22,28 +22,25 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn--primary">Filtrar</button>
-    </form>
+        </form>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
-    <div class="card" style="text-align: center;">
-        <h3 class="card-title">Productos Únicos</h3>
-        <p style="font-size: var(--font-size-xxl); font-weight: 700; color: var(--color-primary-500); margin: 0;">{{ data.kpi_total_products }}</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
+    <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4); text-align: center;">
+        <h2 style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500; margin: 0 0 var(--space-2) 0;">Productos Únicos</h2>
+        <p style="font-size: var(--font-size-xl); font-weight: 600; margin: 0;">{{ data.kpi_total_products }}</p>
     </div>
-    <div class="card" style="text-align: center;">
-        <h3 class="card-title">Unidades Totales</h3>
-        <p style="font-size: var(--font-size-xxl); font-weight: 700; color: var(--color-primary-500); margin: 0;">{{ data.kpi_total_quantity }}</p>
+    <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4); text-align: center;">
+        <h2 style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500; margin: 0 0 var(--space-2) 0;">Unidades Totales</h2>
+        <p style="font-size: var(--font-size-xl); font-weight: 600; margin: 0;">{{ data.kpi_total_quantity }}</p>
     </div>
 </div>
-
-<div class="card">
-    <h3 class="card-title">Top 5 Productos por Cantidad</h3>
+<div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4);">
+    <h2 style="font-size: var(--font-size-lg); font-weight: 600; margin: 0 0 var(--space-4) 0;">Top 5 Productos por Cantidad</h2>
     <div style="position: relative; height: 400px; width: 100%;">
         <canvas id="stockChart"></canvas>
     </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -56,8 +53,9 @@
                     datasets: [{
                         label: 'Cantidad en Stock',
                         data: {{ data.chart_data | tojson }},
-                        backgroundColor: 'rgba(79, 70, 229, 0.5)',
-                        borderColor: 'rgba(79, 70, 229, 1)',
+                        productIds: {{ data.chart_ids | tojson }}, 
+                        backgroundColor: 'rgba(113, 75, 103, 0.5)',
+                        borderColor: 'rgba(113, 75, 103, 1)',
                         borderRadius: 4,
                         borderWidth: 1.5
                     }]
@@ -71,9 +69,9 @@
                         const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
                         if (points.length) {
                             const firstPoint = points[0];
-                            const label = chart.data.labels[firstPoint.index];
+                            const productId = chart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
                             const url = new URL("{{ url_for('inventory', _external=True) }}");
-                            url.searchParams.set('search_term', label);
+                            url.searchParams.set('product_id', productId);
                             window.location.href = url.toString();
                         }
                     },
