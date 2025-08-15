@@ -1,3 +1,0 @@
-Flask
-odoorpc
-python-dotenv
