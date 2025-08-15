@@ -1,0 +1,10 @@
+# Entorno virtual
+venv/
+__pycache__/
+
+# Archivo de variables de entorno locales
+.env
+
+# Otros archivos específicos del sistema operativo o IDE
+.DS_Store
+*.pyc

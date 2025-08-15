@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+    <h1 class="h1">Inventario de Stock</h1>
+    <div style="display: flex; gap: var(--space-2);">
+        <a href="{{ url_for('export_excel', search_term=search_term) }}" class="btn btn-secondary">Exportar a Excel</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Ver Dashboard</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar Sesión</a>
+    </div>
+</div>
+
+<div class="custom-card" style="margin-bottom: var(--space-3);">
+    <form method="POST" action="{{ url_for('inventory') }}" style="display: flex; gap: var(--space-2);">
+        <input type="text" name="search_term" placeholder="Buscar por nombre de producto..." value="{{ search_term }}" style="flex-grow: 1; height: 40px; padding: 0 var(--space-2); border: 1px solid var(--color-border); border-radius: var(--border-radius-sm);">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+</div>
+
+<div class="custom-card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Categoría</th>
+                    <th>Producto</th>
+                    <th>Nro. de Lote/Serie</th>
+                    <th>Ubicación</th>
+                    <th>Cantidad Disponible</th>
+                    <th>Cantidad Reservada</th>
+                    <th>Unidad de Medida</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory %}
+                <tr>
+                    <td>{{ item.category_name }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.lot_name }}</td>
+                    <td>{{ item.location_name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.reserved_quantity }}</td>
+                    <td>{{ item.uom_name }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: var(--space-3);">No se encontraron productos para la búsqueda.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
