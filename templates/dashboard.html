@@ -9,10 +9,10 @@
     </div>
 </header>
 
-<div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-3); margin-bottom: var(--space-4);">
+<div class="filter-bar">
     <form method="POST" action="{{ url_for('dashboard') }}" id="categoryFilterForm">
         <div style="max-width: 400px;">
-            <label for="category_id" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Filtrar por Categoría</label>
+            <label for="category_id">Filtrar por Categoría</label>
             <select name="category_id" id="category_id" class="form-control" onchange="this.form.submit()">
                 <option value="">Todas las Categorías</option>
                 {% for category in categories %}
@@ -22,38 +22,57 @@
                 {% endfor %}
             </select>
         </div>
-        </form>
+    </form>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
-    <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4); text-align: center;">
-        <h2 style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500; margin: 0 0 var(--space-2) 0;">Productos Únicos</h2>
-        <p style="font-size: var(--font-size-xl); font-weight: 600; margin: 0;">{{ data.kpi_total_products }}</p>
+<div class="grid-container">
+    <div class="kpi-card">
+        <h2 class="kpi-card__title">Productos Únicos</h2>
+        <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
     </div>
-    <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4); text-align: center;">
-        <h2 style="font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500; margin: 0 0 var(--space-2) 0;">Unidades Totales</h2>
-        <p style="font-size: var(--font-size-xl); font-weight: 600; margin: 0;">{{ data.kpi_total_quantity }}</p>
+    <div class="kpi-card">
+        <h2 class="kpi-card__title">Unidades Totales</h2>
+        <p class="kpi-card__value">{{ data.kpi_total_quantity }}</p>
     </div>
 </div>
-<div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: var(--space-4);">
-    <h2 style="font-size: var(--font-size-lg); font-weight: 600; margin: 0 0 var(--space-4) 0;">Top 5 Productos por Cantidad</h2>
-    <div style="position: relative; height: 400px; width: 100%;">
+
+<div class="chart-container">
+    <h2 class="chart-title">Análisis de Vencimiento</h2>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);">
+        <div class="alert-card" style="flex: 1; min-width: 200px;">
+            <h3 class="alert-card__title">Unidades por Vencer (0-3 Meses)</h3>
+            <p class="alert-card__value">{{ data.kpi_vence_pronto }}</p>
+        </div>
+        <div style="position: relative; height: 300px; flex: 2; min-width: 300px;">
+            <div id="expirationChart" style="height: 100%; width: 100%;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h2 class="chart-title">Top 5 Productos por Cantidad</h2>
+    <div class="chart-wrapper">
         <canvas id="stockChart"></canvas>
     </div>
 </div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- Gráfico de Barras (Top 5) ---
         if (document.getElementById('stockChart')) {
             const ctx = document.getElementById('stockChart').getContext('2d');
-            const chart = new Chart(ctx, {
+            const stockChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: {{ data.chart_labels | tojson }},
                     datasets: [{
                         label: 'Cantidad en Stock',
                         data: {{ data.chart_data | tojson }},
-                        productIds: {{ data.chart_ids | tojson }}, 
+                        productIds: {{ data.chart_ids | tojson }},
                         backgroundColor: 'rgba(113, 75, 103, 0.5)',
                         borderColor: 'rgba(113, 75, 103, 1)',
                         borderRadius: 4,
@@ -66,10 +85,10 @@
                     scales: { y: { beginAtZero: true } },
                     plugins: { legend: { display: false } },
                     onClick: (event) => {
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        const points = stockChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
                         if (points.length) {
                             const firstPoint = points[0];
-                            const productId = chart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
+                            const productId = stockChart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
                             const url = new URL("{{ url_for('inventory', _external=True) }}");
                             url.searchParams.set('product_id', productId);
                             window.location.href = url.toString();
@@ -79,6 +98,77 @@
                         event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
                     }
                 }
+            });
+        }
+
+        // --- Gráfico de Anillo con ECharts ---
+        if (document.getElementById('expirationChart')) {
+            {% set echarts_data = [] %}
+            {% for i in range(data.exp_chart_labels|length) %}
+                {% set _ = echarts_data.append({'value': data.exp_chart_data[i], 'name': data.exp_chart_labels[i]}) %}
+            {% endfor %}
+
+            const expChartDom = document.getElementById('expirationChart');
+            const expChart = echarts.init(expChartDom);
+            
+            function getResponsiveOptions(width) {
+                if (width < 992) {
+                    return {
+                        legend: { orient: 'horizontal', left: 'center', top: 'bottom', itemGap: 10 },
+                        series: { center: ['50%', '45%'] }
+                    };
+                } else {
+                    return {
+                        legend: { orient: 'vertical', left: 'left', top: 'center', itemGap: 15, textStyle: { fontSize: 13 } },
+                        series: { center: ['65%', '50%'] }
+                    };
+                }
+            }
+            
+            let responsiveOptions = getResponsiveOptions(window.innerWidth);
+
+            const option = {
+                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+                legend: responsiveOptions.legend,
+                series: [{
+                    name: 'Estado de Vencimiento',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: responsiveOptions.series.center,
+                    avoidLabelOverlap: false,
+                    padAngle: 5,
+                    itemStyle: { borderRadius: 10 },
+                    label: { show: false, position: 'center' },
+                    emphasis: { label: { show: true, fontSize: '24', fontWeight: 'bold' } },
+                    labelLine: { show: false },
+                    minAngle: 5,
+                    data: {{ echarts_data | tojson }},
+                    color: ['#EF4444', '#6B7280', '#10B981', '#3B82F6']
+                }]
+            };
+            expChart.setOption(option);
+
+            expChart.on('click', function (params) {
+                const label = params.name;
+                let status = '';
+                if (label.startsWith('Por Vencer')) { status = 'vence_pronto'; }
+                else if (label.startsWith('Advertencia')) { status = 'advertencia'; }
+                else if (label.startsWith('OK')) { status = 'ok'; }
+                else if (label.startsWith('Largo Plazo')) { status = 'largo_plazo'; }
+                if (status) {
+                    const url = new URL("{{ url_for('inventory', _external=True) }}");
+                    url.searchParams.set('exp_status', status);
+                    window.location.href = url.toString();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                responsiveOptions = getResponsiveOptions(window.innerWidth);
+                expChart.setOption({
+                    legend: responsiveOptions.legend,
+                    series: [{ center: responsiveOptions.series.center }]
+                });
+                expChart.resize(); 
             });
         }
     });

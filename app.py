@@ -47,6 +47,18 @@ def export_excel():
     
     inventory_data = data_manager.get_stock_inventory(**selected_filters)
     
+    # **MEJORA**: Añadimos la lógica de filtro de vencimiento aquí también
+    exp_status = request.args.get('exp_status')
+    if exp_status and inventory_data:
+        if exp_status == 'vence_pronto':
+            inventory_data = [item for item in inventory_data if item['meses_expira'] is not None and 0 <= item['meses_expira'] <= 3]
+        elif exp_status == 'advertencia':
+            inventory_data = [item for item in inventory_data if item['meses_expira'] is not None and 4 <= item['meses_expira'] <= 7]
+        elif exp_status == 'ok':
+            inventory_data = [item for item in inventory_data if item['meses_expira'] is not None and 8 <= item['meses_expira'] <= 12]
+        elif exp_status == 'largo_plazo':
+            inventory_data = [item for item in inventory_data if item['meses_expira'] is not None and item['meses_expira'] > 12]
+    
     if not inventory_data:
         flash('No hay datos para exportar.', 'warning')
         return redirect(url_for('inventory'))
@@ -87,7 +99,6 @@ def dashboard():
     
     return render_template('dashboard.html', data=dashboard_data, categories=available_categories, selected_id=selected_category_id)
 
-# **RUTA DE INVENTARIO MODIFICADA**
 @app.route('/', methods=['GET', 'POST'])
 def inventory():
     if 'username' not in session:
@@ -95,17 +106,29 @@ def inventory():
     
     filter_options = data_manager.get_filter_options()
     
-    # Usamos request.values que combina los datos del formulario (POST) y de la URL (GET)
     selected_filters = {
         'search_term': request.values.get('search_term'),
-        'product_id': request.values.get('product_id', type=int), # <-- Leemos el product_id
+        'product_id': request.values.get('product_id', type=int),
         'grupo_id': request.values.get('grupo_id', type=int),
         'linea_id': request.values.get('linea_id', type=int),
         'lugar_id': request.values.get('lugar_id', type=int)
     }
 
-    # Pasamos todos los filtros a la función de búsqueda
     stock_data = data_manager.get_stock_inventory(**selected_filters)
+
+    exp_status = request.args.get('exp_status')
+    if exp_status and stock_data:
+        if exp_status == 'vence_pronto':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 0 <= item['meses_expira'] <= 3]
+        elif exp_status == 'advertencia':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 4 <= item['meses_expira'] <= 7]
+        elif exp_status == 'ok':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 8 <= item['meses_expira'] <= 12]
+        elif exp_status == 'largo_plazo':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and item['meses_expira'] > 12]
+    
+    # **MEJORA**: Añadimos el filtro de vencimiento al diccionario para que el botón de exportar lo "recuerde"
+    selected_filters['exp_status'] = exp_status
     
     return render_template(
         'inventory.html', 
