@@ -6,13 +6,13 @@ from odoo_manager import OdooManager
 import os
 import pandas as pd
 import io
+from datetime import datetime
 
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 data_manager = OdooManager()
 
-# ... (tus rutas /login, /logout y /export/excel no cambian) ...
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -35,37 +35,48 @@ def logout():
 @app.route('/export/excel')
 def export_excel():
     if 'username' not in session: return redirect(url_for('login'))
-    search_term = request.args.get('search_term', '')
-    product_id = request.args.get('product_id', type=int)
-    inventory_data = data_manager.get_stock_inventory(search_term=search_term, product_id=product_id)
+    
+    # Pasamos todos los filtros posibles a la función de exportación
+    selected_filters = {
+        'search_term': request.args.get('search_term'),
+        'product_id': request.args.get('product_id', type=int),
+        'grupo_id': request.args.get('grupo_id', type=int),
+        'linea_id': request.args.get('linea_id', type=int),
+        'lugar_id': request.args.get('lugar_id', type=int)
+    }
+    
+    inventory_data = data_manager.get_stock_inventory(**selected_filters)
+    
     if not inventory_data:
         flash('No hay datos para exportar.', 'warning')
         return redirect(url_for('inventory'))
-    # Preparamos el DataFrame para exportar
-    export_df_data = [{k: v for k, v in item.items() if k not in ['product_id', 'category_id']} for item in inventory_data]
+    
+    export_df_data = [{k: v for k, v in item.items() if k not in ['product_id', 'grupo_articulo_id']} for item in inventory_data]
     df = pd.DataFrame(export_df_data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Inventario')
     output.seek(0)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name='inventario_stock.xlsx')
+    
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M")
+    filename = f"inventario_stock_{timestamp}.xlsx"
+    
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
 
-# **RUTA MODIFICADA**
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
+    if 'username' not in session: return redirect(url_for('login'))
+    
     selected_category_id = request.form.get('category_id', type=int)
     dashboard_data = data_manager.get_dashboard_data(category_id=selected_category_id)
     
-    # **MEJORA**: Obtenemos las categorías del inventario, no todas las de Odoo
     full_inventory = data_manager.get_stock_inventory()
     if full_inventory:
-        # Creamos una lista de categorías únicas presentes en el inventario
-        unique_categories_dict = {item['category_id']: item['category_name'] for item in full_inventory}
+        unique_categories_dict = {
+            item.get('grupo_articulo_id'): item.get('grupo_articulo') 
+            for item in full_inventory if item.get('grupo_articulo_id')
+        }
         available_categories = [{'id': id, 'display_name': name} for id, name in unique_categories_dict.items()]
-        # Ordenamos alfabéticamente
         available_categories.sort(key=lambda x: x['display_name'])
     else:
         available_categories = []
@@ -76,19 +87,32 @@ def dashboard():
     
     return render_template('dashboard.html', data=dashboard_data, categories=available_categories, selected_id=selected_category_id)
 
+# **RUTA DE INVENTARIO MODIFICADA**
 @app.route('/', methods=['GET', 'POST'])
 def inventory():
-    # ... (esta ruta no cambia) ...
-    if 'username' not in session: return redirect(url_for('login'))
-    search_term = ""
-    product_id = None
-    if request.method == 'POST':
-        search_term = request.form.get('search_term', '')
-        stock_data = data_manager.get_stock_inventory(search_term=search_term)
-    else: # GET
-        product_id = request.args.get('product_id', type=int)
-        stock_data = data_manager.get_stock_inventory(product_id=product_id)
-    return render_template('inventory.html', inventory=stock_data, search_term=search_term)
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    filter_options = data_manager.get_filter_options()
+    
+    # Usamos request.values que combina los datos del formulario (POST) y de la URL (GET)
+    selected_filters = {
+        'search_term': request.values.get('search_term'),
+        'product_id': request.values.get('product_id', type=int), # <-- Leemos el product_id
+        'grupo_id': request.values.get('grupo_id', type=int),
+        'linea_id': request.values.get('linea_id', type=int),
+        'lugar_id': request.values.get('lugar_id', type=int)
+    }
+
+    # Pasamos todos los filtros a la función de búsqueda
+    stock_data = data_manager.get_stock_inventory(**selected_filters)
+    
+    return render_template(
+        'inventory.html', 
+        inventory=stock_data, 
+        filter_options=filter_options,
+        selected_filters=selected_filters
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
