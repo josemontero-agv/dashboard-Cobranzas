@@ -98,6 +98,32 @@ def dashboard():
         return redirect(url_for('inventory'))
     
     return render_template('dashboard.html', data=dashboard_data, categories=available_categories, selected_id=selected_category_id)
+    # **NUEVA RUTA PARA EL INVENTARIO DE EXPORTACIÓN**
+@app.route('/exportacion', methods=['GET', 'POST'])
+def inventory_export():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    # Obtenemos las opciones para los filtros (reutilizamos la misma función)
+    filter_options = data_manager.get_filter_options()
+    
+    # Leemos los filtros del formulario
+    selected_filters = {
+        'search_term': request.values.get('search_term'),
+        'grupo_id': request.values.get('grupo_id', type=int),
+        'linea_id': request.values.get('linea_id', type=int)
+        # No necesitamos 'lugar_id' porque está fijo
+    }
+
+    # Llamamos a la nueva función de obtención de datos
+    stock_data = data_manager.get_export_inventory(**selected_filters)
+    
+    return render_template(
+        'export_inventory.html', # Usamos una nueva plantilla
+        inventory=stock_data, 
+        filter_options=filter_options,
+        selected_filters=selected_filters
+    )
 
 @app.route('/', methods=['GET', 'POST'])
 def inventory():

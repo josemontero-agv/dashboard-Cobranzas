@@ -2,21 +2,20 @@
 
 {% block content %}
 <header class="page-header">
-    <h1 class="page-title">Inventario de Stock</h1>
+    <h1 class="page-title">Inventario de Stock (Exportación)</h1>
     <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('inventory_export') }}" class="btn">Inv. Exportación</a>
-        <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn">Exportar a Excel</a>
+        <a href="{{ url_for('inventory') }}" class="btn">Inventario Comercial</a>
         <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>
 
 <div class="filter-bar">
-    <form method="POST" action="{{ url_for('inventory') }}">
+    <form method="POST" action="{{ url_for('inventory_export') }}">
         <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
             
             <div>
-                <label for="grupo_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Grupo Artículo</label>
+                <label for="grupo_id">Grupo Artículo</label>
                 <select name="grupo_id" id="grupo_id" class="form-control">
                     <option value="">Todos</option>
                     {% for grupo in filter_options.grupos %}
@@ -26,9 +25,8 @@
                     {% endfor %}
                 </select>
             </div>
-            
             <div>
-                <label for="linea_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Línea Comercial</label>
+                <label for="linea_id">Línea Comercial</label>
                 <select name="linea_id" id="linea_id" class="form-control">
                     <option value="">Todas</option>
                     {% for linea in filter_options.lineas %}
@@ -38,26 +36,13 @@
                     {% endfor %}
                 </select>
             </div>
-
-            <div>
-                <label for="lugar_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Lugar</label>
-                <select name="lugar_id" id="lugar_id" class="form-control">
-                    <option value="">Todos (def. Comercial)</option>
-                    {% for lugar in filter_options.lugares %}
-                        <option value="{{ lugar.id }}" {% if lugar.id == selected_filters.lugar_id %}selected{% endif %}>
-                            {{ lugar.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
             <div style="flex-grow: 1;">
-                <label for="search_term" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Búsqueda</label>
+                <label for="search_term">Búsqueda</label>
                 <input type="text" name="search_term" placeholder="..." value="{{ selected_filters.search_term or '' }}" class="form-control">
             </div>
             
             <button type="submit" class="btn btn--secondary">Buscar</button>
-            <a href="{{ url_for('inventory') }}" class="btn btn--secondary">Limpiar</a>
+            <a href="{{ url_for('inventory_export') }}" class="btn btn--secondary">Limpiar</a>
         </div>
     </form>
 </div>
@@ -97,7 +82,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="10" style="text-align: center; padding: var(--space-4);">No se encontraron productos para la búsqueda.</td>
+                <td colspan="10" style="text-align: center; padding: var(--space-4);">No se encontraron productos.</td>
             </tr>
             {% endfor %}
         </tbody>
