@@ -70,11 +70,10 @@
                 <th>Linea Comercial</th>
                 <th>CodArticulo</th>
                 <th>Producto</th>
-                <th>UM</th>
                 <th>Lugar</th>
-                <th>Lote</th>
+                
                 <th class="col-no-wrap">FechaExpira</th>
-                <th class="text-right">Cantidad disponible</th>
+                <th class="text-center">Cantidad disponible</th>
                 <th class="text-center">Meses Expira</th>
             </tr>
         </thead>
@@ -85,11 +84,9 @@
                 <td>{{ item.linea_comercial }}</td>
                 <td>{{ item.cod_articulo }}</td>
                 <td>{{ item.producto }}</td>
-                <td>{{ item.um }}</td>
                 <td>{{ item.lugar }}</td>
-                <td>{{ item.lote }}</td>
                 <td class="col-no-wrap">{{ item.fecha_expira }}</td>
-                <td class="text-right">{{ item.cantidad_disponible }}</td>
+                <td class="text-center">{{ item.cantidad_disponible }}</td>
                 {% set meses = item.meses_expira %}
                 {% set status_class = '' %}
                 {% if meses is not none and 0 <= meses <= 3 %}{% set status_class = 'status-vence-pronto' %}{% elif meses is not none and 4 <= meses <= 7 %}{% set status_class = 'status-advertencia' %}{% elif meses is not none and 8 <= meses <= 12 %}{% set status_class = 'status-ok' %}{% endif %}

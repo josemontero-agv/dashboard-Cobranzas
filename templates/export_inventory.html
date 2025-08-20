@@ -4,7 +4,8 @@
 <header class="page-header">
     <h1 class="page-title">Inventario de Stock (Exportación)</h1>
     <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('inventory') }}" class="btn">Inventario Comercial</a>
+        <a href="{{ url_for('export_excel_exportacion', **selected_filters) }}" class="btn btn--secondary">Exportar a Excel</a>
+        <a href="{{ url_for('inventory') }}" class="btn">Inventario Principal</a>
         <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
@@ -13,7 +14,6 @@
 <div class="filter-bar">
     <form method="POST" action="{{ url_for('inventory_export') }}">
         <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
-            
             <div>
                 <label for="grupo_id">Grupo Artículo</label>
                 <select name="grupo_id" id="grupo_id" class="form-control">
@@ -40,7 +40,6 @@
                 <label for="search_term">Búsqueda</label>
                 <input type="text" name="search_term" placeholder="..." value="{{ selected_filters.search_term or '' }}" class="form-control">
             </div>
-            
             <button type="submit" class="btn btn--secondary">Buscar</button>
             <a href="{{ url_for('inventory_export') }}" class="btn btn--secondary">Limpiar</a>
         </div>
@@ -55,11 +54,11 @@
                 <th>Linea Comercial</th>
                 <th>CodArticulo</th>
                 <th>Producto</th>
-                <th>UM</th>
+                
                 <th>Lugar</th>
                 <th>Lote</th>
                 <th class="col-no-wrap">FechaExpira</th>
-                <th class="text-right">Cantidad disponible</th>
+                <th class="text-right">Cantidad Real</th>
                 <th class="text-center">Meses Expira</th>
             </tr>
         </thead>
@@ -70,7 +69,7 @@
                 <td>{{ item.linea_comercial }}</td>
                 <td>{{ item.cod_articulo }}</td>
                 <td>{{ item.producto }}</td>
-                <td>{{ item.um }}</td>
+                
                 <td>{{ item.lugar }}</td>
                 <td>{{ item.lote }}</td>
                 <td class="col-no-wrap">{{ item.fecha_expira }}</td>

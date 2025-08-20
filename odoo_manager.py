@@ -46,7 +46,8 @@ class OdooManager:
             if lugar_id:
                 domain.append(('location_id', '=', lugar_id))
             else:
-                default_locations = ['ALMC/Stock/Corto Vencimiento/VCTO1A3M', 'ALMC/Stock/Corto Vencimiento/VCTO3A6M', 'ALMC/Stock/Corto Vencimiento/VCTO6A9M', 'ALMC/Stock/Corto Vencimiento/VCTO9A12M', 'ALMC/Stock/Comercial', 'ALMC/Stock/PCP/Exportacion']
+                default_locations = ['ALMC/Stock/Corto Vencimiento/VCTO1A3M', 'ALMC/Stock/Corto Vencimiento/VCTO3A6M', 'ALMC/Stock/Corto Vencimiento/VCTO6A9M', 'ALMC/Stock/Corto Vencimiento/VCTO9A12M', 'ALMC/Stock/Comercial', ]
+                # **CORRECCIÓN**: Usamos .display_name para buscar por el nombre completo
                 domain.append(('location_id', 'in', default_locations))
             if grupo_id:
                 domain.append(('product_id.categ_id', '=', grupo_id))
@@ -117,7 +118,7 @@ class OdooManager:
                 ('inventory_quantity_auto_apply', '>', 0)
             ]
             if grupo_id: domain.append(('product_id.categ_id', '=', grupo_id))
-            if linea_id: domain.append(('product_id.commercial_line_national_id', '=', linea_id))
+            if linea_id: domain.append(('product_id.commercial_line_international_id', '=', linea_id))
             if search_term:
                 search_domain = ['|', ('product_id.default_code', 'ilike', search_term), '|', ('product_id.name', 'ilike', search_term), ('lot_id.name', 'ilike', search_term)]
                 domain.extend(search_domain)
@@ -129,7 +130,7 @@ class OdooManager:
 
             product_ids = list(set(quant['product_id'][0] for quant in stock_quants))
             lot_ids = list(set(quant['lot_id'][0] for quant in stock_quants if quant.get('lot_id')))
-            product_fields = ['display_name', 'default_code', 'categ_id', 'commercial_line_national_id']
+            product_fields = ['display_name', 'default_code', 'categ_id', 'commercial_line_international_id']
             product_details = self.models.execute_kw(self.db, self.uid, self.password, 'product.product', 'read', [product_ids], {'fields': product_fields})
             product_map = {prod['id']: prod for prod in product_details}
             lot_map = {}
@@ -159,7 +160,7 @@ class OdooManager:
                 inventory_list.append({
                     'product_id': prod_id, 'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
                     'grupo_articulo': get_related_name(product_data.get('categ_id')),
-                    'linea_comercial': get_related_name(product_data.get('commercial_line_national_id')),
+                    'linea_comercial': get_related_name(product_data.get('commercial_line_international_id')),
                     'cod_articulo': product_data.get('default_code', ''), 'producto': product_data.get('display_name', ''),
                     'um': get_related_name(quant.get('product_uom_id')), 'lugar': get_related_name(quant.get('location_id')),
                     'lote': get_related_name(quant.get('lot_id')), 'fecha_expira': formatted_exp_date,
@@ -173,18 +174,15 @@ class OdooManager:
             print(f"Error al obtener el inventario de exportación: {e}")
             return []
 
+
     def get_filter_options(self):
-        if not self.is_connected:
-            return {}
+        if not self.is_connected: return {}
         try:
-            # 1. Define las ubicaciones base que nos interesan
             default_locations = [
                 'ALMC/Stock/Corto Vencimiento/VCTO1A3M', 'ALMC/Stock/Corto Vencimiento/VCTO3A6M',
                 'ALMC/Stock/Corto Vencimiento/VCTO6A9M', 'ALMC/Stock/Corto Vencimiento/VCTO9A12M',
                 'ALMC/Stock/Comercial'
             ]
-            
-            # 2. Busca todo el stock que existe en esas ubicaciones
             base_domain = [
                 ('location_id', 'in', default_locations),
                 ('available_quantity', '>', 0)
@@ -193,52 +191,37 @@ class OdooManager:
                 self.db, self.uid, self.password, 'stock.quant', 'search_read',
                 [base_domain], {'fields': ['product_id', 'location_id']}
             )
-
             if not relevant_quants:
                 return {'grupos': [], 'lineas': [], 'lugares': []}
-
-            # 3. A partir de ese stock, extrae las opciones de filtro únicas
             unique_locations = {quant['location_id'][0]: quant['location_id'][1] for quant in relevant_quants if quant.get('location_id')}
             product_ids = list(set(quant['product_id'][0] for quant in relevant_quants if quant.get('product_id')))
-            
             product_details = self.models.execute_kw(
                 self.db, self.uid, self.password, 'product.product', 'read',
                 [product_ids], {'fields': ['categ_id', 'commercial_line_national_id']}
             )
-            
             unique_grupos = {prod['categ_id'][0]: prod['categ_id'][1] for prod in product_details if prod.get('categ_id')}
             unique_lineas = {prod['commercial_line_national_id'][0]: prod['commercial_line_national_id'][1] for prod in product_details if prod.get('commercial_line_national_id')}
-
-            # 4. Formatea y ordena las listas para los menús desplegables
             lugares = sorted([{'id': id, 'display_name': name} for id, name in unique_locations.items()], key=lambda x: x['display_name'])
             grupos = sorted([{'id': id, 'display_name': name} for id, name in unique_grupos.items()], key=lambda x: x['display_name'])
             lineas = sorted([{'id': id, 'display_name': name} for id, name in unique_lineas.items()], key=lambda x: x['display_name'])
-
             return {'grupos': grupos, 'lineas': lineas, 'lugares': lugares}
         except Exception as e:
             print(f"Error al obtener opciones de filtro: {e}")
             return {'grupos': [], 'lineas': [], 'lugares': []}
-        
-    def get_dashboard_data(self, category_id=None):
-        full_inventory = self.get_stock_inventory()
+            
+    def get_dashboard_data(self, category_id=None, linea_id=None):
+        full_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=linea_id)
         if not full_inventory: return None
-        
         inventory = full_inventory
-        if category_id:
-            inventory = [item for item in full_inventory if item['grupo_articulo_id'] == category_id]
-        
         if not inventory: return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': []}
-        
         product_totals = {}
         for item in inventory:
             product_name = item['producto']
             quantity = float(item['cantidad_disponible'].replace(',', ''))
-            
             if product_name in product_totals:
                 product_totals[product_name]['quantity'] += quantity
             else:
                 product_totals[product_name] = {'quantity': quantity, 'id': item.get('product_id', 0)}
-        
         total_products = len(product_totals)
         total_quantity = sum(item['quantity'] for item in product_totals.values())
         sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)
@@ -246,7 +229,6 @@ class OdooManager:
         chart_labels = [item[0] for item in top_5_products]
         chart_data = [item[1]['quantity'] for item in top_5_products]
         chart_ids = [item[1]['id'] for item in top_5_products]
-        
         exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
         for item in inventory:
             meses = item.get('meses_expira')
@@ -257,7 +239,6 @@ class OdooManager:
                 elif 8 <= meses <= 12: exp_stats["OK (8-12)"] += quantity
                 elif meses > 12: exp_stats["Largo Plazo (>12)"] += quantity
         exp_stats_filtered = {k: v for k, v in exp_stats.items() if v > 0}
-        
         return {
             'kpi_total_products': total_products, 'kpi_total_quantity': int(total_quantity),
             'chart_labels': chart_labels, 'chart_ids': chart_ids, 'chart_data': chart_data,

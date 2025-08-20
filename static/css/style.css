@@ -23,6 +23,8 @@
     /* Tipografía */
     --font-family-base: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-size-lg: 24px;
+    --font-size-xl: 30px;
+    --font-size-xxl: 48px; /* Tamaño para números grandes de KPI */
     --font-size-base: 14px;
     --font-size-sm: 13px;
 
@@ -49,7 +51,7 @@ main {
     box-sizing: border-box;
 }
 
-/* --- COMPONENTES GENERALES --- */
+/* --- COMPONENTES --- */
 .page-header {
     display: flex;
     flex-wrap: wrap;
@@ -131,7 +133,96 @@ main {
     box-sizing: border-box;
 }
 
-/* --- ESTILOS DE TABLA (RESTAURADOS) --- */
+/* --- LAYOUT Y ESTILOS ESPECÍFICOS --- */
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+@media (min-width: 768px) {
+    .grid-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.chart-container {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+.chart-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-4) 0;
+}
+.chart-wrapper {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+/* --- TARJETAS KPI (MODIFICADAS) --- */
+.kpi-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease-in-out;
+}
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    border-color: var(--color-primary);
+}
+.kpi-card a {
+    display: block;
+    padding: var(--space-4);
+    text-decoration: none;
+    color: inherit;
+    text-align: center;
+}
+.kpi-card__title {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    margin: 0 0 var(--space-2) 0;
+}
+.kpi-card__value {
+    font-size: var(--font-size-xxl);
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.1;
+    color: var(--color-text-primary);
+}
+
+.alert-card {
+    background-color: var(--color-danger-bg);
+    border-left: 5px solid var(--color-danger-dark);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border-radius: var(--border-radius);
+}
+.alert-card__title {
+    color: var(--color-danger-text);
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    margin: 0 0 var(--space-2) 0;
+}
+.alert-card__value {
+    color: var(--color-danger-dark);
+    font-size: 3em;
+    font-weight: 700;
+    line-height: 1;
+    margin: 0;
+}
+
+/* Tabla */
 .table-container {
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -166,55 +257,22 @@ main {
 .table tbody tr:last-child td {
     border-bottom: none;
 }
-
-/* Clases de utilidad */
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 .col-no-wrap { white-space: nowrap !important; }
 
+/* Estilos para los estados de expiración */
 .status-vence-pronto { background-color: var(--color-danger-bg); color: var(--color-danger-text); font-weight: 600; }
 .status-advertencia { background-color: var(--color-warning-bg); color: var(--color-warning-text); }
 .status-ok { background-color: var(--color-success-bg); color: var(--color-success-text); }
 
-/* --- ESTILOS ESPECÍFICOS DEL DASHBOARD --- */
-.grid-container {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-    margin-bottom: var(--space-4);
-}
-@media (min-width: 768px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1200px) { .grid-container--uneven { grid-template-columns: 1fr 2fr; } }
-
-.kpi-card {
+/* Login Card */
+.login-card {
     background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    padding: var(--space-5);
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
     border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    padding: var(--space-4);
-    text-align: center;
 }
-.kpi-card__title { font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: 500; margin: 0 0 var(--space-2) 0; }
-.kpi-card__value { font-size: var(--font-size-xl); font-weight: 600; margin: 0; }
-
-.alert-card {
-    background-color: var(--color-danger-bg);
-    border-left: 5px solid var(--color-danger-dark);
-    padding: var(--space-4);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    border-radius: var(--border-radius);
-}
-.alert-card__title { color: var(--color-danger-text); font-weight: 600; font-size: var(--font-size-base); margin: 0 0 var(--space-2) 0; }
-.alert-card__value { color: var(--color-danger-dark); font-size: 3em; font-weight: 700; line-height: 1; margin: 0; }
-
-.chart-container {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    padding: var(--space-4);
-}
-.chart-title { font-size: var(--font-size-lg); font-weight: 600; margin: 0 0 var(--space-4) 0; }
-.chart-wrapper { position: relative; height: 400px; width: 100%; }

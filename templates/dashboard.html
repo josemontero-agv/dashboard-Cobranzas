@@ -10,29 +10,49 @@
 </header>
 
 <div class="filter-bar">
-    <form method="POST" action="{{ url_for('dashboard') }}" id="categoryFilterForm">
-        <div style="max-width: 400px;">
-            <label for="category_id">Filtrar por Categoría</label>
-            <select name="category_id" id="category_id" class="form-control" onchange="this.form.submit()">
-                <option value="">Todas las Categorías</option>
-                {% for category in categories %}
-                    <option value="{{ category.id }}" {% if category.id == selected_id %}selected{% endif %}>
-                        {{ category.display_name }}
-                    </option>
-                {% endfor %}
-            </select>
+    <form method="POST" action="{{ url_for('dashboard') }}">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
+            <div>
+                <label for="category_id">Filtrar por Categoría</label>
+                <select name="category_id" id="category_id" class="form-control">
+                    <option value="">Todas las Categorías</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}" {% if category.id == selected_category_id %}selected{% endif %}>
+                            {{ category.display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="linea_id">Filtrar por Línea Comercial</label>
+                <select name="linea_id" id="linea_id" class="form-control">
+                    <option value="">Todas las Líneas</option>
+                    {% for linea in lineas %}
+                        <option value="{{ linea.id }}" {% if linea.id == selected_linea_id %}selected{% endif %}>
+                            {{ linea.display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn" style="background-color: white; color: var(--color-primary);">Filtrar</button>
+            </div>
         </div>
     </form>
 </div>
 
 <div class="grid-container">
     <div class="kpi-card">
-        <h2 class="kpi-card__title">Productos Únicos</h2>
-        <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
+        <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
+            <h2 class="kpi-card__title">Productos Únicos</h2>
+            <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
+        </a>
     </div>
     <div class="kpi-card">
-        <h2 class="kpi-card__title">Unidades Totales</h2>
-        <p class="kpi-card__value">{{ data.kpi_total_quantity }}</p>
+        <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
+            <h2 class="kpi-card__title">Unidades Totales</h2>
+            <p class="kpi-card__value">{{ data.kpi_total_quantity }}</p>
+        </a>
     </div>
 </div>
 
@@ -155,9 +175,22 @@
                 else if (label.startsWith('Advertencia')) { status = 'advertencia'; }
                 else if (label.startsWith('OK')) { status = 'ok'; }
                 else if (label.startsWith('Largo Plazo')) { status = 'largo_plazo'; }
+                
                 if (status) {
                     const url = new URL("{{ url_for('inventory', _external=True) }}");
                     url.searchParams.set('exp_status', status);
+
+                    // **MEJORA**: Leemos los filtros activos y los añadimos a la URL
+                    const categoryId = {{ selected_category_id|tojson }};
+                    const lineaId = {{ selected_linea_id|tojson }};
+
+                    if (categoryId) {
+                        url.searchParams.set('grupo_id', categoryId);
+                    }
+                    if (lineaId) {
+                        url.searchParams.set('linea_id', lineaId);
+                    }
+                    
                     window.location.href = url.toString();
                 }
             });
