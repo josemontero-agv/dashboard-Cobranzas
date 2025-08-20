@@ -5,6 +5,8 @@
     /* Paleta de Colores */
     --color-primary: #714B67;
     --color-primary-dark: #633f5a;
+    --color-excel-blue: #3e8f62; /* Verde de Excel */
+    --color-excel-blue-dark: #1A5D37;
     --color-text-primary: #4c4c4c;
     --color-text-secondary: #808080;
     --color-text-inverted: #ffffff;
@@ -136,12 +138,17 @@ main {
 .btn.btn--excel {
     background-color: var(--color-excel-blue);
     border-color: var(--color-excel-blue);
-    color: rgb(3, 75, 68);
+    color: white;
 }
 .btn.btn--excel:hover {
     background-color: var(--color-excel-blue-dark);
     border-color: var(--color-excel-blue-dark);
 }
+/* Estilo para el icono dentro de un botón */
+.btn i {
+    margin-right: var(--space-2);
+}
+
 /* Estilo para el icono dentro de un botón */
 .btn i {
     margin-right: var(--space-2);
