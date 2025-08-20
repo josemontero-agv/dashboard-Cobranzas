@@ -132,6 +132,20 @@ main {
     font-family: inherit;
     box-sizing: border-box;
 }
+/* **NUEVO ESTILO**: Botón para exportar a Excel */
+.btn.btn--excel {
+    background-color: var(--color-excel-blue);
+    border-color: var(--color-excel-blue);
+    color: rgb(3, 75, 68);
+}
+.btn.btn--excel:hover {
+    background-color: var(--color-excel-blue-dark);
+    border-color: var(--color-excel-blue-dark);
+}
+/* Estilo para el icono dentro de un botón */
+.btn i {
+    margin-right: var(--space-2);
+}
 
 /* --- LAYOUT Y ESTILOS ESPECÍFICOS --- */
 .grid-container {

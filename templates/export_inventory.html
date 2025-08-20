@@ -4,9 +4,12 @@
 <header class="page-header">
     <h1 class="page-title">Inventario de Stock (Exportación)</h1>
     <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('export_excel_exportacion', **selected_filters) }}" class="btn btn--secondary">Exportar a Excel</a>
+        
         <a href="{{ url_for('inventory') }}" class="btn">Inventario Principal</a>
         <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
+        <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn btn--excel">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+        </a>
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>

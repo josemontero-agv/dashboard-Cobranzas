@@ -5,8 +5,10 @@
     <h1 class="page-title">Inventario de Stock</h1>
     <div style="display: flex; gap: var(--space-2);">
         <a href="{{ url_for('inventory_export') }}" class="btn">Inv. Exportación</a>
-        <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn">Exportar a Excel</a>
         <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
+        <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn btn--excel">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+        </a>
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>
@@ -86,7 +88,7 @@
                 <td>{{ item.producto }}</td>
                 <td>{{ item.lugar }}</td>
                 <td class="col-no-wrap">{{ item.fecha_expira }}</td>
-                <td class="text-center">{{ item.cantidad_disponible }}</td>
+                <td class="text-">{{ item.cantidad_disponible }}</td>
                 {% set meses = item.meses_expira %}
                 {% set status_class = '' %}
                 {% if meses is not none and 0 <= meses <= 3 %}{% set status_class = 'status-vence-pronto' %}{% elif meses is not none and 4 <= meses <= 7 %}{% set status_class = 'status-advertencia' %}{% elif meses is not none and 8 <= meses <= 12 %}{% set status_class = 'status-ok' %}{% endif %}
