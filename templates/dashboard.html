@@ -9,6 +9,9 @@
 {% block content %}
 <header class="page-header">
     <h1 class="page-title">Dashboard de Inventario</h1>
+    <div style="font-size: 0.95em; color: #888; margin-bottom: 8px;">
+        Tiempo de respuesta backend: {{ backend_time }}
+    </div>
     <div style="display: flex; gap: var(--space-2);">
         <a href="{{ url_for('inventory') }}" class="btn">Volver al Inventario</a>
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>

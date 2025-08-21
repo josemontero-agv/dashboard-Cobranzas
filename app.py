@@ -103,10 +103,13 @@ def dashboard():
     selected_category_id = request.form.get('category_id', type=int)
     selected_linea_id = request.form.get('linea_id', type=int)
 
+    import time
+    start_time = time.time()
     dashboard_data = data_manager.get_dashboard_data(
         category_id=selected_category_id,
         linea_id=selected_linea_id
     )
+    elapsed = time.time() - start_time
     
     # **OPTIMIZACIÓN**: Usamos la función get_filter_options para ser más eficientes
     filter_options = data_manager.get_filter_options()
@@ -122,7 +125,8 @@ def dashboard():
         categories=available_categories, 
         lineas=available_lineas,
         selected_category_id=selected_category_id,
-        selected_linea_id=selected_linea_id
+        selected_linea_id=selected_linea_id,
+        backend_time=f"{elapsed:.3f} s"
     )
 
 @app.route('/exportacion', methods=['GET', 'POST'])

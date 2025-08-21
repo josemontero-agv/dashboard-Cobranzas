@@ -1,3 +1,5 @@
+from functools import lru_cache
+from functools import lru_cache
 # odoo_manager.py
 
 import xmlrpc.client
@@ -6,6 +8,85 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class OdooManager:
+    # Caché simple para dashboard (máx 32 combinaciones de filtros)
+    @lru_cache(maxsize=32)
+    def _cached_dashboard_data(self, category_id, linea_id):
+        # category_id y linea_id deben ser hashables (usar None o int)
+        return self._get_dashboard_data_internal(category_id, linea_id)
+
+    def get_dashboard_data(self, category_id=None, linea_id=None):
+        # Usar caché para evitar consultas repetidas
+        return self._cached_dashboard_data(category_id, linea_id)
+
+    def _get_dashboard_data_internal(self, category_id=None, linea_id=None):
+        # --- Lógica original de get_dashboard_data aquí ---
+        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
+        if not inventory:
+            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': []}
+
+        if linea_id:
+            filtered_inventory = [item for item in inventory if item.get('linea_comercial') and str(item.get('linea_comercial')) == str(self.get_linea_name(linea_id))]
+        else:
+            filtered_inventory = inventory
+
+        product_totals = {}
+        for item in filtered_inventory:
+            product_name, quantity, product_id = item['producto'], float(item['cantidad_disponible'].replace(',', '')), item.get('product_id', 0)
+            if product_name in product_totals:
+                product_totals[product_name]['quantity'] += quantity
+            else:
+                product_totals[product_name] = {'quantity': quantity, 'id': product_id}
+
+        total_products = len(product_totals)
+        total_quantity = 0
+        for item in filtered_inventory:
+            if item.get('fecha_expira'):
+                try:
+                    total_quantity += float(item['cantidad_disponible'].replace(',', ''))
+                except Exception:
+                    pass
+        sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
+
+        exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
+
+        for item in filtered_inventory:
+            meses = item.get('meses_expira')
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
+            if meses is not None:
+                if 0 <= meses <= 3:
+                    exp_stats["Por Vencer (0-3)"] += quantity
+                elif 4 <= meses <= 7:
+                    exp_stats["Advertencia (4-7)"] += quantity
+                elif 8 <= meses <= 12:
+                    exp_stats["OK (8-12)"] += quantity
+                else:
+                    exp_stats["Largo Plazo (>12)"] += quantity
+
+        exp_stats_filtered = {k: v for k, v in exp_stats.items() if v > 0}
+
+        exp_by_line = {}
+        for item in inventory:
+            meses = item.get('meses_expira')
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
+            linea = item.get('linea_comercial')
+            if meses is not None and 0 <= meses <= 3:
+                if linea:
+                    exp_by_line[linea] = exp_by_line.get(linea, 0) + quantity
+
+        sorted_exp_by_line = sorted(exp_by_line.items(), key=lambda x: x[1], reverse=True)
+
+        return {
+            'kpi_total_products': total_products,
+            'kpi_total_quantity': int(total_quantity),
+            'chart_labels': [p[0] for p in sorted_products],
+            'chart_data': [p[1]['quantity'] for p in sorted_products],
+            'chart_ids': [p[1]['id'] for p in sorted_products],
+            'kpi_vence_pronto': int(exp_stats["Por Vencer (0-3)"]),
+            'exp_chart_labels': list(exp_stats_filtered.keys()),
+            'exp_chart_data': list(exp_stats_filtered.values()),
+            'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
+            'exp_by_line_data': [item[1] for item in sorted_exp_by_line]
+        }
     def __init__(self):
         self.url = os.getenv('ODOO_URL')
         self.db = os.getenv('ODOO_DB')
@@ -59,14 +140,16 @@ class OdooManager:
                 search_domain = ['|', ('product_id.default_code', 'ilike', search_term), '|', ('product_id.name', 'ilike', search_term), ('lot_id.name', 'ilike', search_term)]
                 domain.extend(search_domain)
             
-            quant_fields = ['product_id', 'location_id', 'available_quantity', 'lot_id', 'product_uom_id']
+            # Agregamos los campos requeridos por el usuario: cod_articulo y lugar
+            quant_fields = ['product_id', 'available_quantity', 'lot_id', 'location_id']
             stock_quants = self.models.execute_kw(self.db, self.uid, self.password, 'stock.quant', 'search_read', [domain], {'fields': quant_fields})
             
             if not stock_quants: return []
 
             product_ids = list(set(quant['product_id'][0] for quant in stock_quants))
             lot_ids = list(set(quant['lot_id'][0] for quant in stock_quants if quant.get('lot_id')))
-            product_fields = ['display_name', 'default_code', 'categ_id', 'commercial_line_national_id']
+            # Agregamos default_code para cod_articulo
+            product_fields = ['display_name', 'categ_id', 'commercial_line_national_id', 'default_code']
             product_details = self.models.execute_kw(self.db, self.uid, self.password, 'product.product', 'read', [product_ids], {'fields': product_fields})
             product_map = {prod['id']: prod for prod in product_details}
             lot_map = {}
@@ -93,12 +176,14 @@ class OdooManager:
                     except ValueError:
                         formatted_exp_date = exp_date_str
                 inventory_list.append({
-                    'product_id': prod_id, 'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
+                    'product_id': prod_id,
+                    'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
                     'grupo_articulo': get_related_name(product_data.get('categ_id')),
                     'linea_comercial': get_related_name(product_data.get('commercial_line_national_id')),
-                    'cod_articulo': product_data.get('default_code', ''), 'producto': product_data.get('display_name', ''),
-                    'um': get_related_name(quant.get('product_uom_id')), 'lugar': get_related_name(quant.get('location_id')),
-                    'lote': get_related_name(quant.get('lot_id')), 'fecha_expira': formatted_exp_date,
+                    'cod_articulo': product_data.get('default_code', ''),
+                    'producto': product_data.get('display_name', ''),
+                    'lugar': get_related_name(quant.get('location_id')),
+                    'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('available_quantity', 0):,.0f}",
                     'meses_expira': months_to_expire
                 })
@@ -174,8 +259,14 @@ class OdooManager:
             print(f"Error al obtener el inventario de exportación: {e}")
             return []
 
+    @lru_cache(maxsize=1)
+    def _cached_filter_options(self):
+        return self._get_filter_options_internal()
 
     def get_filter_options(self):
+        return self._cached_filter_options()
+
+    def _get_filter_options_internal(self):
         if not self.is_connected: return {}
         try:
             default_locations = [
@@ -210,15 +301,16 @@ class OdooManager:
             return {'grupos': [], 'lineas': [], 'lugares': []}
             
     def get_dashboard_data(self, category_id=None, linea_id=None):
-        # 1. Obtener inventario filtrado para KPIs y gráficos principales
-        filtered_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=linea_id)
-        if not filtered_inventory:
-            return None
-
-        # 2. Obtener inventario completo (sin filtrar por línea) para el gráfico horizontal
-        all_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
-        if not filtered_inventory:
+        # 1. Obtener inventario solo una vez (sin filtrar por línea)
+        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
+        if not inventory:
             return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': []}
+
+        # 2. Filtrar en memoria para KPIs y gráficos principales (si hay filtro de línea)
+        if linea_id:
+            filtered_inventory = [item for item in inventory if item.get('linea_comercial') and str(item.get('linea_comercial')) == str(self.get_linea_name(linea_id))]
+        else:
+            filtered_inventory = inventory
 
         # KPIs y gráficos principales (filtrados)
         product_totals = {}
@@ -259,7 +351,7 @@ class OdooManager:
 
         # Gráfico horizontal: SIEMPRE todas las líneas (no filtrado por línea)
         exp_by_line = {}
-        for item in all_inventory:
+        for item in inventory:
             meses = item.get('meses_expira')
             quantity = float(item['cantidad_disponible'].replace(',', ''))
             linea = item.get('linea_comercial')
@@ -281,3 +373,14 @@ class OdooManager:
             'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
             'exp_by_line_data': [item[1] for item in sorted_exp_by_line]
         }
+
+    def get_linea_name(self, linea_id):
+        # Busca el nombre de la línea comercial dado su ID (para filtrar en memoria)
+        try:
+            filter_options = self.get_filter_options()
+            for linea in filter_options.get('lineas', []):
+                if str(linea['id']) == str(linea_id):
+                    return linea['display_name']
+        except Exception:
+            pass
+        return None

@@ -1,33 +1,139 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div style="display: grid; place-items: center; min-height: 80vh;">
-    <div class="login-card">
-        <h1 style="font-size: var(--font-size-lg); font-weight: 600; text-align: center; margin-bottom: var(--space-4);">
-            Iniciar Sesión
-        </h1>
-        
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<style>
+    .agrovet-login-card, .agrovet-login-card * {
+        box-sizing: border-box !important;
+    }
+    .agrovet-login-card {
+        border-radius: 22px;
+    }
+body.login-bg {
+    background: radial-gradient(ellipse at top left, #a99db1 0%, #7b6a7c 100%) fixed;
+}
+.agrovet-login-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    max-width: 370px;
+    width: 100%;
+    margin: 40px auto;
+    padding: 28px 22px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.agrovet-login-logo {
+    width: 120px;
+    margin-bottom: 10px;
+    display: block;
+}
+.agrovet-login-divider {
+    width: 100%;
+    border: none;
+    border-top: 1.2px solid #e0e0e0;
+    margin: 0 0 16px 0;
+}
+.agrovet-login-label {
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 4px;
+    font-size: 0.98em;
+    letter-spacing: 0.01em;
+}
+.agrovet-login-input {
+    width: 100%;
+    background: #f4f7fb;
+    border: 1.2px solid #d1d5db;
+    border-radius: 13px;
+    padding: 14px 12px 14px 40px;
+    font-size: 1.08em;
+    margin-bottom: 16px;
+    color: #222;
+    transition: border 0.2s;
+}
+.agrovet-login-input:focus {
+    border-color: #009688;
+    outline: none;
+}
+.agrovet-login-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #bdbdbd;
+    font-size: 1.1em;
+    pointer-events: none;
+}
+.agrovet-login-btn {
+    width: 100%;
+    background: #249b8a;
+    color: #fff;
+    border: none;
+    border-radius: 13px;
+    font-size: 1.13em;
+    font-weight: 600;
+    height: 50px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.agrovet-login-btn:hover {
+    background: #19786a;
+}
+</style>
+<div style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+    <div class="agrovet-login-card">
+        <img src="https://amah-test.odoo.com/web/binary/company_logo" alt="Agrovet Market" class="agrovet-login-logo">
+        <hr class="agrovet-login-divider">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}" style="margin-bottom: var(--space-3); font-size: var(--font-size-sm); padding: var(--space-2); border-radius: var(--border-radius); background-color: #FEE2E2; color: #991B1B;">
+                    <div class="alert alert-{{ category }}" style="margin-bottom: 10px; font-size: 0.97em; padding: 7px 9px; border-radius: 5px; background-color: #FEE2E2; color: #991B1B; text-align: center;">
                         {{ message }}
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-
-        <form method="post" action="{{ url_for('login') }}">
-            <div style="margin-bottom: var(--space-3);">
-                <label for="username" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Usuario (Email)</label>
-                <input type="email" class="form-control" id="username" name="username" required autocomplete="email">
+    <form method="post" action="{{ url_for('login') }}" autocomplete="on" style="width: 100%; max-width: 326px; margin: 0 auto;">
+            <label for="username" class="agrovet-login-label">Email</label>
+            <div style="position: relative; width: 100%;">
+                <span class="agrovet-login-icon"><i class="bi bi-person"></i></span>
+                <input type="email" class="agrovet-login-input" id="username" name="username" required autocomplete="email">
             </div>
-            <div style="margin-bottom: var(--space-4);">
-                <label for="password" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); display: block;">Contraseña</label>
-                <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+            <label for="password" class="agrovet-login-label">Password</label>
+            <div style="position: relative; width: 100%;">
+                <span class="agrovet-login-icon"><i class="bi bi-lock"></i></span>
+                <input type="password" class="agrovet-login-input" id="password" name="password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn--primary" style="width: 100%;">Entrar</button>
+            <button type="submit" class="agrovet-login-btn">Log in</button>
         </form>
     </div>
 </div>
+<script>
+    document.body.classList.add('login-bg');
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInput = document.getElementById('password');
+        const toggleBtn = document.getElementById('togglePassword');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        if (toggleBtn && passwordInput && toggleIcon) {
+            toggleBtn.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('bi-eye-slash');
+                    toggleIcon.classList.add('bi-eye');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('bi-eye');
+                    toggleIcon.classList.add('bi-eye-slash');
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
