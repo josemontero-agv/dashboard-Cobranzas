@@ -255,7 +255,11 @@ class OdooManager:
             product_ids = list(set(quant['product_id'][0] for quant in stock_quants))
             lot_ids = list(set(quant['lot_id'][0] for quant in stock_quants if quant.get('lot_id')))
             product_fields = ['display_name', 'default_code', 'categ_id', 'commercial_line_international_id']
-            product_details = self.models.execute_kw(self.db, self.uid, self.password, 'product.product', 'read', [product_ids], {'fields': product_fields})
+            # Forzar idioma español (es_PE) en la consulta para evitar '(copiar)'
+            product_details = self.models.execute_kw(
+                self.db, self.uid, self.password, 'product.product', 'read', [product_ids],
+                {'fields': product_fields, 'context': {'lang': 'es_PE'}}
+            )
             product_map = {prod['id']: prod for prod in product_details}
             lot_map = {}
             if lot_ids:
