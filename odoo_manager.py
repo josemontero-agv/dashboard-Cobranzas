@@ -210,39 +210,74 @@ class OdooManager:
             return {'grupos': [], 'lineas': [], 'lugares': []}
             
     def get_dashboard_data(self, category_id=None, linea_id=None):
-        full_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=linea_id)
-        if not full_inventory: return None
-        inventory = full_inventory
-        if not inventory: return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': []}
+        # 1. Obtener inventario filtrado para KPIs y gráficos principales
+        filtered_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=linea_id)
+        if not filtered_inventory:
+            return None
+
+        # 2. Obtener inventario completo (sin filtrar por línea) para el gráfico horizontal
+        all_inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
+        if not filtered_inventory:
+            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': []}
+
+        # KPIs y gráficos principales (filtrados)
         product_totals = {}
-        for item in inventory:
-            product_name = item['producto']
-            quantity = float(item['cantidad_disponible'].replace(',', ''))
+        for item in filtered_inventory:
+            product_name, quantity, product_id = item['producto'], float(item['cantidad_disponible'].replace(',', '')), item.get('product_id', 0)
             if product_name in product_totals:
                 product_totals[product_name]['quantity'] += quantity
             else:
-                product_totals[product_name] = {'quantity': quantity, 'id': item.get('product_id', 0)}
+                product_totals[product_name] = {'quantity': quantity, 'id': product_id}
+
         total_products = len(product_totals)
-        total_quantity = sum(item['quantity'] for item in product_totals.values())
-        sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)
-        top_5_products = sorted_products[:5]
-        chart_labels = [item[0] for item in top_5_products]
-        chart_data = [item[1]['quantity'] for item in top_5_products]
-        chart_ids = [item[1]['id'] for item in top_5_products]
+        # Solo sumar cantidades de productos con fecha de expiración definida
+        total_quantity = 0
+        for item in filtered_inventory:
+            if item.get('fecha_expira'):
+                try:
+                    total_quantity += float(item['cantidad_disponible'].replace(',', ''))
+                except Exception:
+                    pass
+        sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
+
         exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
-        for item in inventory:
+
+        for item in filtered_inventory:
             meses = item.get('meses_expira')
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
             if meses is not None:
-                quantity = float(item['cantidad_disponible'].replace(',', ''))
-                if 0 <= meses <= 3: exp_stats["Por Vencer (0-3)"] += quantity
-                elif 4 <= meses <= 7: exp_stats["Advertencia (4-7)"] += quantity
-                elif 8 <= meses <= 12: exp_stats["OK (8-12)"] += quantity
-                elif meses > 12: exp_stats["Largo Plazo (>12)"] += quantity
+                if 0 <= meses <= 3:
+                    exp_stats["Por Vencer (0-3)"] += quantity
+                elif 4 <= meses <= 7:
+                    exp_stats["Advertencia (4-7)"] += quantity
+                elif 8 <= meses <= 12:
+                    exp_stats["OK (8-12)"] += quantity
+                else:
+                    exp_stats["Largo Plazo (>12)"] += quantity
+
         exp_stats_filtered = {k: v for k, v in exp_stats.items() if v > 0}
+
+        # Gráfico horizontal: SIEMPRE todas las líneas (no filtrado por línea)
+        exp_by_line = {}
+        for item in all_inventory:
+            meses = item.get('meses_expira')
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
+            linea = item.get('linea_comercial')
+            if meses is not None and 0 <= meses <= 3:
+                if linea:
+                    exp_by_line[linea] = exp_by_line.get(linea, 0) + quantity
+
+        sorted_exp_by_line = sorted(exp_by_line.items(), key=lambda x: x[1], reverse=True)
+
         return {
-            'kpi_total_products': total_products, 'kpi_total_quantity': int(total_quantity),
-            'chart_labels': chart_labels, 'chart_ids': chart_ids, 'chart_data': chart_data,
+            'kpi_total_products': total_products,
+            'kpi_total_quantity': int(total_quantity),
+            'chart_labels': [p[0] for p in sorted_products],
+            'chart_data': [p[1]['quantity'] for p in sorted_products],
+            'chart_ids': [p[1]['id'] for p in sorted_products],
             'kpi_vence_pronto': int(exp_stats["Por Vencer (0-3)"]),
             'exp_chart_labels': list(exp_stats_filtered.keys()),
-            'exp_chart_data': list(exp_stats_filtered.values())
+            'exp_chart_data': list(exp_stats_filtered.values()),
+            'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
+            'exp_by_line_data': [item[1] for item in sorted_exp_by_line]
         }

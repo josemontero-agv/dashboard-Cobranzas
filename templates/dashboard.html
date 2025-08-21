@@ -1,3 +1,9 @@
+<!-- Datos para filtros seleccionados -->
+<script type="application/json" id="selected-category-id">{{ selected_category_id | tojson | safe }}</script>
+<script type="application/json" id="selected-linea-id">{{ selected_linea_id | tojson | safe }}</script>
+<!-- Datos para gráfico de barras horizontales (por línea) -->
+<script type="application/json" id="exp-by-line-labels">{{ data.exp_by_line_labels | tojson | safe }}</script>
+<script type="application/json" id="exp-by-line-data">{{ data.exp_by_line_data | tojson | safe }}</script>
 {% extends 'base.html' %}
 
 {% block content %}
@@ -51,50 +57,82 @@
     <div class="kpi-card">
         <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
             <h2 class="kpi-card__title">Unidades Totales</h2>
-            <p class="kpi-card__value">{{ data.kpi_total_quantity }}</p>
+                <p class="kpi-card__value">{{ '{:,}'.format(data.kpi_total_quantity) }}</p>
         </a>
     </div>
 </div>
 
-<div class="chart-container">
-    <h2 class="chart-title">Análisis de Vencimiento</h2>
-    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);">
-        <div class="alert-card" style="flex: 1; min-width: 200px;">
-            <h3 class="alert-card__title">Unidades por Vencer (0-3 Meses)</h3>
-            <p class="alert-card__value">{{ data.kpi_vence_pronto }}</p>
-        </div>
-        <div style="position: relative; height: 300px; flex: 2; min-width: 300px;">
-            <div id="expirationChart" style="height: 100%; width: 100%;"></div>
+
+<div class="grid-container" style="display: flex; gap: 24px;">
+    <!-- Gráfico de Pastel -->
+    <div class="chart-container rounded-card" style="flex: 1; min-width: 0; padding-bottom: 110px;">
+    <div id="expirationChart" style="height: 300px; width: 100%;"></div>
+    </div>
+    <!-- Gráfico de Barras Horizontales -->
+    <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
+        <h2 class="chart-title">Unidades por Vencer (0-3 Meses) por Línea Comercial</h2>
+    <div class="chart-wrapper" style="height: 300px;">
+            <div id="expiringByLineChart" style="height: 100%; width: 100%;"></div>
         </div>
     </div>
 </div>
 
-<div class="chart-container">
+<!-- Gráfico de Barras Verticales debajo -->
+<div class="chart-container rounded-card" style="margin-top: 32px;">
     <h2 class="chart-title">Top 5 Productos por Cantidad</h2>
-    <div class="chart-wrapper">
+    <div class="chart-wrapper" style="height: 220px;">
         <canvas id="stockChart"></canvas>
     </div>
 </div>
 
 
+<style>
+.rounded-card {
+    border-radius: 18px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 18px 18px 12px 18px;
+}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 
+<!-- Datos para gráficos en JSON -->
+<script type="application/json" id="chart-data-labels">{{ data.chart_labels | tojson | safe }}</script>
+<script type="application/json" id="chart-data-data">{{ data.chart_data | tojson | safe }}</script>
+<script type="application/json" id="chart-data-ids">{{ data.chart_ids | tojson | safe }}</script>
+<!-- Datos para gráfico de pastel (expiración) -->
+<script type="application/json" id="exp-chart-labels">{{ data.exp_chart_labels | tojson | safe }}</script>
+<script type="application/json" id="exp-chart-data">{{ data.exp_chart_data | tojson | safe }}</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Leer datos desde los bloques JSON
+        var chartLabels = JSON.parse(document.getElementById('chart-data-labels').textContent);
+        var chartData = JSON.parse(document.getElementById('chart-data-data').textContent);
+        var chartIds = JSON.parse(document.getElementById('chart-data-ids').textContent);
         // --- Gráfico de Barras (Top 5) ---
         if (document.getElementById('stockChart')) {
             const ctx = document.getElementById('stockChart').getContext('2d');
+            // Odoo Theme palette
+            const odooColors = [
+                '#875A7B', // Violeta Odoo
+                '#5B9BD5', // Azul Odoo
+                '#7AC143', // Verde Odoo
+                '#F7CA18', // Amarillo Odoo
+                '#F0F0F0', // Gris claro
+                '#434343'  // Gris oscuro
+            ];
             const stockChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: {{ data.chart_labels | tojson }},
+                    labels: chartLabels,
                     datasets: [{
                         label: 'Cantidad en Stock',
-                        data: {{ data.chart_data | tojson }},
-                        productIds: {{ data.chart_ids | tojson }},
-                        backgroundColor: 'rgba(113, 75, 103, 0.5)',
-                        borderColor: 'rgba(113, 75, 103, 1)',
+                        data: chartData,
+                        productIds: chartIds,
+                        backgroundColor: '#875A7B',
+                        borderColor: '#875A7B',
                         borderRadius: 4,
                         borderWidth: 1.5
                     }]
@@ -121,53 +159,54 @@
             });
         }
 
-        // --- Gráfico de Anillo con ECharts ---
+        // --- Gráfico de Pastel (Análisis de Vencimiento) ---
         if (document.getElementById('expirationChart')) {
-            {% set echarts_data = [] %}
-            {% for i in range(data.exp_chart_labels|length) %}
-                {% set _ = echarts_data.append({'value': data.exp_chart_data[i], 'name': data.exp_chart_labels[i]}) %}
-            {% endfor %}
-
+            // Leer datos desde los bloques JSON
+            var expChartLabels = JSON.parse(document.getElementById('exp-chart-labels').textContent);
+            var expChartData = JSON.parse(document.getElementById('exp-chart-data').textContent);
+            // Construir el array de objetos para ECharts
+            var echartsData = expChartLabels.map(function(label, i) {
+                return { value: expChartData[i], name: label };
+            });
             const expChartDom = document.getElementById('expirationChart');
             const expChart = echarts.init(expChartDom);
-            
-            function getResponsiveOptions(width) {
-                if (width < 992) {
-                    return {
-                        legend: { orient: 'horizontal', left: 'center', top: 'bottom', itemGap: 10 },
-                        series: { center: ['50%', '45%'] }
-                    };
-                } else {
-                    return {
-                        legend: { orient: 'vertical', left: 'left', top: 'center', itemGap: 15, textStyle: { fontSize: 13 } },
-                        series: { center: ['65%', '50%'] }
-                    };
-                }
-            }
-            
-            let responsiveOptions = getResponsiveOptions(window.innerWidth);
-
+            const totalUnidades = expChartData.reduce((a, b) => a + b, 0);
+            // Asignar colores personalizados según el label
+            const pastelColors = echartsData.map(d => {
+                if (d.name.match(/0-3/i)) return '#E53935'; // Rojo para 0-3 meses
+                if (d.name.match(/12.*más|largo/i)) return '#875A7B'; // Morado para 12 meses a más o largo plazo
+                if (d.name.match(/advertencia/i)) return '#F7CA18'; // Amarillo para advertencia
+                if (d.name.match(/ok/i)) return '#7AC143'; // Verde para OK
+                return '#5B9BD5'; // Azul para otros
+            });
             const option = {
+                title: {
+                    text: totalUnidades.toLocaleString('es-PE'),
+                    subtext: 'Unidades Totales',
+                    left: 'center', top: 'center',
+                    textStyle: { fontSize: 30, fontWeight: 'bold' },
+                    subtextStyle: { fontSize: 14 }
+                },
                 tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-                legend: responsiveOptions.legend,
+                legend: {
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: -50,
+                    itemGap: 32,
+                    textStyle: { fontSize: 14 }
+                },
                 series: [{
                     name: 'Estado de Vencimiento',
                     type: 'pie',
-                    radius: ['40%', '70%'],
-                    center: responsiveOptions.series.center,
-                    avoidLabelOverlap: false,
-                    padAngle: 5,
-                    itemStyle: { borderRadius: 10 },
-                    label: { show: false, position: 'center' },
-                    emphasis: { label: { show: true, fontSize: '24', fontWeight: 'bold' } },
-                    labelLine: { show: false },
-                    minAngle: 5,
-                    data: {{ echarts_data | tojson }},
-                    color: ['#EF4444', '#6B7280', '#10B981', '#3B82F6']
+                    radius: ['60%', '80%'],
+                    data: echartsData,
+                    emphasis: {
+                        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
+                    },
+                    color: pastelColors
                 }]
             };
             expChart.setOption(option);
-
             expChart.on('click', function (params) {
                 const label = params.name;
                 let status = '';
@@ -175,34 +214,67 @@
                 else if (label.startsWith('Advertencia')) { status = 'advertencia'; }
                 else if (label.startsWith('OK')) { status = 'ok'; }
                 else if (label.startsWith('Largo Plazo')) { status = 'largo_plazo'; }
-                
                 if (status) {
                     const url = new URL("{{ url_for('inventory', _external=True) }}");
                     url.searchParams.set('exp_status', status);
-
-                    // **MEJORA**: Leemos los filtros activos y los añadimos a la URL
-                    const categoryId = {{ selected_category_id|tojson }};
-                    const lineaId = {{ selected_linea_id|tojson }};
-
-                    if (categoryId) {
-                        url.searchParams.set('grupo_id', categoryId);
-                    }
-                    if (lineaId) {
-                        url.searchParams.set('linea_id', lineaId);
-                    }
-                    
+                    const categoryId = JSON.parse(document.getElementById('selected-category-id').textContent);
+                    const lineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
+                    if (categoryId) { url.searchParams.set('grupo_id', categoryId); }
+                    if (lineaId) { url.searchParams.set('linea_id', lineaId); }
                     window.location.href = url.toString();
                 }
             });
+            window.addEventListener('resize', () => { expChart.resize(); });
+        }
 
-            window.addEventListener('resize', () => {
-                responsiveOptions = getResponsiveOptions(window.innerWidth);
-                expChart.setOption({
-                    legend: responsiveOptions.legend,
-                    series: [{ center: responsiveOptions.series.center }]
-                });
-                expChart.resize(); 
+        // --- NUEVO Gráfico de Barras Horizontales (Vencimiento por Línea) ---
+        if (document.getElementById('expiringByLineChart')) {
+            // Leer datos desde los bloques JSON
+            var expByLineLabels = JSON.parse(document.getElementById('exp-by-line-labels').textContent);
+            var expByLineData = JSON.parse(document.getElementById('exp-by-line-data').textContent);
+            const expByLineDom = document.getElementById('expiringByLineChart');
+            const expByLineChart = echarts.init(expByLineDom);
+            // Barra de la línea seleccionada en rojo, el resto en morado
+            var selectedLineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
+            // Buscar el nombre de la línea seleccionada en el combo
+            var selectedLineaName = null;
+            var lineaSelect = document.getElementById('linea_id');
+            if (lineaSelect && selectedLineaId) {
+                var selectedOption = lineaSelect.querySelector('option:checked');
+                if (selectedOption) {
+                    selectedLineaName = selectedOption.textContent.trim();
+                }
+            }
+            // Compara por nombre de línea
+            const barColors = expByLineLabels.map(label => {
+                if (selectedLineaName && String(label).trim() === selectedLineaName) {
+                    return '#E53935'; // Rojo para la seleccionada
+                }
+                return '#875A7B'; // Morado para el resto
             });
+            const option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { show: false },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'value', boundaryGap: [0, 0.01] },
+                yAxis: {
+                    type: 'category',
+                    data: expByLineLabels
+                },
+                series: [{
+                    name: 'Unidades por Vencer',
+                    type: 'bar',
+                    label: { show: true, position: 'right' },
+                    data: expByLineData,
+                    itemStyle: {
+                        color: function(params) {
+                            return barColors[params.dataIndex % barColors.length];
+                        }
+                    }
+                }]
+            };
+            expByLineChart.setOption(option);
+            window.addEventListener('resize', () => { expByLineChart.resize(); });
         }
     });
 </script>
