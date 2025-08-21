@@ -148,9 +148,39 @@ class OdooManager:
 
             product_ids = list(set(quant['product_id'][0] for quant in stock_quants))
             lot_ids = list(set(quant['lot_id'][0] for quant in stock_quants if quant.get('lot_id')))
-            # Agregamos default_code para cod_articulo
-            product_fields = ['display_name', 'categ_id', 'commercial_line_national_id', 'default_code']
-            product_details = self.models.execute_kw(self.db, self.uid, self.password, 'product.product', 'read', [product_ids], {'fields': product_fields})
+            # Agregamos default_code, name y variantes para construir el nombre personalizado
+            product_fields = ['default_code', 'name', 'categ_id', 'commercial_line_national_id', 'product_template_variant_value_ids']
+            # Forzar idioma español (es_PE) en la consulta
+            try:
+                product_details = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'product.product', 'read', [product_ids],
+                    {'fields': product_fields, 'context': {'lang': 'es_PE'}}
+                )
+                print(f"[DEBUG] Productos obtenidos: {len(product_details)}")
+            except Exception as e:
+                print(f"[ERROR] Consulta productos Odoo: {e}")
+                product_details = []
+
+            # Inicializar all_variant_value_ids antes de usarlo
+            all_variant_value_ids = set()
+            if product_details:
+                for prod in product_details:
+                    all_variant_value_ids.update(prod.get('product_template_variant_value_ids', []))
+
+            # Forzar idioma español en variantes también
+            variant_value_map = {}
+            if all_variant_value_ids:
+                try:
+                    variant_value_details = self.models.execute_kw(
+                        self.db, self.uid, self.password, 'product.template.attribute.value', 'read',
+                        [list(all_variant_value_ids)], {'fields': ['name'], 'context': {'lang': 'es_PE'}}
+                    )
+                    print(f"[DEBUG] Variantes obtenidas: {len(variant_value_details)}")
+                    variant_value_map = {v['id']: v['name'] for v in variant_value_details}
+                except Exception as e:
+                    print(f"[ERROR] Consulta variantes Odoo: {e}")
+                    variant_value_map = {}
+
             product_map = {prod['id']: prod for prod in product_details}
             lot_map = {}
             if lot_ids:
@@ -175,13 +205,22 @@ class OdooManager:
                         months_to_expire = (exp_date_obj.year - today.year) * 12 + (exp_date_obj.month - today.month)
                     except ValueError:
                         formatted_exp_date = exp_date_str
+                # Construir nombre personalizado: [default_code] name (valores de variantes)
+                default_code = product_data.get('default_code', '')
+                name = product_data.get('name', '')
+                variant_ids = product_data.get('product_template_variant_value_ids', [])
+                variant_names = [variant_value_map.get(vid, '') for vid in variant_ids if variant_value_map.get(vid, '')]
+                if variant_names:
+                    nombre_producto = f"[{default_code}] {name} ({', '.join(variant_names)})"
+                else:
+                    nombre_producto = f"[{default_code}] {name}"
                 inventory_list.append({
                     'product_id': prod_id,
                     'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
                     'grupo_articulo': get_related_name(product_data.get('categ_id')),
                     'linea_comercial': get_related_name(product_data.get('commercial_line_national_id')),
-                    'cod_articulo': product_data.get('default_code', ''),
-                    'producto': product_data.get('display_name', ''),
+                    'cod_articulo': default_code,
+                    'producto': nombre_producto,
                     'lugar': get_related_name(quant.get('location_id')),
                     'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('available_quantity', 0):,.0f}",
