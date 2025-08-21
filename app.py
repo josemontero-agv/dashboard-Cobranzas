@@ -48,8 +48,33 @@ def export_excel_exportacion():
         return redirect(url_for('inventory_export'))
         
     df = pd.DataFrame([{k: v for k, v in item.items() if k not in ['product_id', 'grupo_articulo_id', 'linea_comercial_id']} for item in inventory_data])
+
+    # Formatear columnas numéricas y de fecha
+    if 'cantidad_disponible' in df.columns:
+        df['cantidad_disponible'] = pd.to_numeric(df['cantidad_disponible'].str.replace(',', ''), errors='coerce')
+    if 'fecha_expira' in df.columns:
+        df['fecha_expira'] = pd.to_datetime(df['fecha_expira'], format='%d-%m-%Y', errors='coerce')
+
     output = io.BytesIO()
-    df.to_excel(output, index=False, sheet_name='Inventario Exportacion')
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventario Exportacion')
+        ws = writer.sheets['Inventario Exportacion']
+        # Ajustar ancho de columnas automáticamente
+        for column_cells in ws.columns:
+            length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+            ws.column_dimensions[column_cells[0].column_letter].width = length + 2
+        # Formato para cantidades y fechas
+        from openpyxl.styles import numbers
+        if 'cantidad_disponible' in df.columns:
+            col_idx = df.columns.get_loc('cantidad_disponible') + 1
+            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2):
+                for c in cell:
+                    c.number_format = '#,##0'
+        if 'fecha_expira' in df.columns:
+            col_idx = df.columns.get_loc('fecha_expira') + 1
+            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2):
+                for c in cell:
+                    c.number_format = 'DD-MM-YYYY'
     output.seek(0)
 
     filename = f"inventario_exportacion_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.xlsx"
@@ -86,9 +111,33 @@ def export_excel():
     
     export_df_data = [{k: v for k, v in item.items() if k not in ['product_id', 'grupo_articulo_id', 'linea_comercial_id']} for item in inventory_data]
     df = pd.DataFrame(export_df_data)
+
+    # Formatear columnas numéricas y de fecha
+    if 'cantidad_disponible' in df.columns:
+        df['cantidad_disponible'] = pd.to_numeric(df['cantidad_disponible'].astype(str).str.replace(',', ''), errors='coerce')
+    if 'fecha_expira' in df.columns:
+        df['fecha_expira'] = pd.to_datetime(df['fecha_expira'], format='%d-%m-%Y', errors='coerce')
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Inventario')
+        ws = writer.sheets['Inventario']
+        # Ajustar ancho de columnas automáticamente
+        for column_cells in ws.columns:
+            length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+            ws.column_dimensions[column_cells[0].column_letter].width = length + 2
+        # Formato para cantidades y fechas
+        from openpyxl.styles import numbers
+        if 'cantidad_disponible' in df.columns:
+            col_idx = df.columns.get_loc('cantidad_disponible') + 1
+            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2):
+                for c in cell:
+                    c.number_format = '#,##0'
+        if 'fecha_expira' in df.columns:
+            col_idx = df.columns.get_loc('fecha_expira') + 1
+            for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2):
+                for c in cell:
+                    c.number_format = 'DD-MM-YYYY'
     output.seek(0)
     
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M")
