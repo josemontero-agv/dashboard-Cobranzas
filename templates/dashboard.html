@@ -8,7 +8,9 @@
 
 {% block content %}
 <header class="page-header">
-    <h1 class="page-title">Dashboard de Inventario</h1>
+    <h1 class="page-title">Dashboard de Inventario
+        <div id="datetime" style="font-size: 0.5em; color: #888; font-weight: normal; margin-top: 8px;"></div>
+    </h1>
     <div style="font-size: 0.95em; color: #888; margin-bottom: 8px;">
         Tiempo de respuesta backend: {{ backend_time }}
     </div>
@@ -20,7 +22,7 @@
 
 <div class="filter-bar">
     <form method="POST" action="{{ url_for('dashboard') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
+        <div class="filter-bar__content">
             <div>
                 <label for="category_id">Filtrar por Categoría</label>
                 <select name="category_id" id="category_id" class="form-control">
@@ -46,45 +48,58 @@
             <div>
                 <button type="submit" class="btn" style="background-color: white; color: var(--color-primary);">Filtrar</button>
             </div>
+            <div style="margin-left: auto;">
+                <button type="button" id="capture-btn" class="btn"><i class="bi bi-camera"></i> Capturar</button>
+            </div>
         </div>
     </form>
 </div>
 
-<div class="grid-container">
-    <div class="kpi-card">
-        <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
-            <h2 class="kpi-card__title">Productos Únicos</h2>
-            <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
-        </a>
-    </div>
-    <div class="kpi-card">
-        <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
-            <h2 class="kpi-card__title">Unidades Totales</h2>
-                <p class="kpi-card__value">{{ '{:,}'.format(data.kpi_total_quantity) }}</p>
-        </a>
-    </div>
-</div>
-
-
-<div class="grid-container" style="display: flex; gap: 24px;">
-    <!-- Gráfico de Pastel -->
-    <div class="chart-container rounded-card" style="flex: 1; min-width: 0; padding-bottom: 110px;">
-    <div id="expirationChart" style="height: 300px; width: 100%;"></div>
-    </div>
-    <!-- Gráfico de Barras Horizontales -->
-    <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
-        <h2 class="chart-title">Unidades por Vencer (0-3 Meses) por Línea Comercial</h2>
-    <div class="chart-wrapper" style="height: 300px;">
-            <div id="expiringByLineChart" style="height: 100%; width: 100%;"></div>
+<div class="scrollable-content">
+    <div class="grid-container">
+        <div class="kpi-card">
+            <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
+                <h2 class="kpi-card__title">Productos Únicos</h2>
+                <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
+            </a>
+        </div>
+        <div class="kpi-card">
+            <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id) }}">
+                <h2 class="kpi-card__title">Unidades Totales</h2>
+                    <p class="kpi-card__value">{{ '{:,}'.format(data.kpi_total_quantity) }}</p>
+            </a>
         </div>
     </div>
-</div>
 
-<!-- Gráfico de Barras Verticales debajo -->
-<div class="chart-container rounded-card" style="margin-top: 32px;">
-    <h2 class="chart-title">Top 5 Productos por Cantidad</h2>
-    <div class="chart-wrapper" style="height: 220px;">
-        <canvas id="stockChart"></canvas>
+
+    <div class="grid-container" style="display: flex; gap: 24px;">
+        <!-- Gráfico de Pastel -->
+        <div class="chart-container rounded-card" style="flex: 1; min-width: 0; padding-bottom: 110px;">
+        <div id="expirationChart" style="height: 300px; width: 100%;"></div>
+        </div>
+        <!-- Gráfico de Barras Horizontales -->
+        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
+            <h2 class="chart-title">Unidades por Vencer (0-3 Meses) por Línea Comercial</h2>
+        <div class="chart-wrapper" style="height: 300px;">
+                <div id="expiringByLineChart" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Barras Verticales para Productos por Vencer -->
+    <div class="chart-container rounded-card" style="margin-top: 32px;">
+        <h2 class="chart-title">Top 5 Productos por Vencer (0-3 Meses)</h2>
+        <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="expiringSoonChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico de Barras Verticales debajo -->
+    <div class="chart-container rounded-card" style="margin-top: 32px;">
+        <h2 class="chart-title">Top 5 Productos por Cantidad</h2>
+        <div class="chart-wrapper" style="height: 220px;">
+            <canvas id="stockChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -105,27 +120,94 @@
 <script type="application/json" id="chart-data-labels">{{ data.chart_labels | tojson | safe }}</script>
 <script type="application/json" id="chart-data-data">{{ data.chart_data | tojson | safe }}</script>
 <script type="application/json" id="chart-data-ids">{{ data.chart_ids | tojson | safe }}</script>
+<!-- Datos para nuevo gráfico (por vencer) -->
+<script type="application/json" id="expiring-soon-labels">{{ data.expiring_soon_labels | tojson | safe }}</script>
+<script type="application/json" id="expiring-soon-data">{{ data.expiring_soon_data | tojson | safe }}</script>
+<script type="application/json" id="expiring-soon-ids">{{ data.expiring_soon_ids | tojson | safe }}</script>
 <!-- Datos para gráfico de pastel (expiración) -->
 <script type="application/json" id="exp-chart-labels">{{ data.exp_chart_labels | tojson | safe }}</script>
 <script type="application/json" id="exp-chart-data">{{ data.exp_chart_data | tojson | safe }}</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Fecha y Hora
+        const now = new Date();
+        const formattedDateTime = now.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
+        document.getElementById('datetime').textContent = formattedDateTime;
+
+        // Captura de pantalla
+        document.getElementById('capture-btn').addEventListener('click', function () {
+            const { jsPDF } = window.jspdf;
+            const captureElement = document.querySelector('main');
+            document.body.classList.add('body--capturing');
+
+            html2canvas(captureElement, {
+                useCORS: true,
+                allowTaint: true,
+            }).then(canvas => {
+                document.body.classList.remove('body--capturing');
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'landscape',
+                    unit: 'px',
+                    format: [canvas.width, canvas.height]
+                });
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                
+                const date = new Date().toISOString().slice(0, 10);
+                pdf.save(`Dashboard_Inventario_${date}.pdf`);
+            });
+        });
+
         // Leer datos desde los bloques JSON
         var chartLabels = JSON.parse(document.getElementById('chart-data-labels').textContent);
         var chartData = JSON.parse(document.getElementById('chart-data-data').textContent);
         var chartIds = JSON.parse(document.getElementById('chart-data-ids').textContent);
+        // --- Gráfico de Barras (Top 5 por Vencer) ---
+        if (document.getElementById('expiringSoonChart')) {
+            const expiringSoonLabels = JSON.parse(document.getElementById('expiring-soon-labels').textContent);
+            const expiringSoonData = JSON.parse(document.getElementById('expiring-soon-data').textContent);
+            const expiringSoonIds = JSON.parse(document.getElementById('expiring-soon-ids').textContent);
+            const ctx = document.getElementById('expiringSoonChart').getContext('2d');
+            const expiringSoonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: expiringSoonLabels,
+                    datasets: [{
+                        label: 'Cantidad por Vencer',
+                        data: expiringSoonData,
+                        productIds: expiringSoonIds,
+                        backgroundColor: '#E53935', // Red color
+                        borderColor: '#E53935',
+                        borderRadius: 4,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    animation: { duration: 0 },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } },
+                    onClick: (event) => {
+                        const points = expiringSoonChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        if (points.length) {
+                            const firstPoint = points[0];
+                            const productId = expiringSoonChart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
+                            const url = new URL("{{ url_for('inventory', _external=True) }}");
+                            url.searchParams.set('product_id', productId);
+                            window.location.href = url.toString();
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
         // --- Gráfico de Barras (Top 5) ---
         if (document.getElementById('stockChart')) {
             const ctx = document.getElementById('stockChart').getContext('2d');
-            // Odoo Theme palette
-            const odooColors = [
-                '#875A7B', // Violeta Odoo
-                '#5B9BD5', // Azul Odoo
-                '#7AC143', // Verde Odoo
-                '#F7CA18', // Amarillo Odoo
-                '#F0F0F0', // Gris claro
-                '#434343'  // Gris oscuro
-            ];
             const stockChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -141,6 +223,7 @@
                     }]
                 },
                 options: {
+                    animation: { duration: 0 }, // Desactiva la animación
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true } },
@@ -164,25 +247,23 @@
 
         // --- Gráfico de Pastel (Análisis de Vencimiento) ---
         if (document.getElementById('expirationChart')) {
-            // Leer datos desde los bloques JSON
             var expChartLabels = JSON.parse(document.getElementById('exp-chart-labels').textContent);
             var expChartData = JSON.parse(document.getElementById('exp-chart-data').textContent);
-            // Construir el array de objetos para ECharts
             var echartsData = expChartLabels.map(function(label, i) {
                 return { value: expChartData[i], name: label };
             });
             const expChartDom = document.getElementById('expirationChart');
             const expChart = echarts.init(expChartDom);
             const totalUnidades = expChartData.reduce((a, b) => a + b, 0);
-            // Asignar colores personalizados según el label
             const pastelColors = echartsData.map(d => {
-                if (d.name.match(/0-3/i)) return '#E53935'; // Rojo para 0-3 meses
-                if (d.name.match(/12.*más|largo/i)) return '#875A7B'; // Morado para 12 meses a más o largo plazo
-                if (d.name.match(/advertencia/i)) return '#F7CA18'; // Amarillo para advertencia
-                if (d.name.match(/ok/i)) return '#7AC143'; // Verde para OK
-                return '#5B9BD5'; // Azul para otros
+                if (d.name.match(/0-3/i)) return '#E53935';
+                if (d.name.match(/12.*más|largo/i)) return '#875A7B';
+                if (d.name.match(/advertencia/i)) return '#F7CA18';
+                if (d.name.match(/ok/i)) return '#7AC143';
+                return '#5B9BD5';
             });
             const option = {
+                animation: false, // Desactiva la animación
                 title: {
                     text: totalUnidades.toLocaleString('es-PE'),
                     subtext: 'Unidades Totales',
@@ -232,14 +313,11 @@
 
         // --- NUEVO Gráfico de Barras Horizontales (Vencimiento por Línea) ---
         if (document.getElementById('expiringByLineChart')) {
-            // Leer datos desde los bloques JSON
             var expByLineLabels = JSON.parse(document.getElementById('exp-by-line-labels').textContent);
             var expByLineData = JSON.parse(document.getElementById('exp-by-line-data').textContent);
             const expByLineDom = document.getElementById('expiringByLineChart');
             const expByLineChart = echarts.init(expByLineDom);
-            // Barra de la línea seleccionada en rojo, el resto en morado
             var selectedLineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
-            // Buscar el nombre de la línea seleccionada en el combo
             var selectedLineaName = null;
             var lineaSelect = document.getElementById('linea_id');
             if (lineaSelect && selectedLineaId) {
@@ -248,14 +326,14 @@
                     selectedLineaName = selectedOption.textContent.trim();
                 }
             }
-            // Compara por nombre de línea
             const barColors = expByLineLabels.map(label => {
                 if (selectedLineaName && String(label).trim() === selectedLineaName) {
-                    return '#E53935'; // Rojo para la seleccionada
+                    return '#E53935';
                 }
-                return '#875A7B'; // Morado para el resto
+                return '#875A7B';
             });
             const option = {
+                animation: false, // Desactiva la animación
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                 legend: { show: false },
                 grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },

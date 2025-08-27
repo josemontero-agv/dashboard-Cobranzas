@@ -1,5 +1,4 @@
 from functools import lru_cache
-from functools import lru_cache
 # odoo_manager.py
 
 import xmlrpc.client
@@ -22,7 +21,7 @@ class OdooManager:
         # --- Lógica original de get_dashboard_data aquí ---
         inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
         if not inventory:
-            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': []}
+            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': [], 'expiring_soon_labels': [], 'expiring_soon_data': [], 'expiring_soon_ids': []}
 
         if linea_id:
             filtered_inventory = [item for item in inventory if item.get('linea_comercial') and str(item.get('linea_comercial')) == str(self.get_linea_name(linea_id))]
@@ -46,6 +45,25 @@ class OdooManager:
                 except Exception:
                     pass
         sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
+
+        # --- NEW LOGIC for "Top 5 Productos por Vencer (0-3 Meses)" ---
+        expiring_soon_products = [
+            item for item in filtered_inventory 
+            if item.get('meses_expira') is not None and 0 <= item['meses_expira'] <= 3
+        ]
+
+        expiring_soon_totals = {}
+        for item in expiring_soon_products:
+            product_name = item['producto']
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
+            product_id = item.get('product_id', 0)
+            if product_name in expiring_soon_totals:
+                expiring_soon_totals[product_name]['quantity'] += quantity
+            else:
+                expiring_soon_totals[product_name] = {'quantity': quantity, 'id': product_id}
+        
+        sorted_expiring_soon = sorted(expiring_soon_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
+        # --- END NEW LOGIC ---
 
         exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
 
@@ -85,8 +103,31 @@ class OdooManager:
             'exp_chart_labels': list(exp_stats_filtered.keys()),
             'exp_chart_data': list(exp_stats_filtered.values()),
             'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
-            'exp_by_line_data': [item[1] for item in sorted_exp_by_line]
+            'exp_by_line_data': [item[1] for item in sorted_exp_by_line],
+            'expiring_soon_labels': [p[0] for p in sorted_expiring_soon],
+            'expiring_soon_data': [p[1]['quantity'] for p in sorted_expiring_soon],
+            'expiring_soon_ids': [p[1]['id'] for p in sorted_expiring_soon]
         }
+
+    @staticmethod
+    def _get_related_name(data):
+        """Extrae el nombre de una tupla de relación de Odoo (id, 'nombre')."""
+        return data[1] if isinstance(data, list) and len(data) > 1 else ''
+
+    @staticmethod
+    def _process_expiration_date(exp_date_str):
+        """Procesa una cadena de fecha de expiración y calcula los meses restantes."""
+        if not exp_date_str:
+            return '', None
+        try:
+            date_part = exp_date_str.split(' ')[0]
+            exp_date_obj = datetime.strptime(date_part, '%Y-%m-%d')
+            formatted_exp_date = exp_date_obj.strftime('%d-%m-%Y')
+            today = datetime.now()
+            return formatted_exp_date, (exp_date_obj.year - today.year) * 12 + (exp_date_obj.month - today.month)
+        except (ValueError, TypeError):
+            return exp_date_str, None
+
     def __init__(self):
         self.url = os.getenv('ODOO_URL')
         self.db = os.getenv('ODOO_DB')
@@ -103,11 +144,11 @@ class OdooManager:
             if self.uid:
                 self.models = xmlrpc.client.ServerProxy(models_url)
                 self.is_connected = True
-                print("✅ Conexión principal a Odoo establecida con xmlrpc.client.")
+                print("Conexión principal a Odoo establecida con xmlrpc.client.")
             else:
-                 print("❌ Error de autenticación en la conexión principal.")
+                 print("Error de autenticación en la conexión principal.")
         except Exception as e:
-            print(f"❌ Error en la conexión principal a Odoo: {e}")
+            print(f"Error en la conexión principal a Odoo: {e}")
 
     def authenticate_user(self, username, password):
         if not self.is_connected: return False
@@ -149,8 +190,8 @@ class OdooManager:
             product_ids = list(set(quant['product_id'][0] for quant in stock_quants))
             lot_ids = list(set(quant['lot_id'][0] for quant in stock_quants if quant.get('lot_id')))
             # Agregamos default_code, name y variantes para construir el nombre personalizado
-            product_fields = ['default_code', 'name', 'categ_id', 'commercial_line_national_id', 'product_template_variant_value_ids']
-            # Forzar idioma español (es_PE) en la consulta
+            # **MEJORA**: Usamos display_name para obtener el nombre completo del producto, simplificando el código.
+            product_fields = ['display_name', 'default_code', 'categ_id', 'commercial_line_national_id']
             try:
                 product_details = self.models.execute_kw(
                     self.db, self.uid, self.password, 'product.product', 'read', [product_ids],
@@ -160,26 +201,6 @@ class OdooManager:
             except Exception as e:
                 print(f"[ERROR] Consulta productos Odoo: {e}")
                 product_details = []
-
-            # Inicializar all_variant_value_ids antes de usarlo
-            all_variant_value_ids = set()
-            if product_details:
-                for prod in product_details:
-                    all_variant_value_ids.update(prod.get('product_template_variant_value_ids', []))
-
-            # Forzar idioma español en variantes también
-            variant_value_map = {}
-            if all_variant_value_ids:
-                try:
-                    variant_value_details = self.models.execute_kw(
-                        self.db, self.uid, self.password, 'product.template.attribute.value', 'read',
-                        [list(all_variant_value_ids)], {'fields': ['name'], 'context': {'lang': 'es_PE'}}
-                    )
-                    print(f"[DEBUG] Variantes obtenidas: {len(variant_value_details)}")
-                    variant_value_map = {v['id']: v['name'] for v in variant_value_details}
-                except Exception as e:
-                    print(f"[ERROR] Consulta variantes Odoo: {e}")
-                    variant_value_map = {}
 
             product_map = {prod['id']: prod for prod in product_details}
             lot_map = {}
@@ -192,36 +213,19 @@ class OdooManager:
                 prod_id = quant['product_id'][0]
                 product_data = product_map.get(prod_id, {})
                 lot_data = lot_map.get(quant.get('lot_id', [0])[0]) if quant.get('lot_id') else {}
-                def get_related_name(data):
-                    return data[1] if isinstance(data, list) and len(data) > 1 else ''
-                exp_date_str = lot_data.get('expiration_date', '')
-                formatted_exp_date, months_to_expire = '', None
-                if exp_date_str:
-                    try:
-                        date_part = exp_date_str.split(' ')[0]
-                        exp_date_obj = datetime.strptime(date_part, '%Y-%m-%d')
-                        formatted_exp_date = exp_date_obj.strftime('%d-%m-%Y')
-                        today = datetime.now()
-                        months_to_expire = (exp_date_obj.year - today.year) * 12 + (exp_date_obj.month - today.month)
-                    except ValueError:
-                        formatted_exp_date = exp_date_str
-                # Construir nombre personalizado: [default_code] name (valores de variantes)
-                default_code = product_data.get('default_code', '')
-                name = product_data.get('name', '')
-                variant_ids = product_data.get('product_template_variant_value_ids', [])
-                variant_names = [variant_value_map.get(vid, '') for vid in variant_ids if variant_value_map.get(vid, '')]
-                if variant_names:
-                    nombre_producto = f"[{default_code}] {name} ({', '.join(variant_names)})"
-                else:
-                    nombre_producto = f"[{default_code}] {name}"
+
+                # **REFACTOR**: Usamos los nuevos métodos helper para procesar datos.
+                exp_date_str = lot_data.get('expiration_date')
+                formatted_exp_date, months_to_expire = self._process_expiration_date(exp_date_str)
+
                 inventory_list.append({
                     'product_id': prod_id,
                     'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
-                    'grupo_articulo': get_related_name(product_data.get('categ_id')),
-                    'linea_comercial': get_related_name(product_data.get('commercial_line_national_id')),
-                    'cod_articulo': default_code,
-                    'producto': nombre_producto,
-                    'lugar': get_related_name(quant.get('location_id')),
+                    'grupo_articulo': self._get_related_name(product_data.get('categ_id')),
+                    'linea_comercial': self._get_related_name(product_data.get('commercial_line_national_id')),
+                    'cod_articulo': product_data.get('default_code', ''),
+                    'producto': product_data.get('display_name', ''),
+                    'lugar': self._get_related_name(quant.get('location_id')),
                     'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('available_quantity', 0):,.0f}",
                     'meses_expira': months_to_expire
@@ -271,27 +275,20 @@ class OdooManager:
                 prod_id = quant['product_id'][0]
                 product_data = product_map.get(prod_id, {})
                 lot_data = lot_map.get(quant.get('lot_id', [0])[0]) if quant.get('lot_id') else {}
-                def get_related_name(data):
-                    return data[1] if isinstance(data, list) and len(data) > 1 else ''
-                exp_date_str = lot_data.get('expiration_date', '')
-                formatted_exp_date, months_to_expire = '', None
-                if exp_date_str:
-                    try:
-                        date_part = exp_date_str.split(' ')[0]
-                        exp_date_obj = datetime.strptime(date_part, '%Y-%m-%d')
-                        formatted_exp_date = exp_date_obj.strftime('%d-%m-%Y')
-                        today = datetime.now()
-                        months_to_expire = (exp_date_obj.year - today.year) * 12 + (exp_date_obj.month - today.month)
-                    except ValueError:
-                        formatted_exp_date = exp_date_str
-                
+
+                # **REFACTOR**: Usamos los nuevos métodos helper para procesar datos.
+                exp_date_str = lot_data.get('expiration_date')
+                formatted_exp_date, months_to_expire = self._process_expiration_date(exp_date_str)
+
                 inventory_list.append({
                     'product_id': prod_id, 'grupo_articulo_id': product_data.get('categ_id', [0, ''])[0],
-                    'grupo_articulo': get_related_name(product_data.get('categ_id')),
-                    'linea_comercial': get_related_name(product_data.get('commercial_line_international_id')),
+                    'grupo_articulo': self._get_related_name(product_data.get('categ_id')),
+                    'linea_comercial': self._get_related_name(product_data.get('commercial_line_international_id')),
                     'cod_articulo': product_data.get('default_code', ''), 'producto': product_data.get('display_name', ''),
-                    'um': get_related_name(quant.get('product_uom_id')), 'lugar': get_related_name(quant.get('location_id')),
-                    'lote': get_related_name(quant.get('lot_id')), 'fecha_expira': formatted_exp_date,
+                    'um': self._get_related_name(quant.get('product_uom_id')),
+                    'lugar': self._get_related_name(quant.get('location_id')),
+                    'lote': self._get_related_name(quant.get('lot_id')),
+                    'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('inventory_quantity_auto_apply', 0):,.0f}",
                     'meses_expira': months_to_expire
                 })
@@ -342,80 +339,6 @@ class OdooManager:
         except Exception as e:
             print(f"Error al obtener opciones de filtro: {e}")
             return {'grupos': [], 'lineas': [], 'lugares': []}
-            
-    def get_dashboard_data(self, category_id=None, linea_id=None):
-        # 1. Obtener inventario solo una vez (sin filtrar por línea)
-        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
-        if not inventory:
-            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': []}
-
-        # 2. Filtrar en memoria para KPIs y gráficos principales (si hay filtro de línea)
-        if linea_id:
-            filtered_inventory = [item for item in inventory if item.get('linea_comercial') and str(item.get('linea_comercial')) == str(self.get_linea_name(linea_id))]
-        else:
-            filtered_inventory = inventory
-
-        # KPIs y gráficos principales (filtrados)
-        product_totals = {}
-        for item in filtered_inventory:
-            product_name, quantity, product_id = item['producto'], float(item['cantidad_disponible'].replace(',', '')), item.get('product_id', 0)
-            if product_name in product_totals:
-                product_totals[product_name]['quantity'] += quantity
-            else:
-                product_totals[product_name] = {'quantity': quantity, 'id': product_id}
-
-        total_products = len(product_totals)
-        # Solo sumar cantidades de productos con fecha de expiración definida
-        total_quantity = 0
-        for item in filtered_inventory:
-            if item.get('fecha_expira'):
-                try:
-                    total_quantity += float(item['cantidad_disponible'].replace(',', ''))
-                except Exception:
-                    pass
-        sorted_products = sorted(product_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
-
-        exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
-
-        for item in filtered_inventory:
-            meses = item.get('meses_expira')
-            quantity = float(item['cantidad_disponible'].replace(',', ''))
-            if meses is not None:
-                if 0 <= meses <= 3:
-                    exp_stats["Por Vencer (0-3)"] += quantity
-                elif 4 <= meses <= 7:
-                    exp_stats["Advertencia (4-7)"] += quantity
-                elif 8 <= meses <= 12:
-                    exp_stats["OK (8-12)"] += quantity
-                else:
-                    exp_stats["Largo Plazo (>12)"] += quantity
-
-        exp_stats_filtered = {k: v for k, v in exp_stats.items() if v > 0}
-
-        # Gráfico horizontal: SIEMPRE todas las líneas (no filtrado por línea)
-        exp_by_line = {}
-        for item in inventory:
-            meses = item.get('meses_expira')
-            quantity = float(item['cantidad_disponible'].replace(',', ''))
-            linea = item.get('linea_comercial')
-            if meses is not None and 0 <= meses <= 3:
-                if linea:
-                    exp_by_line[linea] = exp_by_line.get(linea, 0) + quantity
-
-        sorted_exp_by_line = sorted(exp_by_line.items(), key=lambda x: x[1], reverse=True)
-
-        return {
-            'kpi_total_products': total_products,
-            'kpi_total_quantity': int(total_quantity),
-            'chart_labels': [p[0] for p in sorted_products],
-            'chart_data': [p[1]['quantity'] for p in sorted_products],
-            'chart_ids': [p[1]['id'] for p in sorted_products],
-            'kpi_vence_pronto': int(exp_stats["Por Vencer (0-3)"]),
-            'exp_chart_labels': list(exp_stats_filtered.keys()),
-            'exp_chart_data': list(exp_stats_filtered.values()),
-            'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
-            'exp_by_line_data': [item[1] for item in sorted_exp_by_line]
-        }
 
     def get_linea_name(self, linea_id):
         # Busca el nombre de la línea comercial dado su ID (para filtrar en memoria)

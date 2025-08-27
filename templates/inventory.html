@@ -4,11 +4,11 @@
 <header class="page-header">
     <h1 class="page-title">Inventario de Stock</h1>
     <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('inventory_export') }}" class="btn">Inv. Exportación</a>
-        <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a>
-        <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn btn--excel">
+        <!-- <a href="{{ url_for('inventory_export') }}" class="btn">Inv. Exportación</a> -->
+        <a href="{{ url_for('dashboard') }}" class="btn">Ver Dashboard</a> 
+        <!-- <a href="{{ url_for('export_excel', **selected_filters) }}" class="btn btn--excel">
             <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
-        </a>
+        </a>-->
         <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
     </div>
 </header>

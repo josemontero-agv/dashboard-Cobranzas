@@ -148,9 +148,15 @@ def export_excel():
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
     if 'username' not in session: return redirect(url_for('login'))
-    
-    selected_category_id = request.form.get('category_id', type=int)
-    selected_linea_id = request.form.get('linea_id', type=int)
+
+    if request.method == 'POST':
+        return redirect(url_for('dashboard', 
+            category_id=request.form.get('category_id'),
+            linea_id=request.form.get('linea_id')
+        ))
+
+    selected_category_id = request.args.get('category_id', type=int)
+    selected_linea_id = request.args.get('linea_id', type=int)
 
     import time
     start_time = time.time()
@@ -207,13 +213,22 @@ def inventory():
     
     filter_options = data_manager.get_filter_options()
     
-    selected_filters = {
-        'search_term': request.values.get('search_term'),
-        'product_id': request.values.get('product_id', type=int),
-        'grupo_id': request.values.get('grupo_id', type=int),
-        'linea_id': request.values.get('linea_id', type=int),
-        'lugar_id': request.values.get('lugar_id', type=int)
-    }
+    if request.method == 'POST':
+        selected_filters = {
+            'search_term': request.form.get('search_term'),
+            'product_id': request.form.get('product_id', type=int),
+            'grupo_id': request.form.get('grupo_id', type=int),
+            'linea_id': request.form.get('linea_id', type=int),
+            'lugar_id': request.form.get('lugar_id', type=int)
+        }
+    else: # GET request
+        selected_filters = {
+            'search_term': request.args.get('search_term'),
+            'product_id': request.args.get('product_id', type=int),
+            'grupo_id': request.args.get('grupo_id', type=int),
+            'linea_id': request.args.get('linea_id', type=int),
+            'lugar_id': request.args.get('lugar_id', type=int)
+        }
 
     stock_data = data_manager.get_stock_inventory(**selected_filters)
 
