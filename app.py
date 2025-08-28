@@ -152,17 +152,20 @@ def dashboard():
     if request.method == 'POST':
         return redirect(url_for('dashboard', 
             category_id=request.form.get('category_id'),
-            linea_id=request.form.get('linea_id')
+            linea_id=request.form.get('linea_id'),
+            lugar_id=request.form.get('lugar_id')
         ))
 
     selected_category_id = request.args.get('category_id', type=int)
     selected_linea_id = request.args.get('linea_id', type=int)
+    selected_lugar_id = request.args.get('lugar_id', type=int)
 
     import time
     start_time = time.time()
     dashboard_data = data_manager.get_dashboard_data(
         category_id=selected_category_id,
-        linea_id=selected_linea_id
+        linea_id=selected_linea_id,
+        lugar_id=selected_lugar_id
     )
     elapsed = time.time() - start_time
     
@@ -170,6 +173,7 @@ def dashboard():
     filter_options = data_manager.get_filter_options()
     available_categories = filter_options.get('grupos', [])
     available_lineas = filter_options.get('lineas', [])
+    available_lugares = filter_options.get('lugares', [])
 
     if not dashboard_data:
         flash('No hay datos de inventario para mostrar en el dashboard.', 'warning')
@@ -179,8 +183,10 @@ def dashboard():
         data=dashboard_data, 
         categories=available_categories, 
         lineas=available_lineas,
+        lugares=available_lugares,
         selected_category_id=selected_category_id,
         selected_linea_id=selected_linea_id,
+        selected_lugar_id=selected_lugar_id,
         backend_time=f"{elapsed:.3f} s"
     )
 

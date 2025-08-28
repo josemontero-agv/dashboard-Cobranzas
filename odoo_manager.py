@@ -9,17 +9,17 @@ from datetime import datetime, timedelta
 class OdooManager:
     # Caché simple para dashboard (máx 32 combinaciones de filtros)
     @lru_cache(maxsize=32)
-    def _cached_dashboard_data(self, category_id, linea_id):
+    def _cached_dashboard_data(self, category_id, linea_id, lugar_id):
         # category_id y linea_id deben ser hashables (usar None o int)
-        return self._get_dashboard_data_internal(category_id, linea_id)
+        return self._get_dashboard_data_internal(category_id, linea_id, lugar_id)
 
-    def get_dashboard_data(self, category_id=None, linea_id=None):
+    def get_dashboard_data(self, category_id=None, linea_id=None, lugar_id=None):
         # Usar caché para evitar consultas repetidas
-        return self._cached_dashboard_data(category_id, linea_id)
+        return self._cached_dashboard_data(category_id, linea_id, lugar_id)
 
-    def _get_dashboard_data_internal(self, category_id=None, linea_id=None):
+    def _get_dashboard_data_internal(self, category_id=None, linea_id=None, lugar_id=None):
         # --- Lógica original de get_dashboard_data aquí ---
-        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None)
+        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None, lugar_id=lugar_id)
         if not inventory:
             return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': [], 'expiring_soon_labels': [], 'expiring_soon_data': [], 'expiring_soon_ids': []}
 
