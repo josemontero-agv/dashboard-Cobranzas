@@ -240,13 +240,15 @@ def inventory():
 
     exp_status = request.args.get('exp_status')
     if exp_status and stock_data:
-        if exp_status == 'vence_pronto':
+        if exp_status == '0-3':
             stock_data = [item for item in stock_data if item['meses_expira'] is not None and 0 <= item['meses_expira'] <= 3]
-        elif exp_status == 'advertencia':
-            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 4 <= item['meses_expira'] <= 7]
-        elif exp_status == 'ok':
-            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 8 <= item['meses_expira'] <= 12]
-        elif exp_status == 'largo_plazo':
+        elif exp_status == '3-6':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 3 < item['meses_expira'] <= 6]
+        elif exp_status == '6-9':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 6 < item['meses_expira'] <= 9]
+        elif exp_status == '9-12':
+            stock_data = [item for item in stock_data if item['meses_expira'] is not None and 9 < item['meses_expira'] <= 12]
+        elif exp_status == '>12':
             stock_data = [item for item in stock_data if item['meses_expira'] is not None and item['meses_expira'] > 12]
     
     selected_filters['exp_status'] = exp_status

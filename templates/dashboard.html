@@ -87,6 +87,23 @@
         </div>
     </div>
 
+    <div class="grid-container" style="display: flex; gap: 24px; margin-top: 32px;">
+        <!-- Gráfico de Barras Verticales por Línea Comercial -->
+        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
+            <h2 class="chart-title">Stock por Línea Comercial</h2>
+            <div class="chart-wrapper" style="height: 220px;">
+                <canvas id="stockByLineChart"></canvas>
+            </div>
+        </div>
+        <!-- Gráfico de Barras Verticales por Categoría -->
+        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
+            <h2 class="chart-title">Stock por Categoría</h2>
+            <div class="chart-wrapper" style="height: 220px;">
+                <canvas id="stockByCategoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
 
     <div class="grid-container" style="display: flex; gap: 24px;">
         <!-- Gráfico de Pastel -->
@@ -143,6 +160,11 @@
 <!-- Datos para gráfico de pastel (expiración) -->
 <script type="application/json" id="exp-chart-labels">{{ data.exp_chart_labels | tojson | safe }}</script>
 <script type="application/json" id="exp-chart-data">{{ data.exp_chart_data | tojson | safe }}</script>
+<!-- Datos para nuevos gráficos de stock -->
+<script type="application/json" id="category-stock-labels">{{ data.category_stock_labels | tojson | safe }}</script>
+<script type="application/json" id="category-stock-data">{{ data.category_stock_data | tojson | safe }}</script>
+<script type="application/json" id="line-stock-labels">{{ data.line_stock_labels | tojson | safe }}</script>
+<script type="application/json" id="line-stock-data">{{ data.line_stock_data | tojson | safe }}</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Fecha y Hora
@@ -178,6 +200,62 @@
         var chartLabels = JSON.parse(document.getElementById('chart-data-labels').textContent);
         var chartData = JSON.parse(document.getElementById('chart-data-data').textContent);
         var chartIds = JSON.parse(document.getElementById('chart-data-ids').textContent);
+        // --- Gráfico de Barras (Stock por Categoría) ---
+        if (document.getElementById('stockByCategoryChart')) {
+            const categoryStockLabels = JSON.parse(document.getElementById('category-stock-labels').textContent);
+            const categoryStockData = JSON.parse(document.getElementById('category-stock-data').textContent);
+            const ctx = document.getElementById('stockByCategoryChart').getContext('2d');
+            const stockByCategoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryStockLabels,
+                    datasets: [{
+                        label: 'Cantidad en Stock',
+                        data: categoryStockData,
+                        backgroundColor: '#875A7B',
+                        borderColor: '#875A7B',
+                        borderRadius: 4,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    animation: { duration: 0 },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- Gráfico de Barras (Stock por Línea Comercial) ---
+        if (document.getElementById('stockByLineChart')) {
+            const lineStockLabels = JSON.parse(document.getElementById('line-stock-labels').textContent);
+            const lineStockData = JSON.parse(document.getElementById('line-stock-data').textContent);
+            const ctx = document.getElementById('stockByLineChart').getContext('2d');
+            const stockByLineChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: lineStockLabels,
+                    datasets: [{
+                        label: 'Cantidad en Stock',
+                        data: lineStockData,
+                        backgroundColor: '#875A7B',
+                        borderColor: '#875A7B',
+                        borderRadius: 4,
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    animation: { duration: 0 },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
         // --- Gráfico de Barras (Top 5 por Vencer) ---
         if (document.getElementById('expiringSoonChart')) {
             const expiringSoonLabels = JSON.parse(document.getElementById('expiring-soon-labels').textContent);
@@ -272,10 +350,11 @@
             const expChart = echarts.init(expChartDom);
             const totalUnidades = expChartData.reduce((a, b) => a + b, 0);
             const pastelColors = echartsData.map(d => {
-                if (d.name.match(/0-3/i)) return '#E53935';
-                if (d.name.match(/12.*más|largo/i)) return '#875A7B';
-                if (d.name.match(/advertencia/i)) return '#F7CA18';
-                if (d.name.match(/ok/i)) return '#7AC143';
+                if (d.name.match(/0-3/i)) return 'red';
+                if (d.name.match(/3-6/i)) return '#FFBF00';
+                if (d.name.match(/6-9/i)) return 'yellow';
+                if (d.name.match(/9-12/i)) return 'grey';
+                if (d.name.match(/>12/i)) return 'green';
                 return '#5B9BD5';
             });
             const option = {
@@ -310,10 +389,11 @@
             expChart.on('click', function (params) {
                 const label = params.name;
                 let status = '';
-                if (label.startsWith('Por Vencer')) { status = 'vence_pronto'; }
-                else if (label.startsWith('Advertencia')) { status = 'advertencia'; }
-                else if (label.startsWith('OK')) { status = 'ok'; }
-                else if (label.startsWith('Largo Plazo')) { status = 'largo_plazo'; }
+                if (label.startsWith('0-3')) { status = '0-3'; }
+                else if (label.startsWith('3-6')) { status = '3-6'; }
+                else if (label.startsWith('6-9')) { status = '6-9'; }
+                else if (label.startsWith('9-12')) { status = '9-12'; }
+                else if (label.startsWith('>12')) { status = '>12'; }
                 if (status) {
                     const url = new URL("{{ url_for('inventory', _external=True) }}");
                     url.searchParams.set('exp_status', status);

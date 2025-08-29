@@ -19,14 +19,11 @@ class OdooManager:
 
     def _get_dashboard_data_internal(self, category_id=None, linea_id=None, lugar_id=None):
         # --- Lógica original de get_dashboard_data aquí ---
-        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=None, lugar_id=lugar_id)
+        inventory = self.get_stock_inventory(grupo_id=category_id, linea_id=linea_id, lugar_id=lugar_id)
         if not inventory:
-            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': [], 'expiring_soon_labels': [], 'expiring_soon_data': [], 'expiring_soon_ids': []}
+            return {'kpi_total_products': 0, 'kpi_total_quantity': 0, 'chart_labels': [], 'chart_ids': [], 'chart_data': [], 'kpi_vence_pronto': 0, 'exp_chart_labels': [], 'exp_chart_data': [], 'exp_by_line_labels': [], 'exp_by_line_data': [], 'expiring_soon_labels': [], 'expiring_soon_data': [], 'expiring_soon_ids': [], 'category_stock_labels': [], 'category_stock_data': [], 'line_stock_labels': [], 'line_stock_data': []}
 
-        if linea_id:
-            filtered_inventory = [item for item in inventory if item.get('linea_comercial') and str(item.get('linea_comercial')) == str(self.get_linea_name(linea_id))]
-        else:
-            filtered_inventory = inventory
+        filtered_inventory = inventory
 
         product_totals = {}
         for item in filtered_inventory:
@@ -65,20 +62,22 @@ class OdooManager:
         sorted_expiring_soon = sorted(expiring_soon_totals.items(), key=lambda x: x[1]['quantity'], reverse=True)[:5]
         # --- END NEW LOGIC ---
 
-        exp_stats = {"Por Vencer (0-3)": 0, "Advertencia (4-7)": 0, "OK (8-12)": 0, "Largo Plazo (>12)": 0}
+        exp_stats = {"0-3 Meses": 0, "3-6 Meses": 0, "6-9 Meses": 0, "9-12 Meses": 0, ">12 Meses": 0}
 
         for item in filtered_inventory:
             meses = item.get('meses_expira')
             quantity = float(item['cantidad_disponible'].replace(',', ''))
             if meses is not None:
                 if 0 <= meses <= 3:
-                    exp_stats["Por Vencer (0-3)"] += quantity
-                elif 4 <= meses <= 7:
-                    exp_stats["Advertencia (4-7)"] += quantity
-                elif 8 <= meses <= 12:
-                    exp_stats["OK (8-12)"] += quantity
-                else:
-                    exp_stats["Largo Plazo (>12)"] += quantity
+                    exp_stats["0-3 Meses"] += quantity
+                elif 3 < meses <= 6:
+                    exp_stats["3-6 Meses"] += quantity
+                elif 6 < meses <= 9:
+                    exp_stats["6-9 Meses"] += quantity
+                elif 9 < meses <= 12:
+                    exp_stats["9-12 Meses"] += quantity
+                elif meses > 12:
+                    exp_stats[">12 Meses"] += quantity
 
         exp_stats_filtered = {k: v for k, v in exp_stats.items() if v > 0}
 
@@ -93,20 +92,40 @@ class OdooManager:
 
         sorted_exp_by_line = sorted(exp_by_line.items(), key=lambda x: x[1], reverse=True)
 
+        # --- NEW LOGIC for stock by category and line ---
+        stock_by_category = {}
+        stock_by_line = {}
+        for item in filtered_inventory:
+            category = item.get('grupo_articulo')
+            linea = item.get('linea_comercial')
+            quantity = float(item['cantidad_disponible'].replace(',', ''))
+            if category:
+                stock_by_category[category] = stock_by_category.get(category, 0) + quantity
+            if linea:
+                stock_by_line[linea] = stock_by_line.get(linea, 0) + quantity
+        
+        sorted_stock_by_category = sorted(stock_by_category.items(), key=lambda x: x[1], reverse=True)
+        sorted_stock_by_line = sorted(stock_by_line.items(), key=lambda x: x[1], reverse=True)
+        # --- END NEW LOGIC ---
+
         return {
             'kpi_total_products': total_products,
             'kpi_total_quantity': int(total_quantity),
             'chart_labels': [p[0] for p in sorted_products],
             'chart_data': [p[1]['quantity'] for p in sorted_products],
             'chart_ids': [p[1]['id'] for p in sorted_products],
-            'kpi_vence_pronto': int(exp_stats["Por Vencer (0-3)"]),
+            'kpi_vence_pronto': int(exp_stats.get("0-3 Meses", 0)),
             'exp_chart_labels': list(exp_stats_filtered.keys()),
             'exp_chart_data': list(exp_stats_filtered.values()),
             'exp_by_line_labels': [item[0] for item in sorted_exp_by_line],
             'exp_by_line_data': [item[1] for item in sorted_exp_by_line],
             'expiring_soon_labels': [p[0] for p in sorted_expiring_soon],
             'expiring_soon_data': [p[1]['quantity'] for p in sorted_expiring_soon],
-            'expiring_soon_ids': [p[1]['id'] for p in sorted_expiring_soon]
+            'expiring_soon_ids': [p[1]['id'] for p in sorted_expiring_soon],
+            'category_stock_labels': [item[0] for item in sorted_stock_by_category],
+            'category_stock_data': [item[1] for item in sorted_stock_by_category],
+            'line_stock_labels': [item[0] for item in sorted_stock_by_line],
+            'line_stock_data': [item[1] for item in sorted_stock_by_line]
         }
 
     @staticmethod

@@ -89,9 +89,13 @@
                 <td>{{ item.lugar }}</td>
                 <td class="col-no-wrap">{{ item.fecha_expira }}</td>
                 <td class="text-">{{ item.cantidad_disponible }}</td>
-                {% set meses = item.meses_expira %}
+                                {% set meses = item.meses_expira %}
                 {% set status_class = '' %}
-                {% if meses is not none and 0 <= meses <= 3 %}{% set status_class = 'status-vence-pronto' %}{% elif meses is not none and 4 <= meses <= 7 %}{% set status_class = 'status-advertencia' %}{% elif meses is not none and 8 <= meses <= 12 %}{% set status_class = 'status-ok' %}{% endif %}
+                {% if meses is not none and 0 <= meses <= 3 %}{% set status_class = 'status-red' %}
+                {% elif meses is not none and 3 < meses <= 6 %}{% set status_class = 'status-amber' %}
+                {% elif meses is not none and 6 < meses <= 9 %}{% set status_class = 'status-yellow' %}
+                {% elif meses is not none and 9 < meses <= 12 %}{% set status_class = 'status-grey' %}
+                {% elif meses is not none and meses > 12 %}{% set status_class = 'status-green' %}{% endif %}
                 <td class="text-center {{ status_class }}">{{ meses if meses is not none else 'N/A' }}</td>
             </tr>
             {% else %}
@@ -102,4 +106,11 @@
         </tbody>
     </table>
 </div>
+<style>
+.status-red { background-color: red; color: white; }
+.status-amber { background-color: #FFBF00; }
+.status-yellow { background-color: yellow; }
+.status-grey { background-color: grey; color: white; }
+.status-green { background-color: green; color: white; }
+</style>
 {% endblock %}
