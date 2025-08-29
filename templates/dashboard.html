@@ -11,6 +11,7 @@
 <header class="page-header">
     <h1 class="page-title">Dashboard de Inventario
         <div id="datetime" style="font-size: 0.5em; color: #888; font-weight: normal; margin-top: 8px;"></div>
+        <div id="last-update" style="font-size: 0.4em; color: #666; font-weight: normal; margin-top: 4px;">Última actualización: --</div>
     </h1>
     <div style="font-size: 0.95em; color: #888; margin-bottom: 8px;">
         Tiempo de respuesta backend: {{ backend_time }}
@@ -108,7 +109,8 @@
     <div class="grid-container" style="display: flex; gap: 24px;">
         <!-- Gráfico de Pastel -->
         <div class="chart-container rounded-card" style="flex: 1; min-width: 0; padding-bottom: 110px;">
-        <div id="expirationChart" style="height: 300px; width: 100%;"></div>
+            <h2 class="chart-title">Inventario por Estado de Vencimiento</h2>
+            <div id="expirationChart" style="height: 300px; width: 100%;"></div>
         </div>
         <!-- Gráfico de Barras Horizontales -->
         <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
@@ -145,6 +147,55 @@
     border: 1px solid #eee;
     padding: 18px 18px 12px 18px;
 }
+
+/* Estilos para impresión/captura */
+.print-capture main,
+.print-capture .scrollable-content {
+    background: #fff !important;
+    color: #222 !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+.print-capture .rounded-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+}
+.print-capture .btn,
+.print-capture .page-header a,
+.print-capture #capture-btn {
+    visibility: hidden !important;
+}
+.print-capture .page-header {
+    margin-bottom: 8px !important;
+}
+.print-capture .filter-bar {
+    margin-bottom: 8px !important;
+}
+.print-capture body, .print-capture main {
+    font-size: 13px !important;
+}
+.print-capture .kpi-card__title {
+    font-size: 1em !important;
+}
+.print-capture .kpi-card__value {
+    font-size: 1.3em !important;
+}
+.print-capture .chart-title {
+    font-size: 1em !important;
+}
+.print-capture .grid-container {
+    gap: 12px !important;
+}
+.print-capture .chart-container {
+    padding: 10px 10px 6px 10px !important;
+}
+.print-capture {
+    /* Simula ancho A4 apaisado */
+    width: 1122px !important;
+    min-width: 1122px !important;
+    max-width: 1122px !important;
+    margin: 0 auto !important;
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -172,28 +223,207 @@
         const formattedDateTime = now.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
         document.getElementById('datetime').textContent = formattedDateTime;
 
-        // Captura de pantalla
-        document.getElementById('capture-btn').addEventListener('click', function () {
-            const { jsPDF } = window.jspdf;
-            const captureElement = document.querySelector('main');
-            document.body.classList.add('body--capturing');
+        // Variables globales para gráficos
+        let stockByLineChart = null;
+        let stockByCategoryChart = null;
+        let expiringSoonChart = null;
+        let stockChart = null;
+        let expChart = null;
+        let expByLineChart = null;
 
-            html2canvas(captureElement, {
-                useCORS: true,
-                allowTaint: true,
-            }).then(canvas => {
-                document.body.classList.remove('body--capturing');
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF({
-                    orientation: 'landscape',
-                    unit: 'px',
-                    format: [canvas.width, canvas.height]
-                });
-                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        // Función para actualizar datos en vivo
+        async function updateDashboardData() {
+            try {
+                const formData = new FormData();
+                const lineaSelect = document.getElementById('linea_id');
+                const categorySelect = document.getElementById('category_id');
+                const lugarSelect = document.getElementById('lugar_id');
                 
-                const date = new Date().toISOString().slice(0, 10);
-                pdf.save(`Dashboard_Inventario_${date}.pdf`);
-            });
+                if (lineaSelect.value) formData.append('linea_id', lineaSelect.value);
+                if (categorySelect.value) formData.append('category_id', categorySelect.value);
+                if (lugarSelect.value) formData.append('lugar_id', lugarSelect.value);
+
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Actualizar KPIs
+                    const newKpiCards = doc.querySelectorAll('.kpi-card__value');
+                    const currentKpiCards = document.querySelectorAll('.kpi-card__value');
+                    if (newKpiCards.length === currentKpiCards.length) {
+                        for (let i = 0; i < newKpiCards.length; i++) {
+                            currentKpiCards[i].textContent = newKpiCards[i].textContent;
+                        }
+                    }
+                    
+                    // Actualizar datos de gráficos
+                    updateChartsFromNewData(doc);
+                    
+                    // Actualizar timestamp
+                    const now = new Date();
+                    document.getElementById('last-update').textContent = 
+                        `Última actualización: ${now.toLocaleTimeString('es-ES')}`;
+                    
+                    console.log('Dashboard actualizado automáticamente');
+                }
+            } catch (error) {
+                console.error('Error actualizando dashboard:', error);
+            }
+        }
+
+        // Función para actualizar gráficos con nuevos datos
+        function updateChartsFromNewData(doc) {
+            // Actualizar Chart.js charts
+            updateChartJsData(doc, 'line-stock-labels', 'line-stock-data', stockByLineChart);
+            updateChartJsData(doc, 'category-stock-labels', 'category-stock-data', stockByCategoryChart);
+            updateChartJsData(doc, 'expiring-soon-labels', 'expiring-soon-data', expiringSoonChart);
+            updateChartJsData(doc, 'chart-data-labels', 'chart-data-data', stockChart);
+            
+            // Actualizar ECharts
+            updateEChartsData(doc, 'exp-chart-labels', 'exp-chart-data', expChart);
+            updateEChartsData(doc, 'exp-by-line-labels', 'exp-by-line-data', expByLineChart);
+        }
+
+        function updateChartJsData(doc, labelsId, dataId, chart) {
+            if (!chart) return;
+            try {
+                const newLabels = JSON.parse(doc.getElementById(labelsId).textContent);
+                const newData = JSON.parse(doc.getElementById(dataId).textContent);
+                chart.data.labels = newLabels;
+                chart.data.datasets[0].data = newData;
+                chart.update('none'); // Sin animación para actualización rápida
+            } catch (e) {
+                console.error('Error actualizando Chart.js:', e);
+            }
+        }
+
+        function updateEChartsData(doc, labelsId, dataId, chart) {
+            if (!chart) return;
+            try {
+                const newLabels = JSON.parse(doc.getElementById(labelsId).textContent);
+                const newData = JSON.parse(doc.getElementById(dataId).textContent);
+                
+                if (labelsId === 'exp-chart-labels') {
+                    // Gráfico de pastel
+                    const echartsData = newLabels.map((label, i) => ({ value: newData[i], name: label }));
+                    const totalUnidades = newData.reduce((a, b) => a + b, 0);
+                    
+                    chart.setOption({
+                        title: {
+                            text: totalUnidades.toLocaleString('es-PE'),
+                            subtext: 'Unidades Totales'
+                        },
+                        series: [{ data: echartsData }]
+                    });
+                } else {
+                    // Gráfico de barras horizontales
+                    chart.setOption({
+                        yAxis: { data: newLabels },
+                        series: [{ data: newData }]
+                    });
+                }
+            } catch (e) {
+                console.error('Error actualizando ECharts:', e);
+            }
+        }
+
+        // Iniciar actualización automática cada 30 segundos
+        setInterval(updateDashboardData, 30000);
+
+        // Primera actualización después de 5 segundos para verificar que funciona
+        setTimeout(updateDashboardData, 5000);
+
+        // Nueva lógica de exportación PDF profesional
+        document.getElementById('capture-btn').addEventListener('click', async function () {
+            const { jsPDF } = window.jspdf;
+            
+            // Scroll hacia arriba para asegurar que todo sea visible
+            window.scrollTo(0, 0);
+            
+            const scrollable = document.querySelector('.scrollable-content');
+            const body = document.body;
+            const html = document.documentElement;
+            
+            // Guardar estilos originales del body y html
+            const originalBodyHeight = body.style.height;
+            const originalBodyOverflow = body.style.overflow;
+            const originalHtmlHeight = html.style.height;
+            const originalHtmlOverflow = html.style.overflow;
+            
+            // Guardar estilos originales del scrollable
+            let originalScrollableHeight = null;
+            let originalScrollableOverflow = null;
+            let originalScrollableWidth = null;
+            if (scrollable) {
+                originalScrollableHeight = scrollable.style.height;
+                originalScrollableOverflow = scrollable.style.overflow;
+                originalScrollableWidth = scrollable.style.width;
+                // Expandir scrollable para mostrar todo
+                scrollable.style.height = 'auto';
+                scrollable.style.overflow = 'visible';
+                scrollable.style.width = '100%';
+                scrollable.style.maxHeight = 'none';
+            }
+            
+            // Configurar body y html para captura completa
+            body.style.height = 'auto';
+            body.style.overflow = 'visible';
+            html.style.height = 'auto';
+            html.style.overflow = 'visible';
+            
+            // Agregar clase de impresión
+            document.documentElement.classList.add('print-capture');
+            document.body.classList.add('body--capturing');
+            
+            // Esperar a que el DOM se refluya completamente
+            setTimeout(() => {
+                // Capturar el elemento main en lugar del scrollable
+                const captureElement = document.querySelector('main');
+                
+                html2canvas(captureElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#fff',
+                    scale: 1.5,
+                    logging: false,
+                    width: captureElement.scrollWidth,
+                    height: captureElement.scrollHeight,
+                    x: 0,
+                    y: 0
+                }).then(canvas => {
+                    // Restaurar todos los estilos originales
+                    if (scrollable) {
+                        scrollable.style.height = originalScrollableHeight;
+                        scrollable.style.overflow = originalScrollableOverflow;
+                        scrollable.style.width = originalScrollableWidth;
+                        scrollable.style.maxHeight = '';
+                    }
+                    
+                    body.style.height = originalBodyHeight;
+                    body.style.overflow = originalBodyOverflow;
+                    html.style.height = originalHtmlHeight;
+                    html.style.overflow = originalHtmlOverflow;
+                    
+                    document.documentElement.classList.remove('print-capture');
+                    document.body.classList.remove('body--capturing');
+                    
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const pdf = new jsPDF({
+                        orientation: 'landscape',
+                        unit: 'px',
+                        format: [canvas.width, canvas.height]
+                    });
+                    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+                    const date = new Date().toISOString().slice(0, 10);
+                    pdf.save(`Dashboard_Inventario_${date}.pdf`);
+                });
+            }, 500);
         });
 
         // Leer datos desde los bloques JSON
@@ -204,8 +434,9 @@
         if (document.getElementById('stockByCategoryChart')) {
             const categoryStockLabels = JSON.parse(document.getElementById('category-stock-labels').textContent);
             const categoryStockData = JSON.parse(document.getElementById('category-stock-data').textContent);
-            const ctx = document.getElementById('stockByCategoryChart').getContext('2d');
-            const stockByCategoryChart = new Chart(ctx, {
+            const canvas = document.getElementById('stockByCategoryChart');
+            const ctx = canvas.getContext('2d');
+            stockByCategoryChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: categoryStockLabels,
@@ -226,14 +457,22 @@
                     plugins: { legend: { display: false } }
                 }
             });
+            // Guardar instancia para PDF
+            if (typeof Chart !== 'undefined' && Chart.getChart) {
+                // Chart.js 3+
+                // No need to store, Chart.getChart(canvas) will retrieve
+            } else {
+                canvas.chartInstance = stockByCategoryChart;
+            }
         }
 
         // --- Gráfico de Barras (Stock por Línea Comercial) ---
         if (document.getElementById('stockByLineChart')) {
             const lineStockLabels = JSON.parse(document.getElementById('line-stock-labels').textContent);
             const lineStockData = JSON.parse(document.getElementById('line-stock-data').textContent);
-            const ctx = document.getElementById('stockByLineChart').getContext('2d');
-            const stockByLineChart = new Chart(ctx, {
+            const canvas = document.getElementById('stockByLineChart');
+            const ctx = canvas.getContext('2d');
+            stockByLineChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: lineStockLabels,
@@ -254,6 +493,11 @@
                     plugins: { legend: { display: false } }
                 }
             });
+            if (typeof Chart !== 'undefined' && Chart.getChart) {
+                // Chart.js 3+
+            } else {
+                canvas.chartInstance = stockByLineChart;
+            }
         }
 
         // --- Gráfico de Barras (Top 5 por Vencer) ---
@@ -261,8 +505,9 @@
             const expiringSoonLabels = JSON.parse(document.getElementById('expiring-soon-labels').textContent);
             const expiringSoonData = JSON.parse(document.getElementById('expiring-soon-data').textContent);
             const expiringSoonIds = JSON.parse(document.getElementById('expiring-soon-ids').textContent);
-            const ctx = document.getElementById('expiringSoonChart').getContext('2d');
-            const expiringSoonChart = new Chart(ctx, {
+            const canvas = document.getElementById('expiringSoonChart');
+            const ctx = canvas.getContext('2d');
+            expiringSoonChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: expiringSoonLabels,
@@ -297,12 +542,18 @@
                     }
                 }
             });
+            if (typeof Chart !== 'undefined' && Chart.getChart) {
+                // Chart.js 3+
+            } else {
+                canvas.chartInstance = expiringSoonChart;
+            }
         }
 
         // --- Gráfico de Barras (Top 5) ---
         if (document.getElementById('stockChart')) {
-            const ctx = document.getElementById('stockChart').getContext('2d');
-            const stockChart = new Chart(ctx, {
+            const canvas = document.getElementById('stockChart');
+            const ctx = canvas.getContext('2d');
+            stockChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: chartLabels,
@@ -337,6 +588,11 @@
                     }
                 }
             });
+            if (typeof Chart !== 'undefined' && Chart.getChart) {
+                // Chart.js 3+
+            } else {
+                canvas.chartInstance = stockChart;
+            }
         }
 
         // --- Gráfico de Pastel (Análisis de Vencimiento) ---
@@ -347,7 +603,8 @@
                 return { value: expChartData[i], name: label };
             });
             const expChartDom = document.getElementById('expirationChart');
-            const expChart = echarts.init(expChartDom);
+            expChart = echarts.init(expChartDom);
+            expChartDom.echartsInstance = expChart;
             const totalUnidades = expChartData.reduce((a, b) => a + b, 0);
             const pastelColors = echartsData.map(d => {
                 if (d.name.match(/0-3/i)) return 'red';
@@ -414,7 +671,8 @@
             var expByLineLabels = JSON.parse(document.getElementById('exp-by-line-labels').textContent);
             var expByLineData = JSON.parse(document.getElementById('exp-by-line-data').textContent);
             const expByLineDom = document.getElementById('expiringByLineChart');
-            const expByLineChart = echarts.init(expByLineDom);
+            expByLineChart = echarts.init(expByLineDom);
+            expByLineDom.echartsInstance = expByLineChart;
             var selectedLineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
             var selectedLineaName = null;
             var lineaSelect = document.getElementById('linea_id');

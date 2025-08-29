@@ -14,13 +14,13 @@
     --color-surface: #ffffff;
     --color-border: #e6e6e6;
     /* Colores de estado */
-    --color-danger-bg: #FEE2E2;
-    --color-danger-text: #991B1B;
-    --color-danger-dark: #ca5858;
-    --color-warning-bg: #F3F4F6;
-    --color-warning-text: #374151;
-    --color-success-bg: #D1FAE5;
-    --color-success-text: #065F46;
+    --color-danger-bg: #fff5f5; /* mucho más claro */
+    --color-danger-text: #c0392b; /* pastel fuerte */
+    --color-danger-dark: #f8bcbc; /* borde pastel */
+    --color-warning-bg: #fffbe5; /* mucho más claro */
+    --color-warning-text: #bfa243; /* pastel fuerte */
+    --color-success-bg: #f0fcf6; /* mucho más claro */
+    --color-success-text: #2e856e; /* pastel fuerte */
 
     /* Tipografía */
     --font-family-base: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -328,9 +328,22 @@ main {
 .col-no-wrap { white-space: nowrap !important; }
 
 /* Estilos para los estados de expiración */
-.status-vence-pronto { background-color: var(--color-danger-bg); color: var(--color-danger-text); font-weight: 600; }
-.status-advertencia { background-color: var(--color-warning-bg); color: var(--color-warning-text); }
-.status-ok { background-color: var(--color-success-bg); color: var(--color-success-text); }
+.status-vence-pronto {
+    background-color: var(--color-danger-bg);
+    color: var(--color-danger-text);
+    font-weight: 600;
+    border-left: 4px solid var(--color-danger-dark);
+}
+.status-advertencia {
+    background-color: var(--color-warning-bg);
+    color: var(--color-warning-text);
+    border-left: 4px solid #f7e7b8;
+}
+.status-ok {
+    background-color: var(--color-success-bg);
+    color: var(--color-success-text);
+    border-left: 4px solid #b8f7d1;
+}
 
 /* Login Card */
 .login-card {
