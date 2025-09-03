@@ -18,24 +18,24 @@
         <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
             
             <div>
-                <label for="grupo_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Grupo Artículo</label>
-                <select name="grupo_id" id="grupo_id" class="form-control">
-                    <option value="">Todos</option>
-                    {% for grupo in filter_options.grupos %}
-                        <option value="{{ grupo.id }}" {% if grupo.id == selected_filters.grupo_id %}selected{% endif %}>
-                            {{ grupo.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div>
                 <label for="linea_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Línea Comercial</label>
                 <select name="linea_id" id="linea_id" class="form-control">
                     <option value="">Todas</option>
                     {% for linea in filter_options.lineas %}
                         <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>
                             {{ linea.display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label for="grupo_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Grupo Artículo</label>
+                <select name="grupo_id" id="grupo_id" class="form-control">
+                    <option value="">Todos</option>
+                    {% for grupo in filter_options.grupos %}
+                        <option value="{{ grupo.id }}" {% if grupo.id == selected_filters.grupo_id %}selected{% endif %}>
+                            {{ grupo.display_name }}
                         </option>
                     {% endfor %}
                 </select>
@@ -68,8 +68,8 @@
     <table class="table">
         <thead>
             <tr>
-                <th>GrupoArticulo</th>
                 <th>Linea Comercial</th>
+                <th>GrupoArticulo</th>
                 <th>CodArticulo</th>
                 <th>Producto</th>
                 <th>Lugar</th>
@@ -82,8 +82,8 @@
         <tbody>
             {% for item in inventory %}
             <tr>
-                <td>{{ item.grupo_articulo }}</td>
                 <td>{{ item.linea_comercial }}</td>
+                <td>{{ item.grupo_articulo }}</td>
                 <td>{{ item.cod_articulo }}</td>
                 <td>{{ item.producto }}</td>
                 <td>{{ item.lugar }}</td>
