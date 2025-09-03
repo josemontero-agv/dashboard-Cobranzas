@@ -134,6 +134,18 @@ class OdooManager:
         return data[1] if isinstance(data, list) and len(data) > 1 else ''
 
     @staticmethod
+    def _transform_location_name(location_name):
+        """Transforma nombres largos de ubicaciones a versiones más cortas."""
+        transformations = {
+            'ALMC/Stock/Corto Vencimiento/VCTO1A3M': 'VCTO 0>A<3',
+            'ALMC/Stock/Corto Vencimiento/VCTO3A6M': 'VCTO 3>A<6',
+            'ALMC/Stock/Corto Vencimiento/VCTO6A9M': 'VCTO 6>A<9',
+            'ALMC/Stock/Corto Vencimiento/VCTO9A12M': 'VCTO 9>A<12',
+            'ALMC/Stock/Comercial': '12>A+más'
+        }
+        return transformations.get(location_name, location_name)
+
+    @staticmethod
     def _process_expiration_date(exp_date_str):
         """Procesa una cadena de fecha de expiración y calcula los meses restantes."""
         if not exp_date_str:
@@ -244,7 +256,7 @@ class OdooManager:
                     'linea_comercial': self._get_related_name(product_data.get('commercial_line_national_id')),
                     'cod_articulo': product_data.get('default_code', ''),
                     'producto': product_data.get('display_name', ''),
-                    'lugar': self._get_related_name(quant.get('location_id')),
+                    'lugar': self._transform_location_name(self._get_related_name(quant.get('location_id'))),
                     'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('available_quantity', 0):,.0f}",
                     'meses_expira': months_to_expire
@@ -305,7 +317,7 @@ class OdooManager:
                     'linea_comercial': self._get_related_name(product_data.get('commercial_line_international_id')),
                     'cod_articulo': product_data.get('default_code', ''), 'producto': product_data.get('display_name', ''),
                     'um': self._get_related_name(quant.get('product_uom_id')),
-                    'lugar': self._get_related_name(quant.get('location_id')),
+                    'lugar': self._transform_location_name(self._get_related_name(quant.get('location_id'))),
                     'lote': self._get_related_name(quant.get('lot_id')),
                     'fecha_expira': formatted_exp_date,
                     'cantidad_disponible': f"{quant.get('inventory_quantity_auto_apply', 0):,.0f}",
