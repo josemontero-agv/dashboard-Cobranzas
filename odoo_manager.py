@@ -137,11 +137,11 @@ class OdooManager:
     def _transform_location_name(location_name):
         """Transforma nombres largos de ubicaciones a versiones más cortas."""
         transformations = {
-            'ALMC/Stock/Corto Vencimiento/VCTO1A3M': 'VCTO 0>A<3',
-            'ALMC/Stock/Corto Vencimiento/VCTO3A6M': 'VCTO 3>A<6',
-            'ALMC/Stock/Corto Vencimiento/VCTO6A9M': 'VCTO 6>A<9',
-            'ALMC/Stock/Corto Vencimiento/VCTO9A12M': 'VCTO 9>A<12',
-            'ALMC/Stock/Comercial': '12>A+más'
+            'ALMC/Stock/Corto Vencimiento/VCTO1A3M': '0≥P≤3',
+            'ALMC/Stock/Corto Vencimiento/VCTO3A6M': '3>P<6',
+            'ALMC/Stock/Corto Vencimiento/VCTO6A9M': '6≥P<9',
+            'ALMC/Stock/Corto Vencimiento/VCTO9A12M': '9≥P≤12',
+            'ALMC/Stock/Comercial': 'P≥12'
         }
         return transformations.get(location_name, location_name)
 
