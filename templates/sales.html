@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+
+{% block title %}Líneas de Venta{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <h1 class="page-title">Líneas de Venta</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn">Dashboard</a>
+        <button onclick="exportToExcel()" class="btn btn--primary">Exportar Excel</button>
+        <a href="{{ url_for('logout') }}" class="btn">Salir</a>
+    </div>
+</header>
+
+<div class="filter-bar">
+    <div class="filter-bar__content">
+        <form method="GET" action="{{ url_for('sales') }}" style="display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; width: 100%;">
+            
+            <div>
+                <label for="date_from">Desde</label>
+                <input type="date" name="date_from" id="date_from" value="{{ selected_filters.date_from or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="date_to">Hasta</label>
+                <input type="date" name="date_to" id="date_to" value="{{ selected_filters.date_to or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="linea_id">Línea Comercial</label>
+                <select name="linea_id" id="linea_id" class="form-select">
+                    <option value="">Todas</option>
+                    {% for linea in filter_options.lineas %}
+                        <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>
+                            {{ linea.display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label for="partner_id">Cliente</label>
+                <select name="partner_id" id="partner_id" class="form-select">
+                    <option value="">Todos</option>
+                    {% for cliente in filter_options.clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente.id == selected_filters.partner_id %}selected{% endif %}>
+                            {{ cliente.display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="flex-grow: 1;">
+                <label for="search_term">Búsqueda</label>
+                <input type="text" name="search_term" placeholder="Producto, código..." value="{{ selected_filters.search_term or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="per_page">Resultados</label>
+                <select name="per_page" id="per_page" class="form-select">
+                    <option value="500" {% if request.values.get('per_page', '1000') == '500' %}selected{% endif %}>500</option>
+                    <option value="1000" {% if request.values.get('per_page', '1000') == '1000' %}selected{% endif %}>1,000</option>
+                    <option value="2000" {% if request.values.get('per_page', '1000') == '2000' %}selected{% endif %}>2,000</option>
+                    <option value="5000" {% if request.values.get('per_page', '1000') == '5000' %}selected{% endif %}>5,000</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn--primary">Buscar</button>
+            <a href="{{ url_for('sales') }}" class="btn">Limpiar</a>
+        </form>
+    </div>
+</div>
+
+<!-- Información de resultados optimizada -->
+{% if pagination %}
+<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <strong>📊 Resultados optimizados:</strong> 
+        Mostrando {{ pagination.showing_from }}-{{ pagination.showing_to }} de {{ pagination.total }} líneas
+        {% if pagination.pages > 1 %}(Página {{ pagination.page }} de {{ pagination.pages }}){% endif %}
+    </div>
+    
+    {% if pagination.pages > 1 %}
+    <div style="display: flex; gap: 10px; align-items: center;">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('sales', page=pagination.page-1, **selected_filters) }}" class="btn btn--sm">← Anterior</a>
+        {% endif %}
+        
+        <span style="padding: 0 15px;">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+        
+        {% if pagination.has_next %}
+            <a href="{{ url_for('sales', page=pagination.page+1, **selected_filters) }}" class="btn btn--sm">Siguiente →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Estado de Pago</th>
+                <th>Canal de Venta</th>
+                <th>Línea Comercial Local</th>
+                <th>Vendedor</th>
+                <th>Socio</th>
+                <th>NIF</th>
+                <th>Origen</th>
+                <th>Asiento Contable</th>
+                <th>Orden de Venta</th>
+                <th>Producto</th>
+                <th>Referencia Interna</th>
+                <th>ID Producto</th>
+                <th>Fecha Factura</th>
+                <th>Tipo Documento</th>
+                <th>Número</th>
+                <th>Ref. Doc. Rectificado</th>
+                <th class="text-right">Saldo</th>
+                <th>Clasificación Farmacológica</th>
+                <th>Observaciones Entrega</th>
+                <th>Agencia</th>
+                <th>Formas Farmacéuticas</th>
+                <th>Vía Administración</th>
+                <th>Categoría Producto</th>
+                <th>Línea Producción</th>
+                <th class="text-right">Cantidad</th>
+                <th class="text-right">Precio Unitario</th>
+                <th>Dirección Entrega</th>
+                <th>Ruta</th>
+                <th>Ciclo de Vida</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in sales_data %}
+            <tr>
+                <td>
+                    {% set payment_state = line.payment_state %}
+                    {% if payment_state == 'paid' %}
+                        <span class="status-green">Pagado</span>
+                    {% elif payment_state == 'partial' %}
+                        <span class="status-yellow">Parcial</span>
+                    {% elif payment_state == 'not_paid' %}
+                        <span class="status-red">No Pagado</span>
+                    {% else %}
+                        <span class="status-grey">{{ payment_state or 'N/A' }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.sales_channel_id %}
+                        {% if line.sales_channel_id is iterable and line.sales_channel_id|length > 1 %}
+                            {{ line.sales_channel_id[1] }}
+                        {% else %}
+                            {{ line.sales_channel_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.commercial_line_national_id %}
+                        {% if line.commercial_line_national_id is iterable and line.commercial_line_national_id|length > 1 %}
+                            {{ line.commercial_line_national_id[1] }}
+                        {% else %}
+                            {{ line.commercial_line_national_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.invoice_user_id %}
+                        {% if line.invoice_user_id is iterable and line.invoice_user_id|length > 1 %}
+                            {{ line.invoice_user_id[1] }}
+                        {% else %}
+                            {{ line.invoice_user_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ line.partner_name or 'N/A' }}</td>
+                <td>{{ line.vat or 'N/A' }}</td>
+                <td>{{ line.invoice_origin or 'N/A' }}</td>
+                <td>{{ line.move_name or 'N/A' }}</td>
+                <td>{{ line.order_name or 'N/A' }}</td>
+                <td>{{ line.name or 'N/A' }}</td>
+                <td>{{ line.default_code or 'N/A' }}</td>
+                <td>{{ line.product_id[0] if line.product_id else 'N/A' }}</td>
+                <td>{{ line.invoice_date or 'N/A' }}</td>
+                <td>
+                    {% if line.l10n_latam_document_type_id %}
+                        {% if line.l10n_latam_document_type_id is iterable and line.l10n_latam_document_type_id|length > 1 %}
+                            {{ line.l10n_latam_document_type_id[1] }}
+                        {% else %}
+                            {{ line.l10n_latam_document_type_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ line.move_name or 'N/A' }}</td>
+                <td>{{ line.origin_number or 'N/A' }}</td>
+                <td class="text-right">S/ {{ "{:,.2f}".format(line.balance|abs if line.balance else 0) }}</td>
+                <td>
+                    {% if line.pharmacological_classification_id %}
+                        {% if line.pharmacological_classification_id is iterable and line.pharmacological_classification_id|length > 1 %}
+                            {{ line.pharmacological_classification_id[1] }}
+                        {% else %}
+                            {{ line.pharmacological_classification_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ line.delivery_observations or 'N/A' }}</td>
+                <td>
+                    {% if line.partner_supplying_agency_id %}
+                        {% if line.partner_supplying_agency_id is iterable and line.partner_supplying_agency_id|length > 1 %}
+                            {{ line.partner_supplying_agency_id[1] }}
+                        {% else %}
+                            {{ line.partner_supplying_agency_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.pharmaceutical_forms_id %}
+                        {% if line.pharmaceutical_forms_id is iterable and line.pharmaceutical_forms_id|length > 1 %}
+                            {{ line.pharmaceutical_forms_id[1] }}
+                        {% else %}
+                            {{ line.pharmaceutical_forms_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.administration_way_id %}
+                        {% if line.administration_way_id is iterable and line.administration_way_id|length > 1 %}
+                            {{ line.administration_way_id[1] }}
+                        {% else %}
+                            {{ line.administration_way_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.categ_id %}
+                        {% if line.categ_id is iterable and line.categ_id|length > 1 %}
+                            {{ line.categ_id[1] }}
+                        {% else %}
+                            {{ line.categ_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.production_line_id %}
+                        {% if line.production_line_id is iterable and line.production_line_id|length > 1 %}
+                            {{ line.production_line_id[1] }}
+                        {% else %}
+                            {{ line.production_line_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td class="text-right">{{ line.quantity or 0 }}</td>
+                <td class="text-right">S/ {{ "{:,.2f}".format(line.price_unit if line.price_unit else 0) }}</td>
+                <td>
+                    {% if line.partner_shipping_id %}
+                        {% if line.partner_shipping_id is iterable and line.partner_shipping_id|length > 1 %}
+                            {{ line.partner_shipping_id[1] }}
+                        {% else %}
+                            {{ line.partner_shipping_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.route_id %}
+                        {% if line.route_id is iterable and line.route_id|length > 1 %}
+                            {{ line.route_id[1] }}
+                        {% else %}
+                            {{ line.route_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ line.product_life_cycle or 'N/A' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="27" style="text-align: center; padding: var(--space-4);">No se encontraron líneas de venta.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+.status-red { background-color: #ffe5e5; color: #b94a48; padding: 4px 8px; border-radius: 4px; }
+.status-yellow { background-color: #fff7e0; color: #bfa243; padding: 4px 8px; border-radius: 4px; }
+.status-green { background-color: #e3f9ed; color: #3a7d5d; padding: 4px 8px; border-radius: 4px; }
+.status-grey { background-color: #f0f0f0; color: #888; padding: 4px 8px; border-radius: 4px; }
+
+/* Estilos para tabla con muchas columnas */
+.table-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.table {
+    min-width: 2500px; /* Ancho mínimo para acomodar todas las columnas */
+    font-size: 0.85rem; /* Reducir tamaño de fuente */
+}
+
+.table th, .table td {
+    white-space: nowrap;
+    padding: 8px 6px;
+    border: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Columnas específicas con ancho fijo */
+.table th:nth-child(1), .table td:nth-child(1) { min-width: 100px; } /* Estado de Pago */
+.table th:nth-child(8), .table td:nth-child(8) { min-width: 200px; } /* Producto */
+.table th:nth-child(5), .table td:nth-child(5) { min-width: 150px; } /* Socio */
+.table th:nth-child(15), .table td:nth-child(15) { min-width: 100px; } /* Saldo */
+.table th:nth-child(23), .table td:nth-child(23) { min-width: 80px; } /* Cantidad */
+.table th:nth-child(24), .table td:nth-child(24) { min-width: 100px; } /* Precio Unitario */
+
+/* Hacer que las columnas de texto largo sean scrollables horizontalmente */
+.table td {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Expandir al hacer hover */
+.table td:hover {
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: none;
+    background-color: #f0f8ff;
+    z-index: 5;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge--success { background-color: #d4edda; color: #155724; }
+.badge--warning { background-color: #fff3cd; color: #856404; }
+.badge--danger { background-color: #f8d7da; color: #721c24; }
+.badge--info { background-color: #d1ecf1; color: #0c5460; }
+
+/* Estilos optimizados para rendimiento */
+.btn--sm {
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn--sm:hover {
+    background: var(--color-primary-dark);
+}
+
+/* Optimización de tabla para grandes datasets */
+.table-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+/* Lazy loading para filas */
+.table tbody tr {
+    transition: background-color 0.1s ease;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+<script>
+// Optimización de carga
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
+    // Mostrar indicador al enviar formulario
+    if (form) {
+        form.addEventListener('submit', function() {
+            loadingIndicator.style.display = 'block';
+            // Deshabilitar botón de envío para evitar doble envío
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Cargando...';
+            }
+        });
+    }
+    
+    // Ocultar indicador cuando la página esté completamente cargada
+    window.addEventListener('load', function() {
+        loadingIndicator.style.display = 'none';
+    });
+    
+    // Precargar siguiente página si el usuario está desplazándose hacia abajo
+    let ticking = false;
+    function handleScroll() {
+        if (!ticking) {
+            requestAnimationFrame(function() {
+                const scrollHeight = document.documentElement.scrollHeight;
+                const scrollTop = document.documentElement.scrollTop;
+                const clientHeight = document.documentElement.clientHeight;
+                
+                // Si el usuario está cerca del final, preparar la próxima carga
+                if (scrollTop + clientHeight > scrollHeight * 0.8) {
+                    console.log('🚀 Usuario cerca del final, preparando optimizaciones...');
+                }
+                ticking = false;
+            });
+            ticking = true;
+        }
+    }
+    
+    window.addEventListener('scroll', handleScroll);
+});
+</script>
+
+{% endblock %}

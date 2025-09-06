@@ -72,16 +72,14 @@ def sales():
         return render_template('sales.html', 
                              sales_data=sales_data,
                              filter_options=filter_options,
-                             selected_filters=selected_filters,
-                             fecha_actual=datetime.now())
+                             selected_filters=selected_filters)
     
     except Exception as e:
         flash(f'Error al obtener datos: {str(e)}', 'danger')
         return render_template('sales.html', 
                              sales_data=[],
                              filter_options={'lineas': [], 'clientes': []},
-                             selected_filters={},
-                             fecha_actual=datetime.now())
+                             selected_filters={})
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
@@ -121,16 +119,14 @@ def dashboard():
         return render_template('dashboard.html', 
                              dashboard_data=dashboard_data,
                              filter_options=filter_options,
-                             selected_filters=selected_filters,
-                             fecha_actual=datetime.now())
+                             selected_filters=selected_filters)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
         return render_template('dashboard.html', 
                              dashboard_data={},
                              filter_options={'lineas': [], 'clientes': []},
-                             selected_filters={},
-                             fecha_actual=datetime.now())
+                             selected_filters={})
 
 @app.route('/export/excel/sales')
 def export_excel_sales():

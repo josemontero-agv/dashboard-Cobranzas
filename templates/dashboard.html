@@ -1,718 +1,769 @@
-<!-- Datos para filtros seleccionados -->
-<script type="application/json" id="selected-category-id">{{ selected_category_id | tojson | safe }}</script>
-<script type="application/json" id="selected-linea-id">{{ selected_linea_id | tojson | safe }}</script>
-<script type="application/json" id="selected-lugar-id">{{ selected_lugar_id | tojson | safe }}</script>
-<!-- Datos para gráfico de barras horizontales (por línea) -->
-<script type="application/json" id="exp-by-line-labels">{{ data.exp_by_line_labels | tojson | safe }}</script>
-<script type="application/json" id="exp-by-line-data">{{ data.exp_by_line_data | tojson | safe }}</script>
 {% extends 'base.html' %}
 
 {% block content %}
 <header class="page-header">
-    <h1 class="page-title">Dashboard de Inventario
-        <div id="datetime" style="font-size: 0.5em; color: #888; font-weight: normal; margin-top: 8px;"></div>
-        <div id="last-update" style="font-size: 0.4em; color: #666; font-weight: normal; margin-top: 4px;">Última actualización: --</div>
-    </h1>
-    <div style="font-size: 0.95em; color: #888; margin-bottom: 8px;">
-        Tiempo de respuesta backend: {{ backend_time }}
+    <div class="page-header__content">
+        <h1 class="page-title">Dashboard de Ventas</h1>
+        <p class="page-subtitle">{{ fecha_actual.strftime('%A %d de %B de %Y, %H:%M') }}</p>
     </div>
-    <div style="display: flex; gap: var(--space-2);">
-        <a href="{{ url_for('inventory') }}" class="btn">Volver al Inventario</a>
-        <a href="{{ url_for('logout') }}" class="btn btn--primary">Cerrar Sesión</a>
+    <div class="header-actions">
+        <a href="{{ url_for('sales') }}" class="btn">Ventas</a>
+        <a href="{{ url_for('logout') }}" class="btn btn--primary">Salir</a>
     </div>
 </header>
 
 <div class="filter-bar">
-    <form method="POST" action="{{ url_for('dashboard') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;">
+    <div class="filter-bar__content">
+        <form method="GET" action="{{ url_for('dashboard') }}" class="filter-form">
             
-            <div>
-                <label for="linea_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Filtrar por Línea Comercial</label>
-                <select name="linea_id" id="linea_id" class="form-control">
+            <div class="filter-group">
+                <label for="date_from">DESDE</label>
+                <input type="date" name="date_from" id="date_from" value="{{ selected_filters.date_from or '' }}" class="form-control">
+            </div>
+            
+            <div class="filter-group">
+                <label for="date_to">HASTA</label>
+                <input type="date" name="date_to" id="date_to" value="{{ selected_filters.date_to or '' }}" class="form-control">
+            </div>
+            
+            <div class="filter-group">
+                <label for="linea_id">LÍNEA COMERCIAL</label>
+                <select name="linea_id" id="linea_id" class="form-select">
                     <option value="">Todas las Líneas</option>
-                    {% for linea in lineas %}
-                        <option value="{{ linea.id }}" {% if linea.id == selected_linea_id %}selected{% endif %}>
+                    {% for linea in filter_options.lineas %}
+                        <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>
                             {{ linea.display_name }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
             
-            <div>
-                <label for="category_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Filtrar por Categoría</label>
-                <select name="category_id" id="category_id" class="form-control">
-                    <option value="">Todas las Categorías</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}" {% if category.id == selected_category_id %}selected{% endif %}>
-                            {{ category.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <label for="lugar_id" style="font-size: var(--font-size-sm); margin-bottom: var(--space-2); display: block;">Lugar</label>
-                <select name="lugar_id" id="lugar_id" class="form-control">
-                    <option value="">Todos (def. Comercial)</option>
-                    {% for lugar in lugares %}
-                        <option value="{{ lugar.id }}" {% if lugar.id == selected_lugar_id %}selected{% endif %}>
-                            {{ lugar.display_name }}
+            <div class="filter-group">
+                <label for="partner_id">CLIENTE</label>
+                <select name="partner_id" id="partner_id" class="form-select">
+                    <option value="">Todos los Clientes</option>
+                    {% for cliente in filter_options.clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente.id == selected_filters.partner_id %}selected{% endif %}>
+                            {{ cliente.display_name }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
             
-            <div>
-                <button type="submit" class="btn btn--secondary">Filtrar</button>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn--primary">Filtrar</button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn--secondary">Limpiar</a>
             </div>
-            <div style="margin-left: auto; display: none;">
-                <button type="button" id="capture-btn" class="btn"><i class="bi bi-camera"></i> Capturar</button>
-            </div>
-        </div>
-    </form>
-</div>
-
-<div class="scrollable-content">
-    <div class="grid-container">
-        <div class="kpi-card">
-            <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id, lugar_id=selected_lugar_id) }}">
-                <h2 class="kpi-card__title">Productos Únicos</h2>
-                <p class="kpi-card__value">{{ data.kpi_total_products }}</p>
-            </a>
-        </div>
-        <div class="kpi-card">
-            <a href="{{ url_for('inventory', grupo_id=selected_category_id, linea_id=selected_linea_id, lugar_id=selected_lugar_id) }}">
-                <h2 class="kpi-card__title">Unidades Totales</h2>
-                    <p class="kpi-card__value">{{ '{:,}'.format(data.kpi_total_quantity) }}</p>
-            </a>
-        </div>
-    </div>
-
-    <div class="grid-container" style="display: flex; gap: 24px; margin-top: 32px;">
-        <!-- Gráfico de Barras Verticales por Línea Comercial -->
-        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
-            <h2 class="chart-title">Stock por Línea Comercial</h2>
-            <div class="chart-wrapper" style="height: 220px;">
-                <canvas id="stockByLineChart"></canvas>
-            </div>
-        </div>
-        <!-- Gráfico de Barras Verticales por Categoría -->
-        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
-            <h2 class="chart-title">Stock por Categoría</h2>
-            <div class="chart-wrapper" style="height: 220px;">
-                <canvas id="stockByCategoryChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-
-    <div class="grid-container" style="display: flex; gap: 24px;">
-        <!-- Gráfico de Pastel -->
-        <div class="chart-container rounded-card" style="flex: 1; min-width: 0; padding-bottom: 110px;">
-            <h2 class="chart-title">Inventario por Estado de Vencimiento</h2>
-            <div id="expirationChart" style="height: 300px; width: 100%;"></div>
-        </div>
-        <!-- Gráfico de Barras Horizontales -->
-        <div class="chart-container rounded-card" style="flex: 1; min-width: 0;">
-            <h2 class="chart-title">Unidades por Vencer (0-3 Meses) por Línea Comercial</h2>
-        <div class="chart-wrapper" style="height: 300px;">
-                <div id="expiringByLineChart" style="height: 100%; width: 100%;"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico de Barras Verticales para Productos por Vencer -->
-    <div class="chart-container rounded-card" style="margin-top: 32px;">
-        <h2 class="chart-title">Top 5 Productos por Vencer (0-3 Meses)</h2>
-        <div class="chart-wrapper" style="height: 220px;">
-            <canvas id="expiringSoonChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Gráfico de Barras Verticales debajo -->
-    <div class="chart-container rounded-card" style="margin-top: 32px;">
-        <h2 class="chart-title">Top 5 Productos por Cantidad</h2>
-        <div class="chart-wrapper" style="height: 220px;">
-            <canvas id="stockChart"></canvas>
-        </div>
+        </form>
     </div>
 </div>
 
+<!-- KPIs del Dashboard -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <a href="{{ url_for('sales') }}">
+                <div class="kpi-card__title">Total Ventas</div>
+                <div class="kpi-card__value">S/ {{ "{:,.2f}".format(dashboard_data.kpi_total_sales if dashboard_data.kpi_total_sales else 0) }}</div>
+            </a>
+        </div>
+        
+        <div class="kpi-card">
+            <a href="{{ url_for('sales') }}">
+                <div class="kpi-card__title">Facturas</div>
+                <div class="kpi-card__value">{{ dashboard_data.kpi_total_invoices if dashboard_data.kpi_total_invoices else 0 }}</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Gráficos del Dashboard -->
+    <div class="charts-grid">
+        <!-- Gráfico Principal: Ventas por Línea Comercial -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Ventas por Línea Comercial</h3>
+            </div>
+            <div class="chart-body">
+                <canvas id="commercialLinesChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Gráfico Secundario: Ventas por Vendedor -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Ventas por Vendedor</h3>
+            </div>
+            <div class="chart-body">
+                <canvas id="salesBySellerChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+<!-- Scripts para los gráficos -->
+<script type="application/json" id="dashboard-data">{{ dashboard_data | tojson | safe }}</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dashboardData = JSON.parse(document.getElementById('dashboard-data').textContent);
+    
+    // Datos para líneas comerciales
+    const commercialLinesData = dashboardData.commercial_lines || [];
+    // Datos para vendedores
+    const sellersData = dashboardData.sellers || [];
+    
+    // Configuración minimalista para gráficos
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    padding: 16,
+                    font: { size: 12 },
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': S/ ' + context.parsed.y.toLocaleString('es-PE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'S/ ' + value.toLocaleString('es-PE', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0
+                        });
+                    }
+                },
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                },
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 0
+                }
+            }
+        }
+    };
+    
+    // Gráfico de Líneas Comerciales
+    if (dashboardData.commercial_lines && dashboardData.commercial_lines.length > 0) {
+        const ctx = document.getElementById('commercialLinesChart').getContext('2d');
+        
+        // Extraer datos de líneas comerciales
+        const labels = dashboardData.commercial_lines.map(line => line.name || 'Sin Línea');
+        const data = dashboardData.commercial_lines.map(line => line.amount || 0);
+        
+        // Colores dinámicos basados en el monto
+        const maxAmount = Math.max(...data);
+        const colors = data.map(amount => {
+            const intensity = amount / maxAmount;
+            return `rgba(25, 118, 210, ${0.3 + intensity * 0.7})`;
+        });
+        
+        const borderColors = data.map(amount => {
+            const intensity = amount / maxAmount;
+            return `rgba(25, 118, 210, ${0.5 + intensity * 0.5})`;
+        });
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ventas por Línea Comercial (S/)',
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: borderColors,
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    borderSkipped: false,
+                }]
+            },
+            options: chartOptions
+        });
+    } else {
+        // Mostrar mensaje si no hay datos
+        const canvas = document.getElementById('commercialLinesChart');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#666';
+        ctx.fillText('No hay datos de líneas comerciales disponibles', canvas.width/2, canvas.height/2);
+    }
+    
+    // Configuración del gráfico de vendedores
+    if (sellersData && sellersData.length > 0) {
+        const sellersCtx = document.getElementById('salesBySellerChart').getContext('2d');
+        
+        // Generar colores para el gráfico de vendedores
+        const generateSellersColors = (count) => {
+            const colors = [];
+            const baseColors = [
+                '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
+                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+            ];
+            
+            for (let i = 0; i < count; i++) {
+                if (i < baseColors.length) {
+                    colors.push(baseColors[i]);
+                } else {
+                    const hue = (i * 137.508) % 360;
+                    colors.push(`hsl(${hue}, 65%, 55%)`);
+                }
+            }
+            return colors;
+        };
+        
+        const sellersColors = generateSellersColors(sellersData.length);
+        
+        const salesBySellerChart = new Chart(sellersCtx, {
+            type: 'doughnut',
+            data: {
+                labels: sellersData.map(item => item.name),
+                datasets: [{
+                    label: 'Ventas por Vendedor (S/)',
+                    data: sellersData.map(item => item.amount),
+                    backgroundColor: sellersColors,
+                    borderColor: '#fff',
+                    borderWidth: 3,
+                    hoverBorderWidth: 4,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            color: '#333',
+                            font: {
+                                size: 11
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map((label, i) => {
+                                        const dataset = data.datasets[0];
+                                        const amount = dataset.data[i];
+                                        const total = dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((amount / total) * 100).toFixed(1);
+                                        
+                                        return {
+                                            text: `${label} (${percentage}%)`,
+                                            fillStyle: dataset.backgroundColor[i],
+                                            strokeStyle: dataset.borderColor,
+                                            lineWidth: dataset.borderWidth,
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(46, 204, 113, 0.5)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return [
+                                    `Vendedor: ${context.label}`,
+                                    `Monto: S/ ${context.parsed.toLocaleString('es-PE', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    })}`,
+                                    `Participación: ${percentage}%`
+                                ];
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 1500
+                }
+            }
+        });
+    } else {
+        // Mostrar mensaje si no hay datos de vendedores
+        const canvas = document.getElementById('salesBySellerChart');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#666';
+        ctx.fillText('No hay datos de vendedores disponibles', canvas.width/2, canvas.height/2);
+    }
+});
+</script>
 
 <style>
-.rounded-card {
-    border-radius: 18px !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    background: #fff;
-    border: 1px solid #eee;
-    padding: 18px 18px 12px 18px;
+/* Mejoras generales del dashboard - Estilo Odoo */
+.page-header {
+    background: #875A7B;
+    color: white;
+    padding: var(--space-4) var(--space-6);
+    margin-bottom: 0;
+    border-bottom: 3px solid #714A67;
+    box-shadow: 0 2px 8px rgba(135, 90, 123, 0.2);
 }
 
-/* Estilos para impresión/captura */
-.print-capture main,
-.print-capture .scrollable-content {
-    background: #fff !important;
-    color: #222 !important;
-    box-shadow: none !important;
-    border: none !important;
+.page-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.print-capture .rounded-card {
-    box-shadow: none !important;
-    border: 1px solid #ddd !important;
+
+/* Filtros mejorados - Estilo Odoo */
+.filter-bar {
+    background: white;
+    padding: var(--space-4) var(--space-6);
+    border-bottom: 1px solid #e0e0e0;
+    margin: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
-.print-capture .btn,
-.print-capture .page-header a,
-.print-capture #capture-btn {
-    visibility: hidden !important;
+
+.filter-bar form > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: flex-end;
 }
-.print-capture .page-header {
-    margin-bottom: 8px !important;
+
+.filter-bar label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #5f6368;
+    margin-bottom: var(--space-1);
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
-.print-capture .filter-bar {
-    margin-bottom: 8px !important;
+
+.filter-bar .form-control {
+    height: 32px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    padding: 4px 8px;
+    font-size: 0.875rem;
+    background: white;
+    transition: all 0.2s ease;
+    min-width: 140px;
 }
-.print-capture body, .print-capture main {
-    font-size: 13px !important;
+
+.filter-bar .form-control:focus {
+    border-color: #875A7B;
+    box-shadow: 0 0 0 2px rgba(135, 90, 123, 0.1);
+    outline: none;
 }
-.print-capture .kpi-card__title {
-    font-size: 1em !important;
+
+.filter-bar .btn {
+    height: 32px;
+    border-radius: 4px;
+    border: 1px solid #875A7B;
+    background: #875A7B;
+    color: white;
+    padding: 4px 16px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
-.print-capture .kpi-card__value {
-    font-size: 1.3em !important;
+
+.filter-bar .btn:hover {
+    background: #714A67;
+    border-color: #714A67;
 }
-.print-capture .chart-title {
-    font-size: 1em !important;
+/* KPIs mejorados */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+    padding: 0 var(--space-2);
 }
-.print-capture .grid-container {
-    gap: 12px !important;
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: var(--space-4);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.print-capture .chart-container {
-    padding: 10px 10px 6px 10px !important;
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
-.print-capture {
-    /* Simula ancho A4 apaisado */
-    width: 1122px !important;
-    min-width: 1122px !important;
-    max-width: 1122px !important;
-    margin: 0 auto !important;
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+}
+
+.stats-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-icon {
+    font-size: 1.8rem;
+    opacity: 0.7;
+}
+
+.stats-value {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: var(--space-1);
+    line-height: 1.2;
+}
+
+.stats-change {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+}
+
+.chart-header {
+    background: #875A7B;
+    color: white;
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    margin-bottom: 0;
+    border-bottom: 1px solid #714A67;
+}
+
+.chart-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.chart-subtitle {
+    margin: 0;
+    font-size: 0.8rem;
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+.chart-content {
+    padding: var(--space-4);
+    position: relative;
+    height: 350px;
+}
+
+.secondary-chart .chart-content {
+    height: 350px;
+}
+
+.chart-stats {
+    background: #f8f9fa;
+    padding: var(--space-3);
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #e0e0e0;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+    
+    .chart-content,
+    .secondary-chart .chart-content {
+        height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-stats {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .stat-label, .stat-value {
+        display: inline;
+    }
+}
+
+/* Estilos para el gráfico principal */
+.main-chart {
+    grid-column: 1 / -1; /* Ocupa todo el ancho */
+    background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+    border: 2px solid #e3f2fd;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.main-chart .chart-header h3 {
+    font-size: 1.5rem;
+    color: #1976d2;
+    margin-bottom: 8px;
+}
+
+.chart-subtitle {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+    font-style: italic;
+}
+
+.main-chart .chart-content {
+    height: 450px;
+    padding: 20px;
+}
+
+.chart-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px;
+    background: rgba(25, 118, 210, 0.05);
+    border-top: 1px solid #e3f2fd;
+    margin-top: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+/* Dashboard Container - Estilo Odoo */
+.dashboard-container {
+    background: #f5f5f5;
+    min-height: calc(100vh - 160px);
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-6);
+}
+
+/* Scroll personalizado - Estilo Odoo */
+.dashboard-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dashboard-container::-webkit-scrollbar-track {
+    background: #e5e7eb;
+    border-radius: 3px;
+}
+
+.dashboard-container::-webkit-scrollbar-thumb {
+    background: #875A7B;
+    border-radius: 3px;
+}
+
+.dashboard-container::-webkit-scrollbar-thumb:hover {
+    background: #714A67;
+}
+
+/* Mejoras para el grid de gráficos - LADO A LADO */
+.charts-grid {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+    width: 100%;
+    align-items: stretch;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    flex: 1;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-chart {
+    /* Gráfico izquierdo */
+    margin-right: var(--space-2);
+}
+
+.secondary-chart {
+    /* Gráfico derecho */
+    margin-left: var(--space-2);
+}
+
+/* Ajustes para gráficos lado a lado */
+.chart-content {
+    padding: var(--space-3);
+    position: relative;
+    height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+/* Stats más compactas - Estilo Odoo */
+.chart-stats {
+    background: #f8f9fa;
+    padding: var(--space-3);
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #e0e0e0;
+    min-height: 70px;
+    align-items: center;
+    margin-top: auto;
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #5f6368;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1f2937;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Responsive para pantallas pequeñas */
+@media (max-width: 1200px) {
+    .charts-grid {
+        flex-direction: column;
+        gap: var(--space-3);
+    }
+    
+    .main-chart,
+    .secondary-chart {
+        margin: 0;
+    }
+    
+    .chart-content {
+        height: 320px;
+    }
+    
+    .chart-container {
+        min-height: 450px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: var(--space-2);
+        max-height: calc(100vh - 180px);
+    }
+    
+    .chart-stats {
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-3);
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .stat-label, .stat-value {
+        display: inline;
+    }
+    
+    .chart-content {
+        height: 280px;
+    }
 }
 </style>
+
+
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-
-<!-- Datos para gráficos en JSON -->
-<script type="application/json" id="chart-data-labels">{{ data.chart_labels | tojson | safe }}</script>
-<script type="application/json" id="chart-data-data">{{ data.chart_data | tojson | safe }}</script>
-<script type="application/json" id="chart-data-ids">{{ data.chart_ids | tojson | safe }}</script>
-<!-- Datos para nuevo gráfico (por vencer) -->
-<script type="application/json" id="expiring-soon-labels">{{ data.expiring_soon_labels | tojson | safe }}</script>
-<script type="application/json" id="expiring-soon-data">{{ data.expiring_soon_data | tojson | safe }}</script>
-<script type="application/json" id="expiring-soon-ids">{{ data.expiring_soon_ids | tojson | safe }}</script>
-<!-- Datos para gráfico de pastel (expiración) -->
-<script type="application/json" id="exp-chart-labels">{{ data.exp_chart_labels | tojson | safe }}</script>
-<script type="application/json" id="exp-chart-data">{{ data.exp_chart_data | tojson | safe }}</script>
-<!-- Datos para nuevos gráficos de stock -->
-<script type="application/json" id="category-stock-labels">{{ data.category_stock_labels | tojson | safe }}</script>
-<script type="application/json" id="category-stock-data">{{ data.category_stock_data | tojson | safe }}</script>
-<script type="application/json" id="line-stock-labels">{{ data.line_stock_labels | tojson | safe }}</script>
-<script type="application/json" id="line-stock-data">{{ data.line_stock_data | tojson | safe }}</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fecha y Hora
-        const now = new Date();
-        const formattedDateTime = now.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' });
-        document.getElementById('datetime').textContent = formattedDateTime;
-
-        // Variables globales para gráficos
-        let stockByLineChart = null;
-        let stockByCategoryChart = null;
-        let expiringSoonChart = null;
-        let stockChart = null;
-        let expChart = null;
-        let expByLineChart = null;
-
-        // Función para actualizar datos en vivo
-        async function updateDashboardData() {
-            try {
-                const formData = new FormData();
-                const lineaSelect = document.getElementById('linea_id');
-                const categorySelect = document.getElementById('category_id');
-                const lugarSelect = document.getElementById('lugar_id');
-                
-                if (lineaSelect.value) formData.append('linea_id', lineaSelect.value);
-                if (categorySelect.value) formData.append('category_id', categorySelect.value);
-                if (lugarSelect.value) formData.append('lugar_id', lugarSelect.value);
-
-                const response = await fetch(window.location.href, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    const html = await response.text();
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    // Actualizar KPIs
-                    const newKpiCards = doc.querySelectorAll('.kpi-card__value');
-                    const currentKpiCards = document.querySelectorAll('.kpi-card__value');
-                    if (newKpiCards.length === currentKpiCards.length) {
-                        for (let i = 0; i < newKpiCards.length; i++) {
-                            currentKpiCards[i].textContent = newKpiCards[i].textContent;
-                        }
-                    }
-                    
-                    // Actualizar datos de gráficos
-                    updateChartsFromNewData(doc);
-                    
-                    // Actualizar timestamp
-                    const now = new Date();
-                    document.getElementById('last-update').textContent = 
-                        `Última actualización: ${now.toLocaleTimeString('es-ES')}`;
-                    
-                    console.log('Dashboard actualizado automáticamente');
-                }
-            } catch (error) {
-                console.error('Error actualizando dashboard:', error);
-            }
-        }
-
-        // Función para actualizar gráficos con nuevos datos
-        function updateChartsFromNewData(doc) {
-            // Actualizar Chart.js charts
-            updateChartJsData(doc, 'line-stock-labels', 'line-stock-data', stockByLineChart);
-            updateChartJsData(doc, 'category-stock-labels', 'category-stock-data', stockByCategoryChart);
-            updateChartJsData(doc, 'expiring-soon-labels', 'expiring-soon-data', expiringSoonChart);
-            updateChartJsData(doc, 'chart-data-labels', 'chart-data-data', stockChart);
-            
-            // Actualizar ECharts
-            updateEChartsData(doc, 'exp-chart-labels', 'exp-chart-data', expChart);
-            updateEChartsData(doc, 'exp-by-line-labels', 'exp-by-line-data', expByLineChart);
-        }
-
-        function updateChartJsData(doc, labelsId, dataId, chart) {
-            if (!chart) return;
-            try {
-                const newLabels = JSON.parse(doc.getElementById(labelsId).textContent);
-                const newData = JSON.parse(doc.getElementById(dataId).textContent);
-                chart.data.labels = newLabels;
-                chart.data.datasets[0].data = newData;
-                chart.update('none'); // Sin animación para actualización rápida
-            } catch (e) {
-                console.error('Error actualizando Chart.js:', e);
-            }
-        }
-
-        function updateEChartsData(doc, labelsId, dataId, chart) {
-            if (!chart) return;
-            try {
-                const newLabels = JSON.parse(doc.getElementById(labelsId).textContent);
-                const newData = JSON.parse(doc.getElementById(dataId).textContent);
-                
-                if (labelsId === 'exp-chart-labels') {
-                    // Gráfico de pastel
-                    const echartsData = newLabels.map((label, i) => ({ value: newData[i], name: label }));
-                    const totalUnidades = newData.reduce((a, b) => a + b, 0);
-                    
-                    chart.setOption({
-                        title: {
-                            text: totalUnidades.toLocaleString('es-PE'),
-                            subtext: 'Unidades Totales'
-                        },
-                        series: [{ data: echartsData }]
-                    });
-                } else {
-                    // Gráfico de barras horizontales
-                    chart.setOption({
-                        yAxis: { data: newLabels },
-                        series: [{ data: newData }]
-                    });
-                }
-            } catch (e) {
-                console.error('Error actualizando ECharts:', e);
-            }
-        }
-
-        // Iniciar actualización automática cada 30 segundos
-        setInterval(updateDashboardData, 30000);
-
-        // Primera actualización después de 5 segundos para verificar que funciona
-        setTimeout(updateDashboardData, 5000);
-
-        // Nueva lógica de exportación PDF profesional
-        document.getElementById('capture-btn').addEventListener('click', async function () {
-            const { jsPDF } = window.jspdf;
-            
-            // Scroll hacia arriba para asegurar que todo sea visible
-            window.scrollTo(0, 0);
-            
-            const scrollable = document.querySelector('.scrollable-content');
-            const body = document.body;
-            const html = document.documentElement;
-            
-            // Guardar estilos originales del body y html
-            const originalBodyHeight = body.style.height;
-            const originalBodyOverflow = body.style.overflow;
-            const originalHtmlHeight = html.style.height;
-            const originalHtmlOverflow = html.style.overflow;
-            
-            // Guardar estilos originales del scrollable
-            let originalScrollableHeight = null;
-            let originalScrollableOverflow = null;
-            let originalScrollableWidth = null;
-            if (scrollable) {
-                originalScrollableHeight = scrollable.style.height;
-                originalScrollableOverflow = scrollable.style.overflow;
-                originalScrollableWidth = scrollable.style.width;
-                // Expandir scrollable para mostrar todo
-                scrollable.style.height = 'auto';
-                scrollable.style.overflow = 'visible';
-                scrollable.style.width = '100%';
-                scrollable.style.maxHeight = 'none';
-            }
-            
-            // Configurar body y html para captura completa
-            body.style.height = 'auto';
-            body.style.overflow = 'visible';
-            html.style.height = 'auto';
-            html.style.overflow = 'visible';
-            
-            // Agregar clase de impresión
-            document.documentElement.classList.add('print-capture');
-            document.body.classList.add('body--capturing');
-            
-            // Esperar a que el DOM se refluya completamente
-            setTimeout(() => {
-                // Capturar el elemento main en lugar del scrollable
-                const captureElement = document.querySelector('main');
-                
-                html2canvas(captureElement, {
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#fff',
-                    scale: 1.5,
-                    logging: false,
-                    width: captureElement.scrollWidth,
-                    height: captureElement.scrollHeight,
-                    x: 0,
-                    y: 0
-                }).then(canvas => {
-                    // Restaurar todos los estilos originales
-                    if (scrollable) {
-                        scrollable.style.height = originalScrollableHeight;
-                        scrollable.style.overflow = originalScrollableOverflow;
-                        scrollable.style.width = originalScrollableWidth;
-                        scrollable.style.maxHeight = '';
-                    }
-                    
-                    body.style.height = originalBodyHeight;
-                    body.style.overflow = originalBodyOverflow;
-                    html.style.height = originalHtmlHeight;
-                    html.style.overflow = originalHtmlOverflow;
-                    
-                    document.documentElement.classList.remove('print-capture');
-                    document.body.classList.remove('body--capturing');
-                    
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdf = new jsPDF({
-                        orientation: 'landscape',
-                        unit: 'px',
-                        format: [canvas.width, canvas.height]
-                    });
-                    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
-                    const date = new Date().toISOString().slice(0, 10);
-                    pdf.save(`Dashboard_Inventario_${date}.pdf`);
-                });
-            }, 500);
-        });
-
-        // Leer datos desde los bloques JSON
-        var chartLabels = JSON.parse(document.getElementById('chart-data-labels').textContent);
-        var chartData = JSON.parse(document.getElementById('chart-data-data').textContent);
-        var chartIds = JSON.parse(document.getElementById('chart-data-ids').textContent);
-        // --- Gráfico de Barras (Stock por Categoría) ---
-        if (document.getElementById('stockByCategoryChart')) {
-            const categoryStockLabels = JSON.parse(document.getElementById('category-stock-labels').textContent);
-            const categoryStockData = JSON.parse(document.getElementById('category-stock-data').textContent);
-            const canvas = document.getElementById('stockByCategoryChart');
-            const ctx = canvas.getContext('2d');
-            stockByCategoryChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: categoryStockLabels,
-                    datasets: [{
-                        label: 'Cantidad en Stock',
-                        data: categoryStockData,
-                        backgroundColor: '#875A7B',
-                        borderColor: '#875A7B',
-                        borderRadius: 4,
-                        borderWidth: 1.5
-                    }]
-                },
-                options: {
-                    animation: { duration: 0 },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
-            });
-            // Guardar instancia para PDF
-            if (typeof Chart !== 'undefined' && Chart.getChart) {
-                // Chart.js 3+
-                // No need to store, Chart.getChart(canvas) will retrieve
-            } else {
-                canvas.chartInstance = stockByCategoryChart;
-            }
-        }
-
-        // --- Gráfico de Barras (Stock por Línea Comercial) ---
-        if (document.getElementById('stockByLineChart')) {
-            const lineStockLabels = JSON.parse(document.getElementById('line-stock-labels').textContent);
-            const lineStockData = JSON.parse(document.getElementById('line-stock-data').textContent);
-            const canvas = document.getElementById('stockByLineChart');
-            const ctx = canvas.getContext('2d');
-            stockByLineChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: lineStockLabels,
-                    datasets: [{
-                        label: 'Cantidad en Stock',
-                        data: lineStockData,
-                        backgroundColor: '#875A7B',
-                        borderColor: '#875A7B',
-                        borderRadius: 4,
-                        borderWidth: 1.5
-                    }]
-                },
-                options: {
-                    animation: { duration: 0 },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
-            });
-            if (typeof Chart !== 'undefined' && Chart.getChart) {
-                // Chart.js 3+
-            } else {
-                canvas.chartInstance = stockByLineChart;
-            }
-        }
-
-        // --- Gráfico de Barras (Top 5 por Vencer) ---
-        if (document.getElementById('expiringSoonChart')) {
-            const expiringSoonLabels = JSON.parse(document.getElementById('expiring-soon-labels').textContent);
-            const expiringSoonData = JSON.parse(document.getElementById('expiring-soon-data').textContent);
-            const expiringSoonIds = JSON.parse(document.getElementById('expiring-soon-ids').textContent);
-            const canvas = document.getElementById('expiringSoonChart');
-            const ctx = canvas.getContext('2d');
-            expiringSoonChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: expiringSoonLabels,
-                    datasets: [{
-                        label: 'Cantidad por Vencer',
-                        data: expiringSoonData,
-                        productIds: expiringSoonIds,
-                        backgroundColor: '#E53935', // Red color
-                        borderColor: '#E53935',
-                        borderRadius: 4,
-                        borderWidth: 1.5
-                    }]
-                },
-                options: {
-                    animation: { duration: 0 },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } },
-                    onClick: (event) => {
-                        const points = expiringSoonChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length) {
-                            const firstPoint = points[0];
-                            const productId = expiringSoonChart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
-                            const url = new URL("{{ url_for('inventory', _external=True) }}");
-                            url.searchParams.set('product_id', productId);
-                            window.location.href = url.toString();
-                        }
-                    },
-                    onHover: (event, chartElement) => {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    }
-                }
-            });
-            if (typeof Chart !== 'undefined' && Chart.getChart) {
-                // Chart.js 3+
-            } else {
-                canvas.chartInstance = expiringSoonChart;
-            }
-        }
-
-        // --- Gráfico de Barras (Top 5) ---
-        if (document.getElementById('stockChart')) {
-            const canvas = document.getElementById('stockChart');
-            const ctx = canvas.getContext('2d');
-            stockChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        label: 'Cantidad en Stock',
-                        data: chartData,
-                        productIds: chartIds,
-                        backgroundColor: '#875A7B',
-                        borderColor: '#875A7B',
-                        borderRadius: 4,
-                        borderWidth: 1.5
-                    }]
-                },
-                options: {
-                    animation: { duration: 0 }, // Desactiva la animación
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } },
-                    onClick: (event) => {
-                        const points = stockChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length) {
-                            const firstPoint = points[0];
-                            const productId = stockChart.data.datasets[firstPoint.datasetIndex].productIds[firstPoint.index];
-                            const url = new URL("{{ url_for('inventory', _external=True) }}");
-                            url.searchParams.set('product_id', productId);
-                            window.location.href = url.toString();
-                        }
-                    },
-                    onHover: (event, chartElement) => {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    }
-                }
-            });
-            if (typeof Chart !== 'undefined' && Chart.getChart) {
-                // Chart.js 3+
-            } else {
-                canvas.chartInstance = stockChart;
-            }
-        }
-
-        // --- Gráfico de Pastel (Análisis de Vencimiento) ---
-        if (document.getElementById('expirationChart')) {
-            var expChartLabels = JSON.parse(document.getElementById('exp-chart-labels').textContent);
-            var expChartData = JSON.parse(document.getElementById('exp-chart-data').textContent);
-            var echartsData = expChartLabels.map(function(label, i) {
-                return { value: expChartData[i], name: label };
-            });
-            const expChartDom = document.getElementById('expirationChart');
-            expChart = echarts.init(expChartDom);
-            expChartDom.echartsInstance = expChart;
-            const totalUnidades = expChartData.reduce((a, b) => a + b, 0);
-            const pastelColors = echartsData.map(d => {
-                if (d.name.match(/0-3/i)) return 'red';
-                if (d.name.match(/3-6/i)) return '#FFBF00';
-                if (d.name.match(/6-9/i)) return 'yellow';
-                if (d.name.match(/9-12/i)) return 'grey';
-                if (d.name.match(/>12/i)) return 'green';
-                return '#5B9BD5';
-            });
-            const option = {
-                animation: false, // Desactiva la animación
-                title: {
-                    text: totalUnidades.toLocaleString('es-PE'),
-                    subtext: 'Unidades Totales',
-                    left: 'center', top: 'center',
-                    textStyle: { fontSize: 30, fontWeight: 'bold' },
-                    subtextStyle: { fontSize: 14 }
-                },
-                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-                legend: {
-                    orient: 'horizontal',
-                    left: 'center',
-                    bottom: -50,
-                    itemGap: 32,
-                    textStyle: { fontSize: 14 }
-                },
-                series: [{
-                    name: 'Estado de Vencimiento',
-                    type: 'pie',
-                    radius: ['60%', '80%'],
-                    data: echartsData,
-                    emphasis: {
-                        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
-                    },
-                    color: pastelColors
-                }]
-            };
-            expChart.setOption(option);
-            expChart.on('click', function (params) {
-                const label = params.name;
-                let status = '';
-                if (label.startsWith('0-3')) { status = '0-3'; }
-                else if (label.startsWith('3-6')) { status = '3-6'; }
-                else if (label.startsWith('6-9')) { status = '6-9'; }
-                else if (label.startsWith('9-12')) { status = '9-12'; }
-                else if (label.startsWith('>12')) { status = '>12'; }
-                if (status) {
-                    const url = new URL("{{ url_for('inventory', _external=True) }}");
-                    url.searchParams.set('exp_status', status);
-                    const categoryId = JSON.parse(document.getElementById('selected-category-id').textContent);
-                    const lineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
-                    const lugarId = JSON.parse(document.getElementById('selected-lugar-id').textContent);
-                    if (categoryId) { url.searchParams.set('grupo_id', categoryId); }
-                    if (lineaId) { url.searchParams.set('linea_id', lineaId); }
-                    if (lugarId) { url.searchParams.set('lugar_id', lugarId); }
-                    window.location.href = url.toString();
-                }
-            });
-            window.addEventListener('resize', () => { expChart.resize(); });
-        }
-
-        // --- NUEVO Gráfico de Barras Horizontales (Vencimiento por Línea) ---
-        if (document.getElementById('expiringByLineChart')) {
-            var expByLineLabels = JSON.parse(document.getElementById('exp-by-line-labels').textContent);
-            var expByLineData = JSON.parse(document.getElementById('exp-by-line-data').textContent);
-            const expByLineDom = document.getElementById('expiringByLineChart');
-            expByLineChart = echarts.init(expByLineDom);
-            expByLineDom.echartsInstance = expByLineChart;
-            var selectedLineaId = JSON.parse(document.getElementById('selected-linea-id').textContent);
-            var selectedLineaName = null;
-            var lineaSelect = document.getElementById('linea_id');
-            if (lineaSelect && selectedLineaId) {
-                var selectedOption = lineaSelect.querySelector('option:checked');
-                if (selectedOption) {
-                    selectedLineaName = selectedOption.textContent.trim();
-                }
-            }
-            const barColors = expByLineLabels.map(label => {
-                if (selectedLineaName && String(label).trim() === selectedLineaName) {
-                    return '#E53935';
-                }
-                return '#875A7B';
-            });
-            const option = {
-                animation: false, // Desactiva la animación
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { show: false },
-                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-                xAxis: { type: 'value', boundaryGap: [0, 0.01] },
-                yAxis: {
-                    type: 'category',
-                    data: expByLineLabels
-                },
-                series: [{
-                    name: 'Unidades por Vencer',
-                    type: 'bar',
-                    label: { show: true, position: 'right' },
-                    data: expByLineData,
-                    itemStyle: {
-                        color: function(params) {
-                            return barColors[params.dataIndex % barColors.length];
-                        }
-                    }
-                }]
-            };
-            expByLineChart.setOption(option);
-            window.addEventListener('resize', () => { expByLineChart.resize(); });
-        }
-    });
-</script>
 {% endblock %}
