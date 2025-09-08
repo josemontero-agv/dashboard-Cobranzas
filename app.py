@@ -75,8 +75,26 @@ def sales():
             limit=1000
         )
         
+        # Filtrar VENTA INTERNACIONAL (exportaciones)
+        sales_data_filtered = []
+        for sale in sales_data:
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                nombre_linea = linea_comercial[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+            
+            # También filtrar por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
+            sales_data_filtered.append(sale)
+        
         return render_template('sales.html', 
-                             sales_data=sales_data,
+                             sales_data=sales_data_filtered,
                              filter_options=filter_options,
                              selected_filters=selected_filters,
                              fecha_actual=datetime.now())
@@ -123,8 +141,15 @@ def dashboard():
         except:
             mes_nombre = "AGOSTO 2025"
         
-        # Obtener día actual
-        dia_actual = fecha_actual.day
+        # Obtener día correcto según el mes seleccionado
+        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+            # Mes actual: usar día actual
+            dia_actual = fecha_actual.day
+        else:
+            # Mes pasado: usar último día del mes para mostrar el total del mes completo
+            año_sel, mes_sel = mes_seleccionado.split('-')
+            ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+            dia_actual = ultimo_dia
         
         # Obtener metas del mes seleccionado desde la sesión
         metas_historicas = session.get('metas_historicas', {})
@@ -195,6 +220,18 @@ def dashboard():
             linea_comercial = sale.get('commercial_line_national_id')
             if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
                 nombre_linea = linea_comercial[1].upper()
+                
+                # Excluir VENTA INTERNACIONAL (exportaciones)
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+            
+            # También filtrar por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+                    
                 balance = sale.get('balance', 0)
                 if balance:
                     balance = abs(float(balance))  # Convertir a positivo
@@ -254,6 +291,20 @@ def dashboard():
         ciclo_vida_por_producto = {}
         
         for sale in sales_data:
+            # Excluir VENTA INTERNACIONAL (exportaciones)
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                nombre_linea = linea_comercial[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+            
+            # También filtrar por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
             producto_nombre = sale.get('name', '').strip()
             ciclo_vida = sale.get('product_life_cycle', 'No definido')
             balance = sale.get('balance', 0)
@@ -284,6 +335,20 @@ def dashboard():
         # Datos para gráfico de Ciclo de Vida
         ventas_por_ciclo_vida = {}
         for sale in sales_data:
+            # Excluir VENTA INTERNACIONAL (exportaciones)
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                nombre_linea = linea_comercial[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+            
+            # También filtrar por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
             ciclo_vida = sale.get('product_life_cycle', 'No definido')
             balance = sale.get('balance', 0)
             
@@ -492,8 +557,26 @@ def export_excel_sales():
             limit=10000  # Más datos para export
         )
         
+        # Filtrar VENTA INTERNACIONAL (exportaciones)
+        sales_data_filtered = []
+        for sale in sales_data:
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                nombre_linea = linea_comercial[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+            
+            # También filtrar por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
+            sales_data_filtered.append(sale)
+        
         # Crear DataFrame
-        df = pd.DataFrame(sales_data)
+        df = pd.DataFrame(sales_data_filtered)
         
         # Crear archivo Excel en memoria
         output = io.BytesIO()

@@ -455,6 +455,29 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.addEventListener('scroll', handleScroll);
 });
+
+// Función para exportar a Excel
+function exportToExcel() {
+    // Obtener filtros actuales
+    const dateFrom = document.querySelector('input[name="date_from"]')?.value || '';
+    const dateTo = document.querySelector('input[name="date_to"]')?.value || '';
+    const lineaId = document.querySelector('select[name="linea_id"]')?.value || '';
+    const partnerId = document.querySelector('select[name="partner_id"]')?.value || '';
+    
+    // Construir URL de exportación con parámetros
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (lineaId) params.append('linea_id', lineaId);
+    if (partnerId) params.append('partner_id', partnerId);
+    
+    // Redirigir a la URL de exportación
+    const exportUrl = `/export/excel/sales?${params.toString()}`;
+    console.log('📊 Exportando a Excel:', exportUrl);
+    
+    // Crear enlace temporal para descarga
+    window.location.href = exportUrl;
+}
 </script>
 
 {% endblock %}

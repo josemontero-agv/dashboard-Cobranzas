@@ -455,6 +455,27 @@ class OdooManager:
                 limit=5000
             )
             
+            # Filtrar VENTA INTERNACIONAL (exportaciones)
+            sales_lines_filtered = []
+            for line in sales_lines:
+                # Filtrar por línea comercial
+                linea_comercial = line.get('commercial_line_national_id')
+                if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                    nombre_linea = linea_comercial[1].upper()
+                    if 'VENTA INTERNACIONAL' in nombre_linea:
+                        continue
+                
+                # Filtrar por canal de ventas
+                canal_ventas = line.get('sales_channel_id')
+                if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                    nombre_canal = canal_ventas[1].upper()
+                    if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                        continue
+                
+                sales_lines_filtered.append(line)
+            
+            sales_lines = sales_lines_filtered  # Usar los datos filtrados
+            
             if not sales_lines:
                 return self._get_empty_dashboard_data()
             
