@@ -1,278 +1,519 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<header class="page-header">
-    <div class="page-header__content">
-        <h1 class="page-title">Dashboard de Ventas</h1>
-        <p class="page-subtitle">{{ fecha_actual.strftime('%A %d de %B de %Y, %H:%M') }}</p>
+<!-- Header con logo y título -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <img src="https://agrovetmarket.com/wp-content/uploads/2021/03/logo-agrovet-market.png" alt="Agrovet Market" class="logo">
+        <div class="header-info">
+            <h1>AVANCE DE VENTAS - {{ mes_nombre.upper() }}</h1>
+            <div class="fecha-dia">{{ dia_actual }}</div>
+        </div>
     </div>
-    <div class="header-actions">
-        <a href="{{ url_for('sales') }}" class="btn">Ventas</a>
-        <a href="{{ url_for('logout') }}" class="btn btn--primary">Salir</a>
-    </div>
-</header>
-
-<div class="filter-bar">
-    <div class="filter-bar__content">
-        <form method="GET" action="{{ url_for('dashboard') }}" class="filter-form">
-            
-            <div class="filter-group">
-                <label for="date_from">DESDE</label>
-                <input type="date" name="date_from" id="date_from" value="{{ selected_filters.date_from or '' }}" class="form-control">
-            </div>
-            
-            <div class="filter-group">
-                <label for="date_to">HASTA</label>
-                <input type="date" name="date_to" id="date_to" value="{{ selected_filters.date_to or '' }}" class="form-control">
-            </div>
-            
-            <div class="filter-group">
-                <label for="linea_id">LÍNEA COMERCIAL</label>
-                <select name="linea_id" id="linea_id" class="form-select">
-                    <option value="">Todas las Líneas</option>
-                    {% for linea in filter_options.lineas %}
-                        <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>
-                            {{ linea.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="partner_id">CLIENTE</label>
-                <select name="partner_id" id="partner_id" class="form-select">
-                    <option value="">Todos los Clientes</option>
-                    {% for cliente in filter_options.clientes %}
-                        <option value="{{ cliente.id }}" {% if cliente.id == selected_filters.partner_id %}selected{% endif %}>
-                            {{ cliente.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-actions">
-                <button type="submit" class="btn btn--primary">Filtrar</button>
-                <a href="{{ url_for('dashboard') }}" class="btn btn--secondary">Limpiar</a>
-            </div>
-        </form>
+    <div class="header-nav">
+        <select id="mes-selector" onchange="cambiarMes(this.value)">
+            {% for mes in meses_disponibles %}
+            <option value="{{ mes.key }}" {% if mes.key == mes_seleccionado %}selected{% endif %}>
+                {{ mes.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+        <button onclick="location.href='{{ url_for('sales') }}'" class="btn-nav">Ventas</button>
+        <button onclick="location.href='{{ url_for('meta') }}'" class="btn-nav">Metas</button>
+        <button onclick="location.href='{{ url_for('logout') }}'" class="btn-salir">Salir</button>
     </div>
 </div>
-
-<!-- KPIs del Dashboard -->
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <a href="{{ url_for('sales') }}">
-                <div class="kpi-card__title">Total Ventas</div>
-                <div class="kpi-card__value">S/ {{ "{:,.2f}".format(dashboard_data.kpi_total_sales if dashboard_data.kpi_total_sales else 0) }}</div>
-            </a>
-        </div>
-        
-        <div class="kpi-card">
-            <a href="{{ url_for('sales') }}">
-                <div class="kpi-card__title">Facturas</div>
-                <div class="kpi-card__value">{{ dashboard_data.kpi_total_invoices if dashboard_data.kpi_total_invoices else 0 }}</div>
-            </a>
+<!-- Dashboard principal -->
+<div class="dashboard-container">
+    <!-- Fila superior: Grids 1, 2, 3, 4 -->
+    <div class="grid-item grid-1">
+        <div class="ventas-titulo">Total Ventas</div>
+        <div class="kpi-value">{{ "{:,.0f}".format(kpis.meta_total) }}</div>
+    </div>
+    <div class="grid-item grid-2">
+        <label for="linea-comercial" style="font-weight: bold; color: #875A7B;">Línea Comercial</label>
+        <form id="form-linea" method="get" action="{{ url_for('dashboard') }}" style="width:100%">
+            <select name="linea_id" id="linea-comercial" style="margin-top: 8px; padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; width:100%" onchange="document.getElementById('form-linea').submit()">
+                <option value="">Todas las Líneas</option>
+                {% for linea in meses_disponibles %}
+                    <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>{{ linea.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="vendedor_id" value="{{ selected_filters.vendedor_id or '' }}">
+            <input type="hidden" name="date_from" value="{{ selected_filters.date_from or '' }}">
+            <input type="hidden" name="date_to" value="{{ selected_filters.date_to or '' }}">
+        </form>
+    </div>
+    <div class="grid-item grid-3">
+        <label for="vendedor" style="font-weight: bold; color: #875A7B;">Vendedor</label>
+        <form id="form-vendedor" method="get" action="{{ url_for('dashboard') }}" style="width:100%">
+            <select name="vendedor_id" id="vendedor" style="margin-top: 8px; padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; width:100%" onchange="document.getElementById('form-vendedor').submit()">
+                <option value="">Todos los Vendedores</option>
+                {% for vendedor in dashboard_data.sellers %}
+                    <option value="{{ vendedor.name }}" {% if vendedor.name == selected_filters.vendedor_id %}selected{% endif %}>{{ vendedor.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="linea_id" value="{{ selected_filters.linea_id or '' }}">
+            <input type="hidden" name="date_from" value="{{ selected_filters.date_from or '' }}">
+            <input type="hidden" name="date_to" value="{{ selected_filters.date_to or '' }}">
+        </form>
+    </div>
+    <div class="grid-item grid-4">
+        <div class="ventas-titulo">Filtros Aplicados</div>
+        <div style="font-size: 0.9rem; color: #666; text-align: center;">
+            <div>Línea: {{ selected_filters.linea_nombre or 'Todas' }}</div>
+            <div>Vendedor: {{ selected_filters.vendedor_nombre or 'Todos' }}</div>
+            <div>Fecha: {{ selected_filters.date_from or 'Hoy' }}</div>
         </div>
     </div>
-
-    <!-- Gráficos del Dashboard -->
-    <div class="charts-grid">
-        <!-- Gráfico Principal: Ventas por Línea Comercial -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">Ventas por Línea Comercial</h3>
-            </div>
-            <div class="chart-body">
-                <canvas id="commercialLinesChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Gráfico Secundario: Ventas por Vendedor -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <h3 class="chart-title">Ventas por Vendedor</h3>
-            </div>
-            <div class="chart-body">
-                <canvas id="salesBySellerChart"></canvas>
-            </div>
-        </div>
+    
+    <!-- Fila media: Grid 5 a la izquierda y Grid 6 ocupando el resto -->
+    <div class="grid-item grid-5">
+        <label for="calendario-inline" style="font-weight: bold; color: #875A7B; margin-bottom: 12px;">Selecciona Día</label>
+        <form id="form-fecha" method="get" action="{{ url_for('dashboard') }}" style="width:100%">
+            <input type="hidden" id="date_from_hidden" name="date_from" value="{{ selected_filters.date_from or '' }}">
+            <input type="hidden" name="linea_id" value="{{ selected_filters.linea_id or '' }}">
+            <input type="hidden" name="vendedor_id" value="{{ selected_filters.vendedor_id or '' }}">
+        </form>
+        <div id="calendario-inline" style="width:100%;"></div>
     </div>
+    <div class="grid-item grid-6">
+        <h3 style="color: #1976d2; margin-top: 12px;">Ventas por Línea Comercial</h3>
+        <canvas id="grafico-linea"></canvas>
+    </div>
+    
+    <!-- Fila inferior: Grid 7 ocupando todo el ancho -->
+    <div class="grid-item grid-7">
+        <h3 style="color: #1976d2; margin-top: 12px;">Ventas por Vendedor</h3>
+        <canvas id="grafico-vendedor"></canvas>
+    </div>
+</div>
+<style>
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 120px 280px 200px;
+  gap: 15px;
+  padding: 15px;
+  background: #f5f5f5;
+  min-height: calc(100vh - 120px);
+}
+.grid-item {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(135, 90, 123, 0.1);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  overflow: hidden;
+}
+.grid-1 { grid-column: 1 / 2; grid-row: 1 / 2; }
+.grid-2 { grid-column: 2 / 3; grid-row: 1 / 2; }
+.grid-3 { grid-column: 3 / 4; grid-row: 1 / 2; }
+.grid-4 { grid-column: 4 / 5; grid-row: 1 / 2; }
+.grid-5 { grid-column: 1 / 2; grid-row: 2 / 3; }
+.grid-6 { grid-column: 2 / 5; grid-row: 2 / 3; }
+.grid-7 { grid-column: 1 / 5; grid-row: 3 / 4; }
 
-<!-- Scripts para los gráficos -->
-<script type="application/json" id="dashboard-data">{{ dashboard_data | tojson | safe }}</script>
+/* Estilos específicos para cada grid */
+.grid-1 {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
 
+.grid-2, .grid-3 {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.grid-5 {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
+  min-height: 280px;
+  overflow: visible;
+  position: relative;
+}
+
+.grid-5 #calendario-inline {
+  flex: 1;
+  max-height: none;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.grid-5 .flatpickr-calendar {
+  width: 100% !important;
+  font-size: 0.75rem !important;
+  position: static !important;
+  box-shadow: none !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+}
+
+.grid-5 .flatpickr-calendar .flatpickr-innerContainer {
+  height: auto !important;
+}
+
+.grid-5 .flatpickr-months {
+  padding: 8px !important;
+  background: #f8f9fa !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+
+.grid-5 .flatpickr-month {
+  height: 25px !important;
+}
+
+.grid-5 .flatpickr-current-month {
+  font-size: 0.9rem !important;
+  padding: 0 !important;
+}
+
+.grid-5 .flatpickr-prev-month,
+.grid-5 .flatpickr-next-month {
+  top: 2px !important;
+  width: 20px !important;
+  height: 20px !important;
+  padding: 2px !important;
+  fill: #875A7B !important;
+}
+
+.grid-5 .flatpickr-prev-month:hover,
+.grid-5 .flatpickr-next-month:hover {
+  fill: #714A67 !important;
+  background: rgba(135, 90, 123, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+.grid-5 .flatpickr-weekdays {
+  background: #f1f3f4 !important;
+  padding: 4px 0 !important;
+}
+
+.grid-5 .flatpickr-weekday {
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: #5f6368 !important;
+}
+
+.grid-5 .flatpickr-days {
+  padding: 4px !important;
+}
+
+.grid-5 .flatpickr-day {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  font-size: 0.7rem !important;
+  margin: 1px !important;
+  border-radius: 4px !important;
+}
+
+.grid-5 .flatpickr-day.today {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+  border: 1px solid #1976d2 !important;
+}
+
+.grid-5 .flatpickr-day.selected {
+  background: #875A7B !important;
+  color: white !important;
+}
+
+.grid-5 .flatpickr-day:hover {
+  background: #f5f5f5 !important;
+  color: #333 !important;
+}
+
+.grid-5 label {
+  font-size: 0.9rem !important;
+  margin-bottom: 8px !important;
+  color: #875A7B !important;
+  font-weight: 600 !important;
+}
+
+.grid-6, .grid-7 {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.grid-6 canvas, .grid-7 canvas {
+  flex: 1;
+  max-height: calc(100% - 30px);
+  width: 100% !important;
+  height: auto !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.grid-7 canvas {
+  max-height: 160px !important;
+}
+
+.grid-6 h3, .grid-7 h3 {
+  margin: 0 0 10px 0;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+.ventas-titulo { font-size: 1.4rem; color: #875A7B; font-weight: bold; margin-bottom: 8px; text-align: center; }
+.ventas-total { font-size: 2.2rem; font-weight: bold; color: #1976d2; text-align: center; }
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); }
+  .grid-1, .grid-2, .grid-3, .grid-4, .grid-5, .grid-6, .grid-7, .grid-8 { grid-column: auto; grid-row: auto; }
+}
+@media (max-width: 768px) {
+  .dashboard-grid { grid-template-columns: 1fr; grid-template-rows: repeat(8, 1fr); padding: 8px; gap: 12px; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
+var commercialLines = {{ dashboard_data.commercial_lines|tojson|safe }};
+var vendedores = {{ dashboard_data.sellers|tojson|safe }};
+flatpickr("#calendario", {
+    defaultDate: new Date(),
+    onChange: function(selectedDates, dateStr, instance) {
+        document.getElementById('calendario').value = dateStr;
+        document.getElementById('form-fecha').submit();
+    }
+});
 document.addEventListener('DOMContentLoaded', function() {
-    const dashboardData = JSON.parse(document.getElementById('dashboard-data').textContent);
-    
-    // Datos para líneas comerciales
-    const commercialLinesData = dashboardData.commercial_lines || [];
-    // Datos para vendedores
-    const sellersData = dashboardData.sellers || [];
-    
-    // Configuración minimalista para gráficos
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: true,
-                position: 'top',
-                labels: {
-                    padding: 16,
-                    font: { size: 12 },
-                    usePointStyle: true
-                }
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.label + ': S/ ' + context.parsed.y.toLocaleString('es-PE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                    }
-                }
-            }
+    var ctxLinea = document.getElementById('grafico-linea').getContext('2d');
+    new Chart(ctxLinea, {
+        type: 'bar',
+        data: {
+            labels: commercialLines.map(function(l){return l.name;}),
+            datasets: [{
+                label: 'Ventas por Línea Comercial',
+                data: commercialLines.map(function(l){return l.amount;}),
+                backgroundColor: '#1976d2',
+                borderRadius: 6
+            }]
         },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return 'S/ ' + value.toLocaleString('es-PE', {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0
-                        });
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+        }
+    });
+    var ctxVendedor = document.getElementById('grafico-vendedor').getContext('2d');
+    new Chart(ctxVendedor, {
+        type: 'doughnut',
+        data: {
+            labels: vendedores.map(function(v){return v.name;}),
+            datasets: [{
+                label: 'Ventas por Vendedor',
+                data: vendedores.map(function(v){return v.amount;}),
+                backgroundColor: [
+                    '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
+                    '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+});
+</script>
+    <style>
+    /* Scroll para el dashboard */
+    .dashboard-grid {
+            /* Eliminar scroll interno, solo scroll principal */
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: 100px 1fr 1fr;
+      gap: 24px;
+      padding: 32px;
+      background: #f5f5f5;
+      min-height: 80vh;
+    }
+    .grid-item {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(135, 90, 123, 0.08);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 18px;
+    }
+    .grid-1 { grid-column: 1 / 2; grid-row: 1 / 2; }
+    .grid-2 { grid-column: 2 / 3; grid-row: 1 / 2; }
+    .grid-3 { grid-column: 3 / 4; grid-row: 1 / 2; }
+    .grid-4 { grid-column: 4 / 5; grid-row: 1 / 2; }
+    .grid-5 { grid-column: 1 / 2; grid-row: 2 / 4; align-items: flex-start; }
+    .grid-6 { grid-column: 2 / 5; grid-row: 2 / 3; }
+    .grid-7 { grid-column: 2 / 4; grid-row: 3 / 4; }
+    .grid-8 { grid-column: 4 / 5; grid-row: 3 / 4; }
+    .ventas-titulo { font-size: 1.4rem; color: #875A7B; font-weight: bold; margin-bottom: 8px; text-align: center; }
+    .ventas-total { font-size: 2.2rem; font-weight: bold; color: #1976d2; text-align: center; }
+    @media (max-width: 1200px) {
+      .dashboard-grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); }
+      .grid-1, .grid-2, .grid-3, .grid-4, .grid-5, .grid-6, .grid-7, .grid-8 { grid-column: auto; grid-row: auto; }
+    }
+    @media (max-width: 768px) {
+      .dashboard-grid { grid-template-columns: 1fr; grid-template-rows: repeat(8, 1fr); padding: 8px; gap: 12px; }
+    }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+    var commercialLines = {{ dashboard_data.commercial_lines|tojson|safe }};
+    var vendedores = {{ dashboard_data.sellers|tojson|safe }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configuración del calendario
+        try {
+            flatpickr("#calendario-inline", {
+                inline: true,
+                static: true,
+                appendTo: document.getElementById('calendario-inline'),
+                defaultDate: "{{ selected_filters.date_from or '' }}",
+                dateFormat: "Y-m-d",
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: {
+                        shorthand: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+                        longhand: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                    },
+                    months: {
+                        shorthand: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        longhand: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
                     }
                 },
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
-            },
-            x: {
-                grid: {
-                    display: false
+                showMonths: 1,
+                enableTime: false,
+                allowInput: false,
+                clickOpens: true,
+                positionElement: document.getElementById('calendario-inline'),
+                onChange: function(selectedDates, dateStr) {
+                    document.getElementById('date_from_hidden').value = dateStr;
+                    document.getElementById('form-fecha').submit();
                 },
-                ticks: {
-                    maxRotation: 45,
-                    minRotation: 0
+                onReady: function(selectedDates, dateStr, instance) {
+                    // Forzar posicionamiento dentro del contenedor
+                    instance.calendarContainer.classList.add('custom-flatpickr');
+                    instance.calendarContainer.style.position = 'static';
+                    instance.calendarContainer.style.transform = 'none';
+                    instance.calendarContainer.style.left = 'auto';
+                    instance.calendarContainer.style.top = 'auto';
                 }
-            }
+            });
+        } catch(e) {
+            console.error('Flatpickr init failed', e);
         }
-    };
-    
-    // Gráfico de Líneas Comerciales
-    if (dashboardData.commercial_lines && dashboardData.commercial_lines.length > 0) {
-        const ctx = document.getElementById('commercialLinesChart').getContext('2d');
-        
-        // Extraer datos de líneas comerciales
-        const labels = dashboardData.commercial_lines.map(line => line.name || 'Sin Línea');
-        const data = dashboardData.commercial_lines.map(line => line.amount || 0);
-        
-        // Colores dinámicos basados en el monto
-        const maxAmount = Math.max(...data);
-        const colors = data.map(amount => {
-            const intensity = amount / maxAmount;
-            return `rgba(25, 118, 210, ${0.3 + intensity * 0.7})`;
-        });
-        
-        const borderColors = data.map(amount => {
-            const intensity = amount / maxAmount;
-            return `rgba(25, 118, 210, ${0.5 + intensity * 0.5})`;
-        });
-        
-        new Chart(ctx, {
+
+        // Gráfico de líneas comerciales
+        var ctxLinea = document.getElementById('grafico-linea').getContext('2d');
+        new Chart(ctxLinea, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: commercialLines.map(function(l){return l.name;}),
                 datasets: [{
-                    label: 'Ventas por Línea Comercial (S/)',
-                    data: data,
-                    backgroundColor: colors,
-                    borderColor: borderColors,
-                    borderWidth: 2,
-                    borderRadius: 4,
-                    borderSkipped: false,
-                }]
-            },
-            options: chartOptions
-        });
-    } else {
-        // Mostrar mensaje si no hay datos
-        const canvas = document.getElementById('commercialLinesChart');
-        const ctx = canvas.getContext('2d');
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#666';
-        ctx.fillText('No hay datos de líneas comerciales disponibles', canvas.width/2, canvas.height/2);
-    }
-    
-    // Configuración del gráfico de vendedores
-    if (sellersData && sellersData.length > 0) {
-        const sellersCtx = document.getElementById('salesBySellerChart').getContext('2d');
-        
-        // Generar colores para el gráfico de vendedores
-        const generateSellersColors = (count) => {
-            const colors = [];
-            const baseColors = [
-                '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
-                '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
-            ];
-            
-            for (let i = 0; i < count; i++) {
-                if (i < baseColors.length) {
-                    colors.push(baseColors[i]);
-                } else {
-                    const hue = (i * 137.508) % 360;
-                    colors.push(`hsl(${hue}, 65%, 55%)`);
-                }
-            }
-            return colors;
-        };
-        
-        const sellersColors = generateSellersColors(sellersData.length);
-        
-        const salesBySellerChart = new Chart(sellersCtx, {
-            type: 'doughnut',
-            data: {
-                labels: sellersData.map(item => item.name),
-                datasets: [{
-                    label: 'Ventas por Vendedor (S/)',
-                    data: sellersData.map(item => item.amount),
-                    backgroundColor: sellersColors,
-                    borderColor: '#fff',
-                    borderWidth: 3,
-                    hoverBorderWidth: 4,
-                    hoverOffset: 10
+                    label: 'Ventas por Línea Comercial',
+                    data: commercialLines.map(function(l){return l.amount;}),
+                    backgroundColor: '#1976d2',
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: { size: 10 }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 9 },
+                            maxRotation: 45
+                        }
+                    }
+                },
+                elements: {
+                    bar: {
+                        borderWidth: 0
+                    }
+                }
+            }
+        });
+
+        // Gráfico de vendedores
+        var ctxVendedor = document.getElementById('grafico-vendedor').getContext('2d');
+        new Chart(ctxVendedor, {
+            type: 'doughnut',
+            data: {
+                labels: vendedores.map(function(v){return v.name;}),
+                datasets: [{
+                    label: 'Ventas por Vendedor',
+                    data: vendedores.map(function(v){return v.amount;}),
+                    backgroundColor: [
+                        '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+                        '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 3,
+                    hoverBorderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '50%',
+                plugins: { 
+                    legend: { 
+                        display: true,
+                        position: 'right',
+                        align: 'center',
                         labels: {
+                            boxWidth: 12,
                             padding: 15,
-                            color: '#333',
-                            font: {
-                                size: 11
+                            font: { 
+                                size: 9,
+                                family: 'Segoe UI'
                             },
                             generateLabels: function(chart) {
                                 const data = chart.data;
                                 if (data.labels.length && data.datasets.length) {
                                     return data.labels.map((label, i) => {
-                                        const dataset = data.datasets[0];
-                                        const amount = dataset.data[i];
-                                        const total = dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = ((amount / total) * 100).toFixed(1);
+                                        const value = data.datasets[0].data[i];
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
                                         
                                         return {
-                                            text: `${label} (${percentage}%)`,
-                                            fillStyle: dataset.backgroundColor[i],
-                                            strokeStyle: dataset.borderColor,
-                                            lineWidth: dataset.borderWidth,
+                                            text: `${label.split(',')[0]} (${percentage}%)`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].backgroundColor[i],
+                                            lineWidth: 2,
+                                            hidden: false,
                                             index: i
                                         };
                                     });
@@ -282,45 +523,29 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: 'rgba(46, 204, 113, 0.5)',
-                        borderWidth: 1,
                         callbacks: {
                             label: function(context) {
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                return [
-                                    `Vendedor: ${context.label}`,
-                                    `Monto: S/ ${context.parsed.toLocaleString('es-PE', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    })}`,
-                                    `Participación: ${percentage}%`
-                                ];
+                                return `${context.label}: S/ ${context.parsed.toLocaleString()} (${percentage}%)`;
                             }
-                        }
+                        },
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#ffffff',
+                        borderWidth: 1
                     }
                 },
-                animation: {
-                    animateRotate: true,
-                    animateScale: true,
-                    duration: 1500
+                elements: {
+                    arc: {
+                        borderRadius: 4
+                    }
                 }
             }
         });
-    } else {
-        // Mostrar mensaje si no hay datos de vendedores
-        const canvas = document.getElementById('salesBySellerChart');
-        const ctx = canvas.getContext('2d');
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#666';
-        ctx.fillText('No hay datos de vendedores disponibles', canvas.width/2, canvas.height/2);
-    }
-});
-</script>
+    });
+    </script>
 
 <style>
 /* Mejoras generales del dashboard - Estilo Odoo */
@@ -761,9 +986,5 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 280px;
     }
 }
-</style>
 
-
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}

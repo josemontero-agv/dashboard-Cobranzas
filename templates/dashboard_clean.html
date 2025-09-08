@@ -1,0 +1,654 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Header con logo y título -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <img src="https://agrovetmarket.com/wp-content/uploads/2021/03/logo-agrovet-market.png" alt="Agrovet Market" class="logo">
+        <div class="header-info">
+            <h1>AVANCE DE VENTAS - {{ mes_nombre.upper() }}</h1>
+        </div>
+    </div>
+    
+    <!-- Calendario central -->
+    <div class="calendario-dia">
+        <div class="dia-numero">{{ dia_actual }}</div>
+        <div class="dia-texto">{{ mes_nombre.split()[0][:3] }}</div>
+    </div>
+    
+    <div class="header-nav">
+        <select id="mes-selector" onchange="cambiarMes(this.value)">
+            {% for mes in meses_disponibles %}
+            <option value="{{ mes.key }}" {% if mes.key == mes_seleccionado %}selected{% endif %}>
+                {{ mes.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+        <button onclick="window.location.href='{{ url_for('sales') }}'" class="btn-nav">Ventas</button>
+        <button onclick="window.location.href='{{ url_for('meta') }}'" class="btn-nav">Metas</button>
+        <button onclick="window.location.href='{{ url_for('logout') }}'" class="btn-salir">Salir</button>
+    </div>
+</div>
+
+<!-- Dashboard principal -->
+<div class="dashboard-container">
+    <!-- Fila superior - KPIs principales -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">Meta</div>
+            <div class="kpi-value">{{ "{:,.0f}".format(kpis.meta_total) }}</div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-label">Venta</div>  
+            <div class="kpi-value">{{ "{:,.0f}".format(kpis.venta_total) }}</div>
+        </div>
+        
+        <div class="kpi-card kpi-avance">
+            <div class="kpi-label">% Avance</div>
+            <div class="kpi-value">{{ "{:.1f} %".format(kpis.porcentaje_avance) }}</div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-label">Meta IPN</div>
+            <div class="kpi-value">{{ "{:,.0f}".format(kpis.meta_ipn) }}</div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-label">Venta IPN</div>
+            <div class="kpi-value">{{ "{:,.0f}".format(kpis.venta_ipn) }}</div>
+        </div>
+        
+        <div class="kpi-card kpi-avance">
+            <div class="kpi-label">% Avance IPN</div>
+            <div class="kpi-value">{{ "{:.1f} %".format(kpis.porcentaje_avance_ipn) }}</div>
+        </div>
+        
+        <div class="kpi-card kpi-vencimiento">
+            <div class="kpi-label">Vencimiento a 6 meses</div>
+            <div class="kpi-value">{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</div>
+        </div>
+    </div>
+    
+    <!-- Avance diario -->
+    <div class="avance-diario">
+        <div class="avance-card">
+            <div class="avance-label">Avance Diario Total</div>
+            <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_total) }}</div>
+        </div>
+        
+        <div class="avance-card">
+            <div class="avance-label">Avance Diario IPN</div>
+            <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_ipn) }}</div>
+        </div>
+    </div>
+    
+    <!-- FILA PRINCIPAL: TABLA (IZQUIERDA) + GRÁFICO CICLO DE VIDA (DERECHA) -->
+    <div class="main-content-row">
+        <!-- Tabla de líneas comerciales (IZQUIERDA - MÁS ANCHA) -->
+        <div class="tabla-container">
+            <h3>Meta LC Total y Venta por Línea Comercial Local</h3>
+            <table class="tabla-avance">
+                <thead>
+                    <tr>
+                        <th>Línea Comercial</th>
+                        <th>Meta</th>
+                        <th>Venta</th>
+                        <th>% Var. Total</th>
+                        <th>Meta IPN</th>
+                        <th>Venta IPN</th>
+                        <th>% Var. IPN</th>
+                        <th>Vencimiento 6 meses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linea in datos_lineas %}
+                    <tr>
+                        <td>{{ linea.nombre }}</td>
+                        <td>{{ "{:,.0f}".format(linea.meta) }}</td>
+                        <td>{{ "{:,.0f}".format(linea.venta) }}</td>
+                        <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_total) }}</td>
+                        <td>{{ "{:,.0f}".format(linea.meta_pn) }}</td>
+                        <td>{{ "{:,.0f}".format(linea.venta_pn) }}</td>
+                        <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_pn) }}</td>
+                        <td>{{ "{:,.0f}".format(linea.vencimiento_6_meses) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Fila de TOTAL -->
+                    <tr class="fila-total">
+                        <td><strong>Total</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.meta_total) }}</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.venta_total) }}</strong></td>
+                        <td class="porcentaje"><strong>{{ "{:.1f}%".format(kpis.porcentaje_avance) }}</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.meta_ipn) }}</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.venta_ipn) }}</strong></td>
+                        <td class="porcentaje"><strong>{{ "{:.1f}%".format(kpis.porcentaje_avance_ipn) }}</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Gráfico Ciclo de Vida (DERECHA - MÁS PEQUEÑO) -->
+        <div class="grafico-ciclo-vida">
+            <h3>Venta por Ciclo de Vida</h3>
+            <div class="donut-container">
+                <canvas id="grafico-donut"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fila inferior con gráficos -->
+    <div class="graficos-inferiores">
+        <!-- Gráfico de Productos (Barras Horizontales) -->
+        <div class="grafico-productos">
+            <h3>Top 7 Productos Más Vendidos</h3>
+            <div class="chart-container">
+                <canvas id="grafico-productos"></canvas>
+            </div>
+        </div>
+        
+        <!-- Gráfico de Líneas Comerciales (Barras Verticales) -->
+        <div class="grafico-lineas">
+            <h3>Venta por Línea Comercial</h3>
+            <div class="chart-container">
+                <canvas id="grafico-lineas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* === ESTILOS DEL DASHBOARD === */
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f7fa;
+    color: #2c3e50;
+}
+
+/* Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logo {
+    height: 60px;
+    width: auto;
+}
+
+.header-info h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Calendario central */
+.calendario-dia {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #3498db;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    min-width: 60px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.dia-numero {
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.dia-texto {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+
+
+.header-nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+#mes-selector {
+    padding: 10px 15px;
+    border: 2px solid #bdc3c7;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.btn-nav, .btn-salir {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.btn-nav {
+    background: #8e44ad;
+    color: white;
+}
+
+.btn-salir {
+    background: #e74c3c;
+    color: white;
+}
+
+/* Dashboard Container */
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* KPIs Row */
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 15px;
+}
+
+.kpi-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #8e44ad;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.kpi-card.kpi-avance {
+    border-left-color: #f39c12;
+    background: #fff3cd;
+}
+
+.kpi-card.kpi-vencimiento {
+    border-left-color: #3498db;
+    background: #d6eaf8;
+}
+
+.kpi-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.kpi-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Avance Diario */
+.avance-diario {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.avance-card {
+    background: #ecf0f1;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.avance-label {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+}
+
+.avance-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #e67e22;
+}
+
+/* FILA PRINCIPAL - LAYOUT CORRECTO */
+.main-content-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Tabla más ancha (izquierda), gráfico más pequeño (derecha) */
+    gap: 25px;
+    align-items: start;
+}
+
+/* Tabla Container (IZQUIERDA) */
+.tabla-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tabla-container h3 {
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-size: 18px;
+}
+
+.tabla-avance {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.tabla-avance th {
+    background: #34495e;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.tabla-avance td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #ecf0f1;
+    text-align: center;
+}
+
+.tabla-avance .porcentaje {
+    font-weight: bold;
+    color: #e67e22;
+}
+
+.fila-total {
+    background: #2c3e50 !important;
+    color: white !important;
+}
+
+.fila-total td {
+    color: white !important;
+    border-top: 2px solid #34495e;
+}
+
+/* Gráfico Ciclo de Vida (DERECHA) */
+.grafico-ciclo-vida {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.grafico-ciclo-vida h3 {
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-size: 18px;
+}
+
+.donut-container {
+    position: relative;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#grafico-donut {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Gráficos Inferiores */
+.graficos-inferiores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.grafico-productos, .grafico-lineas {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.grafico-productos h3, .grafico-lineas h3 {
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    text-align: center;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .kpi-row {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .main-content-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .main-content-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Datos del backend
+const datosLineas = {{ datos_lineas|tojson|safe }};
+const datosProductos = {{ datos_productos|tojson|safe }};
+const datosCicloVida = {{ datos_ciclo_vida|tojson|safe }};
+
+// Gráfico de Ciclo de Vida (Donut)
+function crearGraficoCicloVida() {
+    const ctx = document.getElementById('grafico-donut').getContext('2d');
+    
+    const labels = datosCicloVida.map(item => item.ciclo || 'Sin definir');
+    const data = datosCicloVida.map(item => item.venta || 0);
+    
+    const colores = [
+        '#3498db', '#e74c3c', '#2ecc71', '#f39c12', 
+        '#9b59b6', '#1abc9c', '#34495e', '#e67e22'
+    ];
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colores.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const porcentaje = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': S/ ' + context.parsed.toLocaleString() + ' (' + porcentaje + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Productos (Barras Horizontales)
+function crearGraficoProductos() {
+    const ctx = document.getElementById('grafico-productos').getContext('2d');
+    
+    const labels = datosProductos.map(item => item.nombre.length > 20 ? item.nombre.substring(0, 20) + '...' : item.nombre);
+    const data = datosProductos.map(item => item.venta || 0);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ventas',
+                data: data,
+                backgroundColor: '#3498db',
+                borderColor: '#2980b9',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Barras horizontales
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Ventas: S/ ' + context.parsed.x.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'S/ ' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Líneas Comerciales (Barras Verticales)
+function crearGraficoLineas() {
+    const ctx = document.getElementById('grafico-lineas').getContext('2d');
+    
+    const labels = datosLineas.map(item => item.nombre);
+    const dataMeta = datosLineas.map(item => item.meta || 0);
+    const dataVenta = datosLineas.map(item => item.venta || 0);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Meta',
+                    data: dataMeta,
+                    backgroundColor: '#e74c3c',
+                    borderColor: '#c0392b',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Venta',
+                    data: dataVenta,
+                    backgroundColor: '#3498db',
+                    borderColor: '#2980b9',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': S/ ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'S/ ' + (value / 1000000).toFixed(1) + 'M';
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Función para cambiar mes
+function cambiarMes(mesSeleccionado) {
+    window.location.href = `?mes=${mesSeleccionado}`;
+}
+
+// Inicializar gráficos cuando la página carga
+document.addEventListener('DOMContentLoaded', function() {
+    crearGraficoCicloVida();
+    crearGraficoProductos();
+    crearGraficoLineas();
+});
+</script>
+
+{% endblock %}

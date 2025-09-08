@@ -70,13 +70,42 @@ class OdooManager:
     def get_sales_filter_options(self):
         """Obtener opciones para filtros de ventas"""
         try:
-            # Obtener líneas comerciales - comentado porque el modelo no existe
-            # commercial_lines = self.models.execute_kw(
-            #     self.db, self.uid, self.password, 'commercial.line.national', 'search_read',
-            #     [[]],
-            #     {'fields': ['id', 'name'], 'limit': 100}
-            # )
-            commercial_lines = []  # Por ahora vacío
+            # Usar el método existente que obtiene líneas comerciales del inventario
+            # Esto garantiza que usamos las mismas líneas que en el resto del sistema
+            existing_options = self._get_filter_options_internal()
+            
+            # Obtener líneas comerciales
+            lineas = existing_options.get('lineas', [])
+            
+            # Si no hay líneas en el inventario, intentar obtenerlas directamente de productos
+            if not lineas:
+                try:
+                    # Consulta directa a productos para obtener líneas comerciales
+                    products = self.models.execute_kw(
+                        self.db, self.uid, self.password, 'product.product', 'search_read',
+                        [[('commercial_line_national_id', '!=', False)]],
+                        {'fields': ['commercial_line_national_id'], 'limit': 1000}
+                    )
+                    
+                    # Extraer líneas únicas
+                    unique_lines = {}
+                    for product in products:
+                        if product.get('commercial_line_national_id'):
+                            line_id, line_name = product['commercial_line_national_id']
+                            unique_lines[line_id] = line_name
+                    
+                    # Formatear líneas
+                    lineas = [
+                        {'id': line_id, 'display_name': line_name}
+                        for line_id, line_name in unique_lines.items()
+                    ]
+                    lineas.sort(key=lambda x: x['display_name'])
+                    
+                except Exception as product_error:
+                    print(f"Error obteniendo líneas de productos: {product_error}")
+            
+            # Para compatibilidad con diferentes templates
+            commercial_lines = lineas
             
             # Obtener clientes
             partners = self.models.execute_kw(
@@ -85,13 +114,22 @@ class OdooManager:
                 {'fields': ['id', 'name'], 'limit': 100}
             )
             
+            # Formatear clientes
+            clientes = [
+                {'id': p['id'], 'display_name': p['name']}
+                for p in partners
+            ]
+            
             return {
                 'commercial_lines': commercial_lines,
-                'partners': partners
+                'lineas': lineas,  # Para compatibilidad con meta.html
+                'partners': partners,
+                'clientes': clientes  # Para compatibilidad
             }
+            
         except Exception as e:
             print(f"Error al obtener opciones de filtro de ventas: {e}")
-            return {'commercial_lines': [], 'partners': []}
+            return {'commercial_lines': [], 'lineas': [], 'partners': [], 'clientes': []}
 
     def get_filter_options(self):
         """Alias para get_sales_filter_options para compatibilidad"""
