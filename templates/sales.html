@@ -130,6 +130,7 @@
                 <th>Dirección Entrega</th>
                 <th>Ruta</th>
                 <th>Ciclo de Vida</th>
+                <th>IMP</th> <!-- Nueva columna -->
             </tr>
         </thead>
         <tbody>
@@ -295,10 +296,21 @@
                     {% endif %}
                 </td>
                 <td>{{ line.product_life_cycle or 'N/A' }}</td>
+                <td>
+                    {% if line.tax_id %}
+                        {% if line.tax_id is iterable and line.tax_id|length > 1 %}
+                            {{ line.tax_id[1] }}
+                        {% else %}
+                            {{ line.tax_id }}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="27" style="text-align: center; padding: var(--space-4);">No se encontraron líneas de venta.</td>
+                <td colspan="28" style="text-align: center; padding: var(--space-4);">No se encontraron líneas de venta.</td>
             </tr>
             {% endfor %}
         </tbody>

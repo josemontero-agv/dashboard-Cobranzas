@@ -30,6 +30,13 @@ Filtros y condiciones aplicados:
 - Reasignación de línea comercial a ECOMMERCE para usuarios específicos:
     - Si invoice_user_id es 34 o 35, se reasigna commercial_line_national_id a ECOMMERCE
 
+Valores únicos en columna IMP (impuestos):
+-----------------------------------------
+- Los valores que aparecen actualmente en la columna IMP son los nombres de los impuestos configurados en Odoo.
+- Ejemplo de valores observados: "G", "U", "T" (estos pueden ser abreviaturas o nombres personalizados de los impuestos en tu base de datos).
+- Para saber todos los valores posibles, se recomienda revisar la configuración de impuestos en Odoo (menú Contabilidad > Impuestos) o consultar la tabla account.tax.
+- Si necesitas un filtro por código o nombre, puedes usar estos valores como referencia.
+
 Notas:
 ------
 - Los filtros se aplican tanto para la vista de ventas (sales), dashboard y exportaciones.

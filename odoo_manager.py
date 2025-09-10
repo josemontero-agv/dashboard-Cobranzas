@@ -184,7 +184,7 @@ class OdooManager:
             query_options = {
                 'fields': [
                     'move_id', 'partner_id', 'product_id', 'balance', 'move_name',
-                    'quantity', 'price_unit'
+                    'quantity', 'price_unit', 'tax_ids'
                 ]
             }
             
@@ -297,6 +297,20 @@ class OdooManager:
                 except Exception as e:
                     print(f"⚠️ Error obteniendo líneas de orden: {e}")
             
+            # Obtener todos los tax_ids únicos de las líneas contables
+            all_tax_ids = set()
+            for line in sales_lines_base:
+                if line.get('tax_ids'):
+                    all_tax_ids.update(line['tax_ids'])
+            tax_names = {}
+            if all_tax_ids:
+                taxes = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'account.tax', 'search_read',
+                    [[('id', 'in', list(all_tax_ids))]],
+                    {'fields': ['id', 'name']}
+                )
+                tax_names = {t['id']: t['name'] for t in taxes}
+            
             # Procesar y combinar todos los datos para las 27 columnas
             sales_lines = []
             ecommerce_reassigned = 0
@@ -319,122 +333,132 @@ class OdooManager:
                 # Obtener datos de línea de orden
                 sale_line_key = (order_id[0], product_id[0]) if order_id and product_id else None
                 sale_line = sale_line_data.get(sale_line_key, {}) if sale_line_key else {}
-                
-                # Crear registro completo con las 27 columnas
-                sales_lines.append({
-                    # 1. Estado de Pago
-                    'payment_state': move.get('payment_state'),
+                # Obtener nombres de impuestos
+                imp_list = []
+                for tid in line.get('tax_ids', []):
+                    if tid in tax_names:
+                        imp_list.append(tax_names[tid])
+                imp_str = ', '.join(imp_list) if imp_list else ''
+                # Filtrar por impuestos IGV o IGV_INC
+                if 'IGV' in imp_list or 'IGV_INC' in imp_list:
+                    # Crear registro completo con las 27 columnas
+                    sales_lines.append({
+                        # 1. Estado de Pago
+                        'payment_state': move.get('payment_state'),
+                        
+                        # 2. Canal de Venta
+                        'sales_channel_id': move.get('team_id'),
+                        
+                        # 3. Línea Comercial Local
+                        'commercial_line_national_id': product.get('commercial_line_national_id'),
+                        
+                        # 4. Vendedor
+                        'invoice_user_id': move.get('invoice_user_id'),
+                        
+                        # 5. Socio
+                        'partner_name': partner.get('name'),
+                        
+                        # 6. NIF
+                        'vat': partner.get('vat'),
+                        
+                        # 7. Origen
+                        'invoice_origin': move.get('invoice_origin'),
+                        
+                        # 7.1. Asiento Contable (move_id)
+                        'move_name': move.get('name'),  # Número del asiento contable
+                        'move_ref': move.get('ref'),    # Referencia del asiento
+                        'move_state': move.get('state'), # Estado del asiento
+                        
+                        # 7.2. Orden de Venta (order_id) 
+                        'order_name': order.get('name'),  # Número de la orden de venta
+                        'order_origin': order.get('origin'), # Origen de la orden
+                        'client_order_ref': order.get('client_order_ref'), # Referencia del cliente
+                        
+                        # 8. Producto
+                        'name': product.get('name', ''),
+                        
+                        # 9. Referencia Interna
+                        'default_code': product.get('default_code', ''),
+                        
+                        # 10. ID Producto
+                        'product_id': line.get('product_id'),
+                        
+                        # 11. Fecha Factura
+                        'invoice_date': move.get('invoice_date'),
+                        
+                        # 12. Tipo Documento
+                        'l10n_latam_document_type_id': move.get('l10n_latam_document_type_id'),
+                        
+                        # 13. Número
+                        'move_name': line.get('move_name'),
+                        
+                        # 14. Ref. Doc. Rectificado
+                        'origin_number': move.get('origin_number'),
+                        
+                        # 15. Saldo
+                        'balance': line.get('balance'),
+                        
+                        # 16. Clasificación Farmacológica
+                        'pharmacological_classification_id': product.get('pharmacological_classification_id'),
+                        
+                        # 17. Observaciones Entrega (delivery_observations)
+                        'delivery_observations': order.get('delivery_observations'),
+                        
+                        # 17.1. Información adicional de la orden
+                        'order_date': order.get('date_order'),  # Fecha de la orden
+                        'order_state': order.get('state'),      # Estado de la orden
+                        'commitment_date': order.get('commitment_date'),  # Fecha compromiso
+                        'order_user_id': order.get('user_id'),  # Vendedor de la orden
+                        
+                        # 18. Agencia
+                        'partner_supplying_agency_id': order.get('partner_supplying_agency_id'),
+                        
+                        # 19. Formas Farmacéuticas
+                        'pharmaceutical_forms_id': product.get('pharmaceutical_forms_id'),
+                        
+                        # 20. Vía Administración
+                        'administration_way_id': product.get('administration_way_id'),
+                        
+                        # 21. Categoría Producto
+                        'categ_id': product.get('categ_id'),
+                        
+                        # 22. Línea Producción
+                        'production_line_id': product.get('production_line_id'),
+                        
+                        # 23. Cantidad
+                        'quantity': line.get('quantity'),
+                        
+                        # 24. Precio Unitario
+                        'price_unit': line.get('price_unit'),
+                        
+                        # 25. Dirección Entrega
+                        'partner_shipping_id': order.get('partner_shipping_id'),
+                        
+                        # 26. Ruta
+                        'route_id': sale_line.get('route_id'),
+                        
+                        # 27. Ciclo de Vida
+                        'product_life_cycle': product.get('product_life_cycle'),
+                        
+                        # 28. IMP (Impuesto)
+                        'tax_id': imp_str,
+                        
+                        # Campos adicionales para compatibilidad
+                        'move_id': line.get('move_id'),
+                        'partner_id': line.get('partner_id')
+                    })
                     
-                    # 2. Canal de Venta
-                    'sales_channel_id': move.get('team_id'),
+                    # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
+                    current_record = sales_lines[-1]  # Obtener el registro recién agregado
+                    invoice_user = current_record.get('invoice_user_id')
                     
-                    # 3. Línea Comercial Local
-                    'commercial_line_national_id': product.get('commercial_line_national_id'),
-                    
-                    # 4. Vendedor
-                    'invoice_user_id': move.get('invoice_user_id'),
-                    
-                    # 5. Socio
-                    'partner_name': partner.get('name'),
-                    
-                    # 6. NIF
-                    'vat': partner.get('vat'),
-                    
-                    # 7. Origen
-                    'invoice_origin': move.get('invoice_origin'),
-                    
-                    # 7.1. Asiento Contable (move_id)
-                    'move_name': move.get('name'),  # Número del asiento contable
-                    'move_ref': move.get('ref'),    # Referencia del asiento
-                    'move_state': move.get('state'), # Estado del asiento
-                    
-                    # 7.2. Orden de Venta (order_id) 
-                    'order_name': order.get('name'),  # Número de la orden de venta
-                    'order_origin': order.get('origin'), # Origen de la orden
-                    'client_order_ref': order.get('client_order_ref'), # Referencia del cliente
-                    
-                    # 8. Producto
-                    'name': product.get('name', ''),
-                    
-                    # 9. Referencia Interna
-                    'default_code': product.get('default_code', ''),
-                    
-                    # 10. ID Producto
-                    'product_id': line.get('product_id'),
-                    
-                    # 11. Fecha Factura
-                    'invoice_date': move.get('invoice_date'),
-                    
-                    # 12. Tipo Documento
-                    'l10n_latam_document_type_id': move.get('l10n_latam_document_type_id'),
-                    
-                    # 13. Número
-                    'move_name': line.get('move_name'),
-                    
-                    # 14. Ref. Doc. Rectificado
-                    'origin_number': move.get('origin_number'),
-                    
-                    # 15. Saldo
-                    'balance': line.get('balance'),
-                    
-                    # 16. Clasificación Farmacológica
-                    'pharmacological_classification_id': product.get('pharmacological_classification_id'),
-                    
-                    # 17. Observaciones Entrega (delivery_observations)
-                    'delivery_observations': order.get('delivery_observations'),
-                    
-                    # 17.1. Información adicional de la orden
-                    'order_date': order.get('date_order'),  # Fecha de la orden
-                    'order_state': order.get('state'),      # Estado de la orden
-                    'commitment_date': order.get('commitment_date'),  # Fecha compromiso
-                    'order_user_id': order.get('user_id'),  # Vendedor de la orden
-                    
-                    # 18. Agencia
-                    'partner_supplying_agency_id': order.get('partner_supplying_agency_id'),
-                    
-                    # 19. Formas Farmacéuticas
-                    'pharmaceutical_forms_id': product.get('pharmaceutical_forms_id'),
-                    
-                    # 20. Vía Administración
-                    'administration_way_id': product.get('administration_way_id'),
-                    
-                    # 21. Categoría Producto
-                    'categ_id': product.get('categ_id'),
-                    
-                    # 22. Línea Producción
-                    'production_line_id': product.get('production_line_id'),
-                    
-                    # 23. Cantidad
-                    'quantity': line.get('quantity'),
-                    
-                    # 24. Precio Unitario
-                    'price_unit': line.get('price_unit'),
-                    
-                    # 25. Dirección Entrega
-                    'partner_shipping_id': order.get('partner_shipping_id'),
-                    
-                    # 26. Ruta
-                    'route_id': sale_line.get('route_id'),
-                    
-                    # 27. Ciclo de Vida
-                    'product_life_cycle': product.get('product_life_cycle'),
-                    
-                    # Campos adicionales para compatibilidad
-                    'move_id': line.get('move_id'),
-                    'partner_id': line.get('partner_id')
-                })
-                
-                # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
-                current_record = sales_lines[-1]  # Obtener el registro recién agregado
-                invoice_user = current_record.get('invoice_user_id')
-                
-                if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
-                    # Verificar si es uno de los usuarios ECOMMERCE específicos
-                    if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
-                        (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
-                        # Cambiar la línea comercial a ECOMMERCE
-                        current_record['commercial_line_national_id'] = [9, 'ECOMMERCE']
-                        ecommerce_reassigned += 1
+                    if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
+                        # Verificar si es uno de los usuarios ECOMMERCE específicos
+                        if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
+                            (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
+                            # Cambiar la línea comercial a ECOMMERCE
+                            current_record['commercial_line_national_id'] = [9, 'ECOMMERCE']
+                            ecommerce_reassigned += 1
             
             print(f"✅ Procesadas {len(sales_lines)} líneas con 27 columnas completas")
             print(f"🔄 Reasignadas {ecommerce_reassigned} líneas a ECOMMERCE (usuarios específicos)")
