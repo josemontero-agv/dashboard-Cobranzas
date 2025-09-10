@@ -162,6 +162,10 @@ class OdooManager:
                 ('product_id.default_code', '!=', False)  # Solo productos con código
             ]
             
+            # Filtros de exclusión de categorías específicas
+            excluded_categories = [315, 333, 304, 314, 318, 339]
+            domain.append(('product_id.categ_id', 'not in', excluded_categories))
+            
             # Filtros de fecha
             if date_from:
                 domain.append(('move_id.invoice_date', '>=', date_from))
@@ -177,16 +181,21 @@ class OdooManager:
                 domain.append(('product_id.commercial_line_national_id', '=', linea_id))
             
             # Obtener líneas base con todos los campos necesarios
+            query_options = {
+                'fields': [
+                    'move_id', 'partner_id', 'product_id', 'balance', 'move_name',
+                    'quantity', 'price_unit'
+                ]
+            }
+            
+            # Solo agregar limit si no es None (XML-RPC no maneja None)
+            if limit is not None:
+                query_options['limit'] = limit
+            
             sales_lines_base = self.models.execute_kw(
                 self.db, self.uid, self.password, 'account.move.line', 'search_read',
                 [domain],
-                {
-                    'fields': [
-                        'move_id', 'partner_id', 'product_id', 'balance', 'move_name',
-                        'quantity', 'price_unit'
-                    ],
-                    'limit': limit
-                }
+                query_options
             )
             
             print(f"📊 Base obtenida: {len(sales_lines_base)} líneas")
@@ -290,6 +299,7 @@ class OdooManager:
             
             # Procesar y combinar todos los datos para las 27 columnas
             sales_lines = []
+            ecommerce_reassigned = 0
             print(f"🚀 Procesando {len(sales_lines_base)} líneas con 27 columnas...")
             
             for line in sales_lines_base:
@@ -413,8 +423,21 @@ class OdooManager:
                     'move_id': line.get('move_id'),
                     'partner_id': line.get('partner_id')
                 })
+                
+                # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
+                current_record = sales_lines[-1]  # Obtener el registro recién agregado
+                invoice_user = current_record.get('invoice_user_id')
+                
+                if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
+                    # Verificar si es uno de los usuarios ECOMMERCE específicos
+                    if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
+                        (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
+                        # Cambiar la línea comercial a ECOMMERCE
+                        current_record['commercial_line_national_id'] = [9, 'ECOMMERCE']
+                        ecommerce_reassigned += 1
             
             print(f"✅ Procesadas {len(sales_lines)} líneas con 27 columnas completas")
+            print(f"🔄 Reasignadas {ecommerce_reassigned} líneas a ECOMMERCE (usuarios específicos)")
             
             # Si se solicita paginación, devolver tupla (datos, paginación)
             if page is not None and per_page is not None:

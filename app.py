@@ -600,6 +600,7 @@ def export_excel_sales():
         flash(f'Error al exportar datos: {str(e)}', 'danger')
         return redirect(url_for('sales'))
 
+
 if __name__ == '__main__':
     print("🚀 Iniciando Dashboard de Ventas Farmacéuticas...")
     print("📊 Disponible en: http://127.0.0.1:5000")

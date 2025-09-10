@@ -1,0 +1,37 @@
+Resumen de datos y filtros Odoo
+=================================
+
+Datos que se traen desde Odoo:
+------------------------------
+- Líneas de venta (account.move.line) con los siguientes campos principales:
+    - move_id (factura)
+    - partner_id (cliente)
+    - product_id (producto)
+    - balance (saldo)
+    - move_name (número de factura)
+    - quantity (cantidad)
+    - price_unit (precio unitario)
+    - Otros campos relacionados: canal de venta, línea comercial, vendedor, NIF, origen, orden de venta, referencia interna, fecha factura, tipo documento, clasificación farmacológica, observaciones, agencia, formas farmacéuticas, vía administración, categoría producto, línea producción, dirección entrega, ruta, ciclo de vida, etc.
+
+Filtros y condiciones aplicados:
+--------------------------------
+- Solo facturas de venta y notas de crédito:
+    ('move_id.move_type', 'in', ['out_invoice', 'out_refund'])
+- Solo facturas confirmadas/publicadas:
+    ('move_id.state', '=', 'posted')
+- Solo productos con código interno:
+    ('product_id.default_code', '!=', False)
+- Exclusión de categorías de producto:
+    ('product_id.categ_id', 'not in', [315, 333, 304, 314, 318, 339])
+- Filtros dinámicos según selección del usuario:
+    - Rango de fechas: ('move_id.invoice_date', '>=', date_from), ('move_id.invoice_date', '<=', date_to)
+    - Cliente específico: ('partner_id', '=', partner_id)
+    - Línea comercial: ('product_id.commercial_line_national_id', '=', linea_id)
+- Reasignación de línea comercial a ECOMMERCE para usuarios específicos:
+    - Si invoice_user_id es 34 o 35, se reasigna commercial_line_national_id a ECOMMERCE
+
+Notas:
+------
+- Los filtros se aplican tanto para la vista de ventas (sales), dashboard y exportaciones.
+- Los datos procesados incluyen 27 columnas principales para cada línea de venta.
+- Los filtros de exclusión de categorías se aplican automáticamente en todas las consultas.
