@@ -35,7 +35,7 @@
 <div class="dashboard-container">
     <!-- Fila superior - KPIs principales -->
     <div class="kpi-row">
-        <div class="kpi-card">
+        <div class="kpi-card kpi-meta">
             <div class="kpi-label">Meta</div>
             <div class="kpi-value">{{ "{:,.0f}".format(kpis.meta_total) }}</div>
         </div>
@@ -63,11 +63,6 @@
         <div class="kpi-card kpi-avance">
             <div class="kpi-label">% Avance IPN</div>
             <div class="kpi-value">{{ "{:.1f} %".format(kpis.porcentaje_avance_ipn) }}</div>
-        </div>
-        
-        <div class="kpi-card kpi-vencimiento">
-            <div class="kpi-label">Vencimiento a 6 meses</div>
-            <div class="kpi-value">{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</div>
         </div>
     </div>
     
@@ -135,11 +130,19 @@
             </table>
         </div>
         
-        <!-- Gráfico Ciclo de Vida (DERECHA - MÁS PEQUEÑO) -->
-        <div class="grafico-ciclo-vida">
-            <h3>Venta por Ciclo de Vida</h3>
-            <div class="donut-container">
-                <canvas id="grafico-donut"></canvas>
+        <!-- Columna Derecha: Gráfico Donut y KPI Vencimiento -->
+        <div class="columna-derecha">
+            <!-- Gráfico Ciclo de Vida -->
+            <div class="grafico-ciclo-vida">
+                <h3>Venta por tipo de Producto</h3>
+                <div class="donut-container">
+                    <canvas id="grafico-donut"></canvas>
+                </div>
+            </div>
+            <!-- KPI Vencimiento movido aquí -->
+            <div class="kpi-card kpi-vencimiento">
+                <div class="kpi-label">Vencimiento a 6 meses</div>
+                <div class="kpi-value">{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</div>
             </div>
         </div>
     </div>
@@ -309,7 +312,7 @@ body {
 /* KPIs Row */
 .kpi-row {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(6, 1fr); /* Ajustado a 6 columnas */
     gap: 15px;
 }
 
@@ -317,9 +320,11 @@ body {
     background: white;
     padding: 20px;
     border-radius: 10px;
-    border-left: 4px solid #8e44ad;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     text-align: center;
+}
+.kpi-card.kpi-meta {
+    border-left: 4px solid #8e44ad;
 }
 
 .kpi-card.kpi-avance {
@@ -377,6 +382,12 @@ body {
     grid-template-columns: 2fr 1fr; /* Tabla más ancha (izquierda), gráfico más pequeño (derecha) */
     gap: 25px;
     align-items: start;
+}
+/* Contenedor para la columna derecha */
+.columna-derecha {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
 }
 
 /* Tabla Container (IZQUIERDA) */
@@ -506,7 +517,7 @@ body {
 /* Responsive */
 @media (max-width: 1200px) {
     .kpi-row {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
     
     .main-content-row {

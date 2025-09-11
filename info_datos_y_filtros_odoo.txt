@@ -1,44 +1,47 @@
-Resumen de datos y filtros Odoo
-=================================
+Resumen de Lógica de Datos y Filtros de Odoo
+=============================================
 
-Datos que se traen desde Odoo:
-------------------------------
-- Líneas de venta (account.move.line) con los siguientes campos principales:
-    - move_id (factura)
-    - partner_id (cliente)
-    - product_id (producto)
-    - balance (saldo)
-    - move_name (número de factura)
-    - quantity (cantidad)
-    - price_unit (precio unitario)
-    - Otros campos relacionados: canal de venta, línea comercial, vendedor, NIF, origen, orden de venta, referencia interna, fecha factura, tipo documento, clasificación farmacológica, observaciones, agencia, formas farmacéuticas, vía administración, categoría producto, línea producción, dirección entrega, ruta, ciclo de vida, etc.
+Este documento resume cómo se obtienen, filtran y procesan los datos desde Odoo para el dashboard y las exportaciones.
 
-Filtros y condiciones aplicados:
---------------------------------
-- Solo facturas de venta y notas de crédito:
-    ('move_id.move_type', 'in', ['out_invoice', 'out_refund'])
-- Solo facturas confirmadas/publicadas:
-    ('move_id.state', '=', 'posted')
-- Solo productos con código interno:
-    ('product_id.default_code', '!=', False)
-- Exclusión de categorías de producto:
-    ('product_id.categ_id', 'not in', [315, 333, 304, 314, 318, 339])
-- Filtros dinámicos según selección del usuario:
-    - Rango de fechas: ('move_id.invoice_date', '>=', date_from), ('move_id.invoice_date', '<=', date_to)
-    - Cliente específico: ('partner_id', '=', partner_id)
-    - Línea comercial: ('product_id.commercial_line_national_id', '=', linea_id)
-- Reasignación de línea comercial a ECOMMERCE para usuarios específicos:
-    - Si invoice_user_id es 34 o 35, se reasigna commercial_line_national_id a ECOMMERCE
+1. Obtención de Datos (desde Odoo)
+------------------------------------
+Se consultan las líneas de asientos contables (`account.move.line`) y se enriquecen con datos de modelos relacionados como:
+- Asientos Contables (`account.move`): Fecha, estado, vendedor, etc.
+- Productos (`product.product`): Nombre, línea comercial, ciclo de vida, etc.
+- Clientes (`res.partner`): Nombre, NIF/RUC.
+- Órdenes de Venta (`sale.order`): Origen, observaciones de entrega.
 
-Valores únicos en columna IMP (impuestos):
------------------------------------------
-- Los valores que aparecen actualmente en la columna IMP son los nombres de los impuestos configurados en Odoo.
-- Ejemplo de valores observados: "G", "U", "T" (estos pueden ser abreviaturas o nombres personalizados de los impuestos en tu base de datos).
-- Para saber todos los valores posibles, se recomienda revisar la configuración de impuestos en Odoo (menú Contabilidad > Impuestos) o consultar la tabla account.tax.
-- Si necesitas un filtro por código o nombre, puedes usar estos valores como referencia.
+2. Filtros Aplicados en la Consulta a Odoo
+------------------------------------------
+Se aplican los siguientes filtros directamente en la base de datos de Odoo:
+- **Tipo de Movimiento**: Solo facturas de venta y notas de crédito (`out_invoice`, `out_refund`).
+- **Estado del Movimiento**: Solo asientos publicados (`state = 'posted'`).
+- **Código de Producto**: Se excluyen productos sin referencia interna (`default_code != False`).
+- **Categorías Excluidas**: Se omiten productos de las categorías con IDs: `[315, 333, 304, 314, 318, 339]`.
+- **Impuestos**: Solo se incluyen líneas que tengan los impuestos "IGV" o "IGV_INC".
 
-Notas:
-------
-- Los filtros se aplican tanto para la vista de ventas (sales), dashboard y exportaciones.
-- Los datos procesados incluyen 27 columnas principales para cada línea de venta.
-- Los filtros de exclusión de categorías se aplican automáticamente en todas las consultas.
+3. Procesamiento y Lógica de Negocio (en la Aplicación)
+-------------------------------------------------------
+Una vez obtenidos los datos, se aplica la siguiente lógica en la aplicación Flask:
+
+- **Inversión del Saldo (`balance`)**: El valor del campo `balance` se multiplica por -1.
+  - Las ventas (originalmente negativas) se convierten en positivas.
+  - Las notas de crédito (originalmente positivas) se convierten en negativas.
+  - **Importante**: Ya no se usa `abs()` en el resto de la aplicación, pues los datos ya vienen con el signo correcto.
+
+- **Exclusión de Ventas Internacionales**: Se descartan las líneas donde:
+  - La línea comercial (`commercial_line_national_id`) contiene "VENTA INTERNACIONAL".
+  - El canal de venta (`sales_channel_id`) contiene "VENTA INTERNACIONAL" o "INTERNACIONAL".
+
+- **Reasignación a ECOMMERCE**: Se modifica la línea comercial a "ECOMMERCE" para las ventas realizadas por los siguientes usuarios (vendedores):
+  - ID 34: HUAMAN CORDOVA, SAMIRE ANDREA
+  - ID 35: LA ROSA BONIFACIO, JULIAN TONY
+
+- **Agrupación de Datos**: Los datos ya filtrados y procesados se agrupan para alimentar:
+  - Los KPIs principales (Venta Total, Avance, etc.).
+  - La tabla "Meta LC Total y Venta por Línea Comercial Local".
+  - El gráfico "Venta por tipo de Producto" (agrupado por `product_life_cycle`).
+  - El gráfico "Top 7 Productos Más Vendidos".
+  - El gráfico "Venta por Línea Comercial".
+
+Esta lógica se aplica de forma consistente para el dashboard y para la función de "Exportar Detalle".
