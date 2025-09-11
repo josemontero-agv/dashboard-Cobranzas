@@ -369,6 +369,37 @@ def dashboard():
         
         print(f"📈 Ventas por Ciclo de Vida: {datos_ciclo_vida}")
         
+        # Datos para gráfico de Forma Farmacéutica
+        ventas_por_forma = {}
+        for sale in sales_data:
+            # Excluir VENTA INTERNACIONAL (exportaciones)
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                if 'VENTA INTERNACIONAL' in linea_comercial[1].upper():
+                    continue
+            
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                if 'VENTA INTERNACIONAL' in canal_ventas[1].upper() or 'INTERNACIONAL' in canal_ventas[1].upper():
+                    continue
+
+            forma_farmaceutica = sale.get('pharmaceutical_forms_id')
+            # Si es False o no existe, se etiqueta como 'Instrumental'
+            nombre_forma = forma_farmaceutica[1] if forma_farmaceutica and isinstance(forma_farmaceutica, list) and len(forma_farmaceutica) > 1 else 'Instrumental'
+            
+            balance = sale.get('balance', 0)
+            if balance:
+                balance_float = float(balance)
+                ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance_float
+
+        # Convertir a lista ordenada por ventas
+        datos_forma_farmaceutica = []
+        for forma, venta in sorted(ventas_por_forma.items(), key=lambda x: x[1], reverse=True):
+            datos_forma_farmaceutica.append({
+                'forma': forma,
+                'venta': venta
+            })
+        
         return render_template('dashboard_clean.html',
                              meses_disponibles=meses_disponibles,
                              mes_seleccionado=mes_seleccionado,
@@ -378,7 +409,8 @@ def dashboard():
                              datos_lineas=datos_lineas, # Usar para gráficos
                              datos_lineas_tabla=datos_lineas, # Usar para la tabla
                              datos_productos=datos_productos,
-                             datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [])
+                             datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [],
+                             datos_forma_farmaceutica=datos_forma_farmaceutica)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
@@ -409,7 +441,8 @@ def dashboard():
                              datos_lineas=[], # Se mantiene vacío en caso de error
                              datos_lineas_tabla=[],
                              datos_productos=[],
-                             datos_ciclo_vida=[])
+                             datos_ciclo_vida=[],
+                             datos_forma_farmaceutica=[])
 
 
 
