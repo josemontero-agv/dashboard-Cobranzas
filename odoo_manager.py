@@ -396,7 +396,7 @@ class OdooManager:
                         'origin_number': move.get('origin_number'),
                         
                         # 15. Saldo
-                        'balance': line.get('balance'),
+                        'balance': -line.get('balance', 0) if line.get('balance') is not None else 0,
                         
                         # 16. Clasificación Farmacológica
                         'pharmacological_classification_id': product.get('pharmacological_classification_id'),

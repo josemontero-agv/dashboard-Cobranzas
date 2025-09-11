@@ -217,12 +217,12 @@ def dashboard():
         # Calcular ventas reales por línea comercial
         ventas_por_linea = {}
         for sale in sales_data:
+            # Excluir VENTA INTERNACIONAL (exportaciones)
             linea_comercial = sale.get('commercial_line_national_id')
+            nombre_linea_actual = None
             if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
-                nombre_linea = linea_comercial[1].upper()
-                
-                # Excluir VENTA INTERNACIONAL (exportaciones)
-                if 'VENTA INTERNACIONAL' in nombre_linea:
+                nombre_linea_actual = linea_comercial[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea_actual:
                     continue
             
             # También filtrar por canal de ventas
@@ -231,15 +231,15 @@ def dashboard():
                 nombre_canal = canal_ventas[1].upper()
                 if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
                     continue
-                    
-                balance = sale.get('balance', 0)
-                if balance:
-                    balance = abs(float(balance))  # Convertir a positivo
-                    if nombre_linea in ventas_por_linea:
-                        ventas_por_linea[nombre_linea] += balance
-                    else:
-                        ventas_por_linea[nombre_linea] = balance
-        
+            
+            # Procesar el balance de la venta
+            balance = sale.get('balance', 0)
+            if balance and nombre_linea_actual:
+                balance_float = float(balance) # Ya viene con el signo correcto
+                if nombre_linea_actual in ventas_por_linea:
+                    ventas_por_linea[nombre_linea_actual] += balance_float
+                else:
+                    ventas_por_linea[nombre_linea_actual] = balance_float
         print(f"💰 Ventas por línea comercial: {ventas_por_linea}")
         
         for linea in lineas_comerciales_estaticas:
@@ -255,12 +255,12 @@ def dashboard():
             
             porcentaje_total = (venta / meta * 100) if meta > 0 else 0
             porcentaje_pn = (venta_pn / meta_pn * 100) if meta_pn > 0 else 0
-            
+
             datos_lineas.append({
                 'nombre': linea['nombre'],
                 'meta': meta,
-                'venta': venta,
-                'porcentaje_total': porcentaje_total,
+                'venta': venta, # Ahora es positivo
+                'porcentaje_total': (venta / meta * 100) if meta > 0 else 0,
                 'meta_pn': meta_pn,
                 'venta_pn': venta_pn,
                 'porcentaje_pn': porcentaje_pn,
@@ -275,11 +275,11 @@ def dashboard():
         
         # Calcular KPIs
         kpis = {
-            'meta_total': total_meta,
-            'venta_total': total_venta,
+            'meta_total': total_meta, # Meta siempre es positiva
+            'venta_total': total_venta, # Ya es positivo
             'porcentaje_avance': (total_venta / total_meta * 100) if total_meta > 0 else 0,
-            'meta_ipn': total_meta_pn,
-            'venta_ipn': total_venta_pn,
+            'meta_ipn': total_meta_pn, # Meta IPN siempre es positiva
+            'venta_ipn': total_venta_pn, # Ya es positivo
             'porcentaje_avance_ipn': (total_venta_pn / total_meta_pn * 100) if total_meta_pn > 0 else 0,
             'vencimiento_6_meses': total_vencimiento,
             'avance_diario_total': ((total_venta / total_meta * 100) / dia_actual) if total_meta > 0 and dia_actual > 0 else 0,
@@ -310,7 +310,7 @@ def dashboard():
             balance = sale.get('balance', 0)
             
             if producto_nombre and balance:
-                balance = abs(float(balance))  # Convertir a positivo
+                balance = float(balance)  # Ya viene con el signo correcto
                 
                 # Agrupar por producto
                 if producto_nombre in ventas_por_producto:
@@ -353,7 +353,7 @@ def dashboard():
             balance = sale.get('balance', 0)
             
             if balance:
-                balance = abs(float(balance))
+                balance = float(balance) # Ya viene con el signo correcto
                 if ciclo_vida in ventas_por_ciclo_vida:
                     ventas_por_ciclo_vida[ciclo_vida] += balance
                 else:
@@ -375,7 +375,8 @@ def dashboard():
                              mes_nombre=mes_nombre,
                              dia_actual=dia_actual,
                              kpis=kpis,
-                             datos_lineas=datos_lineas,
+                             datos_lineas=datos_lineas, # Usar para gráficos
+                             datos_lineas_tabla=datos_lineas, # Usar para la tabla
                              datos_productos=datos_productos,
                              datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [])
     
@@ -405,7 +406,8 @@ def dashboard():
                              mes_nombre=f"{fecha_actual.strftime('%B').upper()} {fecha_actual.year}",
                              dia_actual=fecha_actual.day,
                              kpis=kpis_default,
-                             datos_lineas=[],
+                             datos_lineas=[], # Se mantiene vacío en caso de error
+                             datos_lineas_tabla=[],
                              datos_productos=[],
                              datos_ciclo_vida=[])
 
@@ -599,6 +601,75 @@ def export_excel_sales():
     except Exception as e:
         flash(f'Error al exportar datos: {str(e)}', 'danger')
         return redirect(url_for('sales'))
+
+@app.route('/export/dashboard/details')
+def export_dashboard_details():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Obtener el mes seleccionado de los parámetros de la URL
+        mes_seleccionado = request.args.get('mes')
+        if not mes_seleccionado:
+            flash('No se especificó un mes para la exportación.', 'danger')
+            return redirect(url_for('dashboard'))
+
+        # Calcular fechas para el mes seleccionado
+        año_sel, mes_sel = mes_seleccionado.split('-')
+        fecha_inicio = f"{año_sel}-{mes_sel}-01"
+        ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+        fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
+
+        # Obtener datos de ventas reales desde Odoo para ese mes
+        sales_data = data_manager.get_sales_lines(
+            date_from=fecha_inicio,
+            date_to=fecha_fin,
+            limit=10000  # Límite alto para exportación
+        )
+
+        # Filtrar VENTA INTERNACIONAL (exportaciones), igual que en el dashboard
+        sales_data_filtered = []
+        for sale in sales_data:
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                if 'VENTA INTERNACIONAL' in linea_comercial[1].upper():
+                    continue
+            
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
+            sales_data_filtered.append(sale)
+
+        # Convertir el balance a positivo para que coincida con el dashboard
+        for sale in sales_data_filtered:
+            if 'balance' in sale and sale['balance'] is not None:
+                sale['balance'] = float(sale['balance']) # Ya viene con el signo correcto desde OdooManager
+
+        # Crear DataFrame de Pandas con los datos filtrados
+        df = pd.DataFrame(sales_data_filtered)
+
+        # Crear archivo Excel en memoria
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name=f'Detalle Ventas {mes_seleccionado}', index=False)
+        output.seek(0)
+
+        # Generar nombre de archivo
+        filename = f'detalle_ventas_{mes_seleccionado}.xlsx'
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        flash(f'Error al exportar los detalles del dashboard: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
 
 
 if __name__ == '__main__':
