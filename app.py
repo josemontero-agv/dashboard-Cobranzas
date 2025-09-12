@@ -445,7 +445,6 @@ def dashboard():
                              datos_forma_farmaceutica=[])
 
 
-
 @app.route('/meta', methods=['GET', 'POST'])
 def meta():
     if 'username' not in session:

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manual Interactivo - Dashboard de Ventas</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        /* Estilos para el Manual Interactivo */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+        :root {
+            --manual-primary: #714B67; /* Un púrpura más oscuro para el texto */
+            --manual-secondary: #875A7B; /* Púrpura principal de Odoo */
+            --manual-bg: #f8f9fa;
+            --manual-sidebar-bg: #ffffff;
+            --manual-text: #343a40;
+            --manual-text-light: #6c757d;
+            --manual-border: #e9ecef;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--manual-bg);
+            margin: 0;
+        }
+
+        .manual-container {
+            display: flex;
+            max-width: 1400px;
+            margin: 20px auto;
+            gap: 30px;
+        }
+
+        /* --- Barra Lateral --- */
+        .manual-sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            background-color: var(--manual-sidebar-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 20px;
+            align-self: flex-start; /* Para que se quede arriba */
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--manual-border);
+        }
+
+        .sidebar-header h3 {
+            color: var(--manual-secondary);
+            margin: 15px 0 0 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header .back-link {
+            text-decoration: none;
+            color: var(--manual-text-light);
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.2s;
+        }
+        .sidebar-header .back-link:hover {
+            color: var(--manual-secondary);
+        }
+
+        .sidebar-nav {
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav ul ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: var(--manual-text-light);
+            font-size: 0.9rem;
+            border-radius: 5px;
+            transition: all 0.2s ease-in-out;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: var(--manual-bg);
+            color: var(--manual-primary);
+        }
+
+        .sidebar-nav a.active {
+            color: var(--manual-secondary);
+            font-weight: 600;
+            background-color: #fdf5ff;
+            border-left: 3px solid var(--manual-secondary);
+        }
+
+        /* --- Contenido Principal --- */
+        .manual-content {
+            flex-grow: 1;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .manual-content section {
+            margin-bottom: 50px;
+            padding-top: 20px; /* Espacio para el anclaje */
+            border-bottom: 1px solid var(--manual-border);
+            padding-bottom: 30px;
+        }
+        .manual-content section:last-child {
+            border-bottom: none;
+        }
+
+        .manual-content h1, .manual-content h2, .manual-content h3 { color: var(--manual-primary); }
+        .manual-content h1 { font-size: 2.2rem; margin-bottom: 20px; }
+        .manual-content h2 { font-size: 1.8rem; margin-top: 30px; margin-bottom: 15px; }
+        .manual-content h3 { font-size: 1.4rem; color: var(--manual-secondary); }
+        .manual-content p, .manual-content li { line-height: 1.7; color: var(--manual-text); }
+
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-left: 4px solid var(--manual-secondary);
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="manual-container">
+    <!-- Barra lateral de navegación -->
+    <aside class="manual-sidebar">
+        <div class="sidebar-header">
+            <!-- El enlace dinámico se elimina para que funcione como archivo local -->
+            <span class="back-link"><i class="bi bi-grid-1x2"></i> Dashboard de Ventas</span>
+            <h3><i class="bi bi-book"></i> Manual Interactivo</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="#introduccion" class="nav-link active">Introducción</a></li>
+                <li><a href="#obtencion-datos" class="nav-link">1. Obtención de Datos</a></li>
+                <li><a href="#filtros-odoo" class="nav-link">2. Filtros en Odoo</a></li>
+                <li><a href="#logica-app" class="nav-link">3. Lógica en la Aplicación</a>
+                    <ul>
+                        <li><a href="#logica-inversion" class="nav-link">3.1 Inversión del Saldo</a></li>
+                        <li><a href="#logica-exclusion" class="nav-link">3.2 Exclusión Internacional</a></li>
+                        <li><a href="#logica-ecommerce" class="nav-link">3.3 Reasignación ECOMMERCE</a></li>
+                        <li><a href="#logica-agrupacion" class="nav-link">3.4 Agrupación de Datos</a></li>
+                    </ul>
+                </li>
+                <li><a href="#dashboard" class="nav-link">4. Uso del Dashboard</a></li>
+                <li><a href="#metas" class="nav-link">5. Gestión de Metas</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Contenido principal del manual -->
+    <main class="manual-content">
+        <section id="introduccion">
+            <h1>Introducción al Dashboard de Ventas</h1>
+            <p>Este manual describe el funcionamiento del Dashboard de Ventas, explicando cómo se obtienen, procesan y visualizan los datos desde el sistema Odoo. El objetivo es proporcionar una herramienta clara y precisa para el seguimiento del avance de ventas.</p>
+        </section>
+
+        <section id="obtencion-datos">
+            <h2>1. Obtención de Datos (desde Odoo)</h2>
+            <p>La aplicación se conecta a Odoo para consultar las líneas de asientos contables (<code>account.move.line</code>). Estos datos iniciales se enriquecen con información de otros modelos relacionados para obtener una vista completa de cada transacción.</p>
+            <ul>
+                <li><strong>Asientos Contables (<code>account.move</code>):</strong> Fecha, estado, vendedor, etc.</li>
+                <li><strong>Productos (<code>product.product</code>):</strong> Nombre, línea comercial, ciclo de vida, etc.</li>
+                <li><strong>Clientes (<code>res.partner</code>):</strong> Nombre, NIF/RUC.</li>
+                <li><strong>Órdenes de Venta (<code>sale.order</code>):</strong> Origen, observaciones de entrega.</li>
+            </ul>
+        </section>
+
+        <section id="filtros-odoo">
+            <h2>2. Filtros Aplicados en la Consulta a Odoo</h2>
+            <p>Para asegurar que solo se procesen datos relevantes, se aplican los siguientes filtros directamente en la consulta a la base de datos de Odoo:</p>
+            <div class="code-block">
+                <p><strong>Tipo de Movimiento:</strong> Solo facturas de venta y notas de crédito (<code>out_invoice</code>, <code>out_refund</code>).</p>
+                <p><strong>Estado del Movimiento:</strong> Solo asientos contables ya publicados (<code>state = 'posted'</code>).</p>
+                <p><strong>Código de Producto:</strong> Se excluyen productos que no tienen una referencia interna (<code>default_code != False</code>).</p>
+                <p><strong>Categorías Excluidas:</strong> Se omiten productos de categorías específicas de servicio o internas (IDs: <code>[315, 333, 304, 314, 318, 339]</code>).</p>
+                <p><strong>Impuestos:</strong> Solo se incluyen líneas que tengan aplicados los impuestos "IGV" o "IGV_INC".</p>
+            </div>
+        </section>
+
+        <section id="logica-app">
+            <h2>3. Procesamiento y Lógica de Negocio (en la Aplicación)</h2>
+            <p>Una vez que los datos son obtenidos de Odoo, la aplicación Flask aplica una serie de reglas de negocio para prepararlos antes de mostrarlos en el dashboard.</p>
+
+            <div id="logica-inversion" class="subsection">
+                <h3>3.1 Inversión del Saldo (<code>balance</code>)</h3>
+                <p>El campo <code>balance</code> de Odoo se multiplica por -1. Esto es crucial para la correcta interpretación de los datos:</p>
+                <ul>
+                    <li>Las <strong>ventas</strong>, que en contabilidad son un saldo negativo, se convierten en <strong>positivas</strong>.</li>
+                    <li>Las <strong>notas de crédito</strong>, que son un saldo positivo, se convierten en <strong>negativas</strong>.</li>
+                </ul>
+                <p class="note"><strong>Importante:</strong> Gracias a este paso, el resto de la aplicación trabaja con números intuitivos y no necesita aplicar la función <code>abs()</code>.</p>
+            </div>
+
+            <div id="logica-exclusion" class="subsection">
+                <h3>3.2 Exclusión de Ventas Internacionales</h3>
+                <p>Se descartan todas las líneas de venta que pertenecen a operaciones internacionales para enfocar el análisis en el mercado local. El filtro se aplica si:</p>
+                <ul>
+                    <li>La línea comercial (<code>commercial_line_national_id</code>) contiene "VENTA INTERNACIONAL".</li>
+                    <li>El canal de venta (<code>sales_channel_id</code>) contiene "VENTA INTERNACIONAL" o "INTERNACIONAL".</li>
+                </ul>
+            </div>
+
+            <div id="logica-ecommerce" class="subsection">
+                <h3>3.3 Reasignación a ECOMMERCE</h3>
+                <p>Las ventas realizadas por ciertos usuarios específicos se reasignan automáticamente a la línea comercial "ECOMMERCE", sin importar la línea original del producto. Los usuarios afectados son:</p>
+                <ul>
+                    <li>ID 34: HUAMAN CORDOVA, SAMIRE ANDREA</li>
+                    <li>ID 35: LA ROSA BONIFACIO, JULIAN TONY</li>
+                </ul>
+            </div>
+
+            <div id="logica-agrupacion" class="subsection">
+                <h3>3.4 Agrupación de Datos</h3>
+                <p>Finalmente, los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes visuales del dashboard:</p>
+                <ul>
+                    <li>Los KPIs principales (Venta Total, Avance, etc.).</li>
+                    <li>La tabla "Meta LC Total y Venta por Línea Comercial Local".</li>
+                    <li>El gráfico "Venta por tipo de Producto" (agrupado por <code>product_life_cycle</code>).</li>
+                    <li>El gráfico "Top 7 Productos Más Vendidos".</li>
+                    <li>El gráfico "Venta por Línea Comercial".</li>
+                    <li>El gráfico "Venta por Forma Farmacéutica".</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="dashboard">
+            <h2>4. Uso del Dashboard</h2>
+            <p>El dashboard principal permite visualizar el avance de ventas de un mes específico. Puedes cambiar de mes usando el selector en la parte superior. Los KPIs y gráficos se actualizarán automáticamente. También puedes exportar el detalle de los datos del mes seleccionado a un archivo Excel.</p>
+        </section>
+
+        <section id="metas">
+            <h2>5. Gestión de Metas</h2>
+            <p>La sección de "Metas" te permite establecer los objetivos de venta mensuales para cada línea comercial. Estos valores son los que se usarán en el dashboard para calcular los porcentajes de avance.</p>
+            <p>Puedes navegar entre los meses del año para definir o consultar las metas guardadas. El total se calcula automáticamente.</p>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const sections = document.querySelectorAll('.manual-content section');
+    const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+
+    // Función para actualizar el enlace activo
+    const updateActiveLink = (id) => {
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === `#${id}`) {
+                link.classList.add('active');
+            }
+        });
+    };
+
+    // Intersection Observer para detectar la sección visible
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                updateActiveLink(entry.target.id);
+            }
+        });
+    }, {
+        rootMargin: '-20% 0px -70% 0px' // Activa el enlace cuando la sección está en el 30% superior de la pantalla
+    });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+
+    // Scroll suave al hacer clic en un enlace de la barra lateral
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>
