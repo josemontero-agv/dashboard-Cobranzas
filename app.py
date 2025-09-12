@@ -150,12 +150,8 @@ def dashboard():
         meses_disponibles = get_meses_del_año(año_actual)
         
         # Obtener nombre del mes seleccionado
-        try:
-            año_sel, mes_sel = mes_seleccionado.split('-')
-            mes_numero = int(mes_sel)
-            mes_nombre = f"{meses_nombres[mes_numero-1]} {año_sel}"
-        except:
-            mes_nombre = "AGOSTO 2025"
+        mes_obj = next((m for m in meses_disponibles if m['key'] == mes_seleccionado), None)
+        mes_nombre = mes_obj['nombre'] if mes_obj else "Mes Desconocido"
         
         # Obtener día correcto según el mes seleccionado
         if mes_seleccionado == fecha_actual.strftime('%Y-%m'):

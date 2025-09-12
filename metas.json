@@ -12,18 +12,18 @@
             "ninguno": 0.0
         },
         "metas_ipn": {
-            "petmedica": 600000.0,
-            "agrovet": 50000.0,
-            "pet_nutriscience": 10000.0,
-            "avivet": 5000.0,
-            "ecommerce": 10000.0,
-            "otros": 2000.0,
+            "petmedica": 850000.0,
+            "agrovet": 295000.0,
+            "pet_nutriscience": 80000.0,
+            "avivet": 10000.0,
+            "ecommerce": 0.0,
+            "otros": 28000.0,
             "genvet": 0.0,
             "licitacion": 0.0,
             "ninguno": 0.0
         },
         "total": 3928000.0,
-        "total_ipn": 677000.0,
+        "total_ipn": 1263000.0,
         "mes_nombre": "Agosto 2025"
     },
     "2025-09": {
