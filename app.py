@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from odoo_manager import OdooManager
 import os
 import pandas as pd
+import json
 import io
 import calendar
 from datetime import datetime, timedelta
@@ -18,6 +19,33 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 data_manager = OdooManager()
+
+# --- Funciones Auxiliares ---
+
+def get_meses_del_año(año):
+    """Genera una lista de meses para un año específico."""
+    meses_nombres = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ]
+    meses_disponibles = []
+    for i in range(1, 13):
+        mes_key = f"{año}-{i:02d}"
+        mes_nombre = f"{meses_nombres[i-1]} {año}"
+        meses_disponibles.append({'key': mes_key, 'nombre': mes_nombre})
+    return meses_disponibles
+
+def cargar_metas_desde_archivo():
+    """Carga las metas desde un archivo JSON."""
+    if os.path.exists('metas.json'):
+        with open('metas.json', 'r') as f:
+            return json.load(f)
+    return {}
+
+def guardar_metas_en_archivo(metas):
+    """Guarda las metas en un archivo JSON."""
+    with open('metas.json', 'w') as f:
+        json.dump(metas, f, indent=4)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -119,19 +147,7 @@ def dashboard():
         mes_seleccionado = request.args.get('mes', fecha_actual.strftime('%Y-%m'))
         
         # Crear todos los meses del año actual
-        meses_disponibles = []
-        meses_nombres = [
-            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-        ]
-        
-        for i in range(1, 13):
-            mes_key = f"{año_actual}-{i:02d}"
-            mes_nombre = f"{meses_nombres[i-1]} {año_actual}"
-            meses_disponibles.append({
-                'key': mes_key,
-                'nombre': mes_nombre
-            })
+        meses_disponibles = get_meses_del_año(año_actual)
         
         # Obtener nombre del mes seleccionado
         try:
@@ -152,8 +168,9 @@ def dashboard():
             dia_actual = ultimo_dia
         
         # Obtener metas del mes seleccionado desde la sesión
-        metas_historicas = session.get('metas_historicas', {})
+        metas_historicas = cargar_metas_desde_archivo()
         metas_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
+        metas_ipn_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas_ipn', {})
         
         # Líneas comerciales estáticas
         lineas_comerciales_estaticas = [
@@ -179,9 +196,6 @@ def dashboard():
             fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
             
             # Obtener datos de ventas reales desde Odoo
-            from odoo_manager import OdooManager
-            data_manager = OdooManager()
-            
             sales_data = data_manager.get_sales_lines(
                 date_from=fecha_inicio,
                 date_to=fecha_fin,
@@ -249,7 +263,8 @@ def dashboard():
             # Usar ventas reales de Odoo
             venta = ventas_por_linea.get(nombre_linea, 0)
             
-            meta_pn = meta * 0.3 if meta > 0 else 0  # 30% de la meta total
+            # Usar la meta IPN registrada por el usuario
+            meta_pn = metas_ipn_del_mes.get(linea['id'], 0)
             venta_pn = venta * 0.25  # 25% de la venta total  
             vencimiento = 0  # Por ahora 0, se puede calcular después
             
@@ -470,21 +485,7 @@ def meta():
         mes_seleccionado = request.args.get('mes', fecha_actual.strftime('%Y-%m'))
         
         # Crear todos los meses del año actual
-        meses_año = []
-        meses_nombres = [
-            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-        ]
-        
-        for i in range(1, 13):
-            mes_key = f"{año_actual}-{i:02d}"
-            mes_nombre = f"{meses_nombres[i-1]} {año_actual}"
-            meses_año.append({
-                'key': mes_key,
-                'nombre': mes_nombre,
-                'numero': i,
-                'es_actual': mes_key == fecha_actual.strftime('%Y-%m')
-            })
+        meses_año = [{'es_actual': m['key'] == fecha_actual.strftime('%Y-%m'), **m} for m in get_meses_del_año(año_actual)]
         
         if request.method == 'POST':
             # Obtener el mes del formulario
@@ -492,33 +493,44 @@ def meta():
             
             # Procesar metas enviadas
             metas_data = {}
+            metas_ipn_data = {}
             total_meta = 0
+            total_meta_ipn = 0
             
             for linea in lineas_comerciales_estaticas:
+                # Procesar Meta Total
                 meta_value = request.form.get(f"meta_{linea['id']}", '0')
                 try:
-                    # Quitar comas del valor enviado desde el frontend
                     clean_value = str(meta_value).replace(',', '') if meta_value else '0'
                     valor = float(clean_value) if clean_value else 0.0
                     metas_data[linea['id']] = valor
                     total_meta += valor
                 except (ValueError, TypeError):
                     metas_data[linea['id']] = 0.0
-            
-            # Guardar metas en session
-            if 'metas_historicas' not in session:
-                session['metas_historicas'] = {}
+                
+                # Procesar Meta IPN
+                meta_ipn_value = request.form.get(f"meta_ipn_{linea['id']}", '0')
+                try:
+                    clean_value_ipn = str(meta_ipn_value).replace(',', '') if meta_ipn_value else '0'
+                    valor_ipn = float(clean_value_ipn) if clean_value_ipn else 0.0
+                    metas_ipn_data[linea['id']] = valor_ipn
+                    total_meta_ipn += valor_ipn
+                except (ValueError, TypeError):
+                    metas_ipn_data[linea['id']] = 0.0
             
             # Encontrar el nombre del mes
             mes_obj = next((m for m in meses_año if m['key'] == mes_formulario), None)
             mes_nombre_formulario = mes_obj['nombre'] if mes_obj else ""
             
-            session['metas_historicas'][mes_formulario] = {
+            metas_historicas = cargar_metas_desde_archivo()
+            metas_historicas[mes_formulario] = {
                 'metas': metas_data,
+                'metas_ipn': metas_ipn_data,
                 'total': total_meta,
+                'total_ipn': total_meta_ipn,
                 'mes_nombre': mes_nombre_formulario
             }
-            session.modified = True
+            guardar_metas_en_archivo(metas_historicas)
             
             flash(f'Metas guardadas exitosamente para {mes_nombre_formulario}. Total: S/ {total_meta:,.0f}', 'success')
             
@@ -526,11 +538,13 @@ def meta():
             mes_seleccionado = mes_formulario
         
         # Obtener todas las metas históricas
-        metas_historicas = session.get('metas_historicas', {})
+        metas_historicas = cargar_metas_desde_archivo()
         
         # Obtener metas y total del mes seleccionado
         metas_actuales = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
+        metas_ipn_actuales = metas_historicas.get(mes_seleccionado, {}).get('metas_ipn', {})
         total_actual = sum(metas_actuales.values()) if metas_actuales else 0
+        total_ipn_actual = sum(metas_ipn_actuales.values()) if metas_ipn_actuales else 0
         
         # Encontrar el nombre del mes seleccionado
         mes_obj_seleccionado = next((m for m in meses_año if m['key'] == mes_seleccionado), meses_año[fecha_actual.month - 1])
@@ -538,11 +552,13 @@ def meta():
         return render_template('meta.html',
                              lineas_comerciales=lineas_comerciales_estaticas,
                              metas_actuales=metas_actuales,
+                             metas_ipn_actuales=metas_ipn_actuales,
                              metas_historicas=metas_historicas,
                              meses_año=meses_año,
                              mes_seleccionado=mes_seleccionado,
                              mes_nombre=mes_obj_seleccionado['nombre'],
                              total_actual=total_actual,
+                             total_ipn_actual=total_ipn_actual,
                              fecha_actual=fecha_actual)
     
     except Exception as e:
@@ -550,11 +566,13 @@ def meta():
         return render_template('meta.html',
                              lineas_comerciales=[],
                              metas_actuales={},
+                             metas_ipn_actuales={},
                              metas_historicas={},
                              meses_año=[],
                              mes_seleccionado="",
                              mes_nombre="",
                              total_actual=0,
+                             total_ipn_actual=0,
                              fecha_actual=datetime.now())
 
 @app.route('/export/excel/sales')

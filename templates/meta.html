@@ -43,7 +43,16 @@
                 <thead>
                     <tr>
                         <th>Línea Comercial</th>
-                        <th>Meta</th>
+                        <th>Meta Total</th>
+                        <th class="th-ipn">
+                            <div class="th-ipn-header">
+                                <span>Meta IPN</span>
+                                <div class="percentage-calculator">
+                                    <input type="number" id="ipn-percentage" placeholder="Ej: 30%" min="0" max="100">
+                                    <button type="button" onclick="calculateIpnByPercentage()" title="Calcular Meta IPN basado en % de Meta Total">Calcular</button>
+                                </div>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,9 +63,21 @@
                             <input 
                                 type="text" 
                                 name="meta_{{ linea.id }}" 
-                                class="meta-input-table" 
+                                class="meta-input-table meta-total-input" 
                                 value="{{ '{:,.0f}'.format(metas_actuales.get(linea.id, 0)) if metas_actuales and metas_actuales.get(linea.id, 0) > 0 else '' }}"
                                 placeholder="1,000,000"
+                                onchange="calculateTotal()"
+                                oninput="formatNumber(this)"
+                                onkeypress="return onlyNumbers(event)"
+                            >
+                        </td>
+                        <td class="meta-input-cell">
+                            <input 
+                                type="text" 
+                                name="meta_ipn_{{ linea.id }}" 
+                                class="meta-input-table meta-ipn-input" 
+                                value="{{ '{:,.0f}'.format(metas_ipn_actuales.get(linea.id, 0)) if metas_ipn_actuales and metas_ipn_actuales.get(linea.id, 0) > 0 else '' }}"
+                                placeholder="300,000"
                                 onchange="calculateTotal()"
                                 oninput="formatNumber(this)"
                                 onkeypress="return onlyNumbers(event)"
@@ -66,7 +87,8 @@
                     {% endfor %}
                     <tr class="total-row">
                         <td class="total-label"><strong>Total</strong></td>
-                        <td class="total-value"><strong id="total-amount">{{ "{:,}".format(total_actual|int) }}</strong></td>
+                        <td class="total-value"><strong id="total-amount">{{ "{:,.0f}".format(total_actual) }}</strong></td>
+                        <td class="total-value"><strong id="total-ipn-amount">{{ "{:,.0f}".format(total_ipn_actual) }}</strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -258,6 +280,47 @@
     width: 180px;
 }
 
+.meta-table th:nth-child(2), .meta-table th:nth-child(3) {
+    text-align: right;
+}
+
+.th-ipn {
+    vertical-align: top;
+}
+
+.th-ipn-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.percentage-calculator {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.percentage-calculator input {
+    width: 80px; /* Campo de texto más largo */
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.percentage-calculator button {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: #875A7B;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 .meta-input-table {
     width: 100%;
     padding: 12px 16px;
@@ -294,6 +357,7 @@
 
 .total-value {
     text-align: right;
+    width: 180px;
     color: #875A7B;
     font-size: 1.1rem;
 }
@@ -407,15 +471,50 @@
 <script>
 function calculateTotal() {
     let total = 0;
-    const inputs = document.querySelectorAll('.meta-input-table');
+    const inputs = document.querySelectorAll('.meta-total-input');
+    let total_ipn = 0;
+    const ipn_inputs = document.querySelectorAll('.meta-ipn-input');
     
     inputs.forEach(input => {
         const cleanValue = input.value.replace(/,/g, ''); // Quitar comas
         const value = parseInt(cleanValue) || 0;
         total += value;
     });
+
+    ipn_inputs.forEach(input => {
+        const cleanValue = input.value.replace(/,/g, ''); // Quitar comas
+        const value = parseInt(cleanValue) || 0;
+        total_ipn += value;
+    });
     
     document.getElementById('total-amount').textContent = total.toLocaleString();
+    document.getElementById('total-ipn-amount').textContent = total_ipn.toLocaleString();
+}
+
+function calculateIpnByPercentage() {
+    const percentageInput = document.getElementById('ipn-percentage');
+    const percentage = parseFloat(percentageInput.value);
+
+    if (isNaN(percentage) || percentage < 0) {
+        alert('Por favor, ingrese un porcentaje válido.');
+        return;
+    }
+
+    const rows = document.querySelectorAll('.meta-table tbody tr');
+    rows.forEach(row => {
+        const totalInput = row.querySelector('.meta-total-input');
+        const ipnInput = row.querySelector('.meta-ipn-input');
+
+        if (totalInput && ipnInput) {
+            const totalValue = parseFloat(totalInput.value.replace(/,/g, '')) || 0;
+            const ipnValue = Math.round(totalValue * (percentage / 100));
+            
+            ipnInput.value = ipnValue.toLocaleString();
+        }
+    });
+
+    // Actualizar el total de la columna IPN
+    calculateTotal();
 }
 
 function formatNumber(input) {
@@ -532,6 +631,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (input.value) {
                 input.value = input.value.replace(/,/g, '');
             }
+        });
+        const ipn_inputs = document.querySelectorAll('.meta-ipn-input');
+        ipn_inputs.forEach(input => {
+            input.value = input.value.replace(/,/g, '');
         });
     });
 });
