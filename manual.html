@@ -248,14 +248,11 @@
 
             <div id="logica-agrupacion" class="subsection">
                 <h3>3.4 Agrupación de Datos</h3>
-                <p>Finalmente, los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes visuales del dashboard:</p>
+                <p>Finalmente, los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes visuales del dashboard. Los cálculos más importantes son:</p>
                 <ul>
-                    <li>Los KPIs principales (Venta Total, Avance, etc.).</li>
-                    <li>La tabla "Meta LC Total y Venta por Línea Comercial Local".</li>
-                    <li>El gráfico "Venta por tipo de Producto" (agrupado por <code>product_life_cycle</code>).</li>
-                    <li>El gráfico "Top 7 Productos Más Vendidos".</li>
-                    <li>El gráfico "Venta por Línea Comercial".</li>
-                    <li>El gráfico "Venta por Forma Farmacéutica".</li>
+                    <li><strong>Venta Total:</strong> Suma del <code>balance</code> de todas las ventas filtradas.</li>
+                    <li><strong>Venta IPN (Productos Nuevos):</strong> Suma del <code>balance</code> de las ventas de productos cuyo "Ciclo de vida del producto" es exactamente <code>'nuevo'</code>.</li>
+                    <li><strong>Vencimiento &lt; 6 Meses:</strong> Suma del <code>balance</code> de las ventas cuya "Ruta" en la línea de pedido tiene el ID <code>18</code> ('3 &gt; P &lt; 6') o <code>19</code> ('1 ≥ P ≤ 3').</li>
                 </ul>
             </div>
         </section>

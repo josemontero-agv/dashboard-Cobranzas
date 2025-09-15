@@ -228,6 +228,10 @@ def dashboard():
         ventas_por_linea = {}
         ventas_por_ruta = {}
         ventas_ipn_por_linea = {} # Nueva variable para ventas de productos nuevos
+        ventas_por_producto = {}
+        ciclo_vida_por_producto = {}
+        ventas_por_ciclo_vida = {}
+        ventas_por_forma = {}
         for sale in sales_data:
             # Excluir VENTA INTERNACIONAL (exportaciones)
             linea_comercial = sale.get('commercial_line_national_id')
@@ -245,9 +249,8 @@ def dashboard():
                     continue
             
             # Procesar el balance de la venta
-            balance = sale.get('balance', 0)
-            if balance:
-                balance_float = float(balance)
+            balance_float = float(sale.get('balance', 0))
+            if balance_float != 0:
                 
                 # Sumar a ventas totales por línea
                 if nombre_linea_actual:
@@ -265,11 +268,30 @@ def dashboard():
                 if ciclo_vida and ciclo_vida == 'nuevo':
                     if nombre_linea_actual:
                         ventas_ipn_por_linea[nombre_linea_actual] = ventas_ipn_por_linea.get(nombre_linea_actual, 0) + balance_float
+                
+                # Agrupar por producto para Top 7
+                producto_nombre = sale.get('name', '').strip()
+                if producto_nombre:
+                    ventas_por_producto[producto_nombre] = ventas_por_producto.get(producto_nombre, 0) + balance_float
+                    if producto_nombre not in ciclo_vida_por_producto:
+                        ciclo_vida_por_producto[producto_nombre] = ciclo_vida
+                
+                # Agrupar por ciclo de vida para el gráfico de dona
+                ciclo_vida_grafico = ciclo_vida if ciclo_vida else 'No definido'
+                ventas_por_ciclo_vida[ciclo_vida_grafico] = ventas_por_ciclo_vida.get(ciclo_vida_grafico, 0) + balance_float
+
+                # Agrupar por forma farmacéutica para el gráfico de ECharts
+                forma_farmaceutica = sale.get('pharmaceutical_forms_id')
+                nombre_forma = forma_farmaceutica[1] if forma_farmaceutica and isinstance(forma_farmaceutica, list) and len(forma_farmaceutica) > 1 else 'Instrumental'
+                ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance_float
 
         print(f"💰 Ventas por línea comercial: {ventas_por_linea}")
         print(f"📦 Ventas por Vencimiento (Ciclo de Vida): {ventas_por_ruta}")
         print(f"✨ Ventas IPN (Productos Nuevos): {ventas_ipn_por_linea}")
 
+        # --- Procesamiento de datos para gráficos (después del bucle) ---
+
+        # 1. Procesar datos para la tabla principal
         for linea in lineas_comerciales_estaticas:
             meta = metas_del_mes.get(linea['id'], 0)
             nombre_linea = linea['nombre'].upper()
@@ -302,6 +324,7 @@ def dashboard():
             total_venta_pn += venta_pn
             total_vencimiento += vencimiento
         
+        # 2. Calcular KPIs
         # Calcular KPIs
         kpis = {
             'meta_total': total_meta, # Meta siempre es positiva
@@ -315,39 +338,7 @@ def dashboard():
             'avance_diario_ipn': ((total_venta_pn / total_meta_pn * 100) / dia_actual) if total_meta_pn > 0 and dia_actual > 0 else 0
         }
         
-        # Datos reales de productos desde Odoo
-        ventas_por_producto = {}
-        ciclo_vida_por_producto = {}
-        
-        for sale in sales_data:
-            # Excluir VENTA INTERNACIONAL (exportaciones)
-            linea_comercial = sale.get('commercial_line_national_id')
-            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
-                nombre_linea = linea_comercial[1].upper()
-                if 'VENTA INTERNACIONAL' in nombre_linea:
-                    continue
-            
-            # También filtrar por canal de ventas
-            canal_ventas = sale.get('sales_channel_id')
-            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
-                nombre_canal = canal_ventas[1].upper()
-                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
-                    continue
-            
-            producto_nombre = sale.get('name', '').strip()
-            ciclo_vida = sale.get('product_life_cycle', 'No definido')
-            balance = sale.get('balance', 0)
-            
-            if producto_nombre and balance:
-                balance = float(balance)  # Ya viene con el signo correcto
-                
-                # Agrupar por producto
-                if producto_nombre in ventas_por_producto:
-                    ventas_por_producto[producto_nombre] += balance
-                else:
-                    ventas_por_producto[producto_nombre] = balance
-                    ciclo_vida_por_producto[producto_nombre] = ciclo_vida
-        
+        # 3. Ordenar productos para el gráfico Top 7
         # Ordenar productos por ventas y tomar los top 7
         productos_ordenados = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
         
@@ -361,33 +352,7 @@ def dashboard():
         
         print(f"🏆 Top 7 productos por ventas: {[p['nombre'] for p in datos_productos]}")
         
-        # Datos para gráfico de Ciclo de Vida
-        ventas_por_ciclo_vida = {}
-        for sale in sales_data:
-            # Excluir VENTA INTERNACIONAL (exportaciones)
-            linea_comercial = sale.get('commercial_line_national_id')
-            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
-                nombre_linea = linea_comercial[1].upper()
-                if 'VENTA INTERNACIONAL' in nombre_linea:
-                    continue
-            
-            # También filtrar por canal de ventas
-            canal_ventas = sale.get('sales_channel_id')
-            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
-                nombre_canal = canal_ventas[1].upper()
-                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
-                    continue
-            
-            ciclo_vida = sale.get('product_life_cycle', 'No definido')
-            balance = sale.get('balance', 0)
-            
-            if balance:
-                balance = float(balance) # Ya viene con el signo correcto
-                if ciclo_vida in ventas_por_ciclo_vida:
-                    ventas_por_ciclo_vida[ciclo_vida] += balance
-                else:
-                    ventas_por_ciclo_vida[ciclo_vida] = balance
-        
+        # 4. Ordenar datos para el gráfico de Ciclo de Vida
         # Convertir a lista ordenada por ventas
         datos_ciclo_vida = []
         for ciclo, venta in sorted(ventas_por_ciclo_vida.items(), key=lambda x: x[1], reverse=True):
@@ -398,29 +363,7 @@ def dashboard():
         
         print(f"📈 Ventas por Ciclo de Vida: {datos_ciclo_vida}")
         
-        # Datos para gráfico de Forma Farmacéutica
-        ventas_por_forma = {}
-        for sale in sales_data:
-            # Excluir VENTA INTERNACIONAL (exportaciones)
-            linea_comercial = sale.get('commercial_line_national_id')
-            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
-                if 'VENTA INTERNACIONAL' in linea_comercial[1].upper():
-                    continue
-            
-            canal_ventas = sale.get('sales_channel_id')
-            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
-                if 'VENTA INTERNACIONAL' in canal_ventas[1].upper() or 'INTERNACIONAL' in canal_ventas[1].upper():
-                    continue
-
-            forma_farmaceutica = sale.get('pharmaceutical_forms_id')
-            # Si es False o no existe, se etiqueta como 'Instrumental'
-            nombre_forma = forma_farmaceutica[1] if forma_farmaceutica and isinstance(forma_farmaceutica, list) and len(forma_farmaceutica) > 1 else 'Instrumental'
-            
-            balance = sale.get('balance', 0)
-            if balance:
-                balance_float = float(balance)
-                ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance_float
-
+        # 5. Ordenar datos para el gráfico de Forma Farmacéutica
         # Convertir a lista ordenada por ventas
         datos_forma_farmaceutica = []
         for forma, venta in sorted(ventas_por_forma.items(), key=lambda x: x[1], reverse=True):

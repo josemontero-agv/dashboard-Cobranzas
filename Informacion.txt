@@ -1,0 +1,46 @@
+Resumen de Lógica de Datos y Filtros de Odoo
+=============================================
+
+Este documento resume cómo se obtienen, filtran y procesan los datos desde Odoo para el dashboard y las exportaciones.
+
+1. Obtención de Datos (desde Odoo)
+------------------------------------
+Se consultan las líneas de asientos contables (`account.move.line`) y se enriquecen con datos de modelos relacionados como:
+- Asientos Contables (`account.move`): Fecha, estado, vendedor, etc.
+- Productos (`product.product`): Nombre, línea comercial, ciclo de vida, etc.
+- Clientes (`res.partner`): Nombre, NIF/RUC.
+- Órdenes de Venta (`sale.order`): Origen, observaciones de entrega.
+
+2. Filtros Aplicados en la Consulta a Odoo
+------------------------------------------
+Se aplican los siguientes filtros directamente en la base de datos de Odoo:
+- **Tipo de Movimiento**: Solo facturas de venta y notas de crédito (`out_invoice`, `out_refund`).
+- **Estado del Movimiento**: Solo asientos publicados (`state = 'posted'`).
+- **Código de Producto**: Se excluyen productos sin referencia interna (`default_code != False`).
+- **Categorías Excluidas**: Se omiten productos de las categorías con IDs: `[315, 333, 304, 314, 318, 339]`.
+- **Impuestos**: Solo se incluyen líneas que tengan los impuestos "IGV" o "IGV_INC".
+
+3. Procesamiento y Lógica de Negocio (en la Aplicación)
+-------------------------------------------------------
+Una vez obtenidos los datos, se aplica la siguiente lógica en la aplicación Flask:
+
+- **Inversión del Saldo (`balance`)**: El valor del campo `balance` se multiplica por -1.
+  - Las ventas (originalmente negativas) se convierten en positivas.
+  - Las notas de crédito (originalmente positivas) se convierten en negativas.
+  - **Importante**: Ya no se usa `abs()` en el resto de la aplicación, pues los datos ya vienen con el signo correcto.
+
+- **Exclusión de Ventas Internacionales**: Se descartan las líneas donde:
+  - La línea comercial (`commercial_line_national_id`) contiene "VENTA INTERNACIONAL".
+  - El canal de venta (`sales_channel_id`) contiene "VENTA INTERNACIONAL" o "INTERNACIONAL".
+
+- **Reasignación a ECOMMERCE**: Se modifica la línea comercial a "ECOMMERCE" para las ventas realizadas por los siguientes usuarios (vendedores):
+  - ID 34: HUAMAN CORDOVA, SAMIRE ANDREA
+  - ID 35: LA ROSA BONIFACIO, JULIAN TONY
+
+- **Agrupación y Cálculos Específicos**: Los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes del dashboard.
+  - **Venta Total**: Suma del `balance` de todas las ventas filtradas.
+  - **Venta IPN (Productos Nuevos)**: Suma del `balance` únicamente de las ventas de productos cuyo `product_life_cycle` es `'nuevo'`.
+  - **Vencimiento < 6 Meses**: Suma del `balance` únicamente de las líneas de venta cuya **Ruta** (`route_id`) tiene el ID `18` o `19`.
+  - **Gráficos**: Los datos se agrupan por línea comercial, producto, ciclo de vida y forma farmacéutica para alimentar los distintos gráficos.
+
+Esta lógica se aplica de forma consistente para el dashboard y para la función de "Exportar Detalle".
