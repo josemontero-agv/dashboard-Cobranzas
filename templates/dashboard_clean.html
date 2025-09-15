@@ -100,7 +100,7 @@
                         <th>Meta IPN</th>
                         <th>Venta IPN</th>
                         <th>% Var. IPN</th>
-                        <th>Vencimiento 6 meses</th>
+                        <th>Vencimiento &lt; 6 Meses</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -113,7 +113,7 @@
                         <td>{{ "{:,.0f}".format(linea.meta_pn) }}</td>
                         <td>{{ "{:,.0f}".format(linea.venta_pn) }}</td>
                         <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_pn) }}</td>
-                        <td>{{ "{:,.0f}".format(linea.vencimiento_6_meses) }}</td>
+                        <td><strong>{{ "{:,.0f}".format(linea.vencimiento_6_meses) }}</strong></td>
                     </tr>
                     {% endfor %}
                     <!-- Fila de TOTAL -->
@@ -125,7 +125,7 @@
                         <td><strong>{{ "{:,.0f}".format(kpis.meta_ipn) }}</strong></td>
                         <td><strong>{{ "{:,.0f}".format(kpis.venta_ipn) }}</strong></td>
                         <td class="porcentaje"><strong>{{ "{:.1f}%".format(kpis.porcentaje_avance_ipn) }}</strong></td>
-                        <td><strong>{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</strong></td>
+                        <td colspan="2"><strong>{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</strong></td>
                     </tr>
                 </tbody>
             </table>

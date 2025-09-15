@@ -79,5 +79,32 @@
         "total": 3738000.0,
         "total_ipn": 1121400.0,
         "mes_nombre": "Julio 2025"
+    },
+    "2025-10": {
+        "metas": {
+            "petmedica": 2000000.0,
+            "agrovet": 1700000.0,
+            "pet_nutriscience": 80000.0,
+            "avivet": 70000.0,
+            "ecommerce": 50000.0,
+            "otros": 28000.0,
+            "genvet": 0.0,
+            "licitacion": 0.0,
+            "ninguno": 0.0
+        },
+        "metas_ipn": {
+            "petmedica": 500000.0,
+            "agrovet": 425000.0,
+            "pet_nutriscience": 20000.0,
+            "avivet": 17500.0,
+            "ecommerce": 12500.0,
+            "otros": 7000.0,
+            "genvet": 0.0,
+            "licitacion": 0.0,
+            "ninguno": 0.0
+        },
+        "total": 3928000.0,
+        "total_ipn": 982000.0,
+        "mes_nombre": "Octubre 2025"
     }
 }

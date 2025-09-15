@@ -226,6 +226,8 @@ def dashboard():
         
         # Calcular ventas reales por línea comercial
         ventas_por_linea = {}
+        ventas_por_ruta = {}
+        ventas_ipn_por_linea = {} # Nueva variable para ventas de productos nuevos
         for sale in sales_data:
             # Excluir VENTA INTERNACIONAL (exportaciones)
             linea_comercial = sale.get('commercial_line_national_id')
@@ -244,14 +246,30 @@ def dashboard():
             
             # Procesar el balance de la venta
             balance = sale.get('balance', 0)
-            if balance and nombre_linea_actual:
-                balance_float = float(balance) # Ya viene con el signo correcto
-                if nombre_linea_actual in ventas_por_linea:
-                    ventas_por_linea[nombre_linea_actual] += balance_float
-                else:
-                    ventas_por_linea[nombre_linea_actual] = balance_float
+            if balance:
+                balance_float = float(balance)
+                
+                # Sumar a ventas totales por línea
+                if nombre_linea_actual:
+                    ventas_por_linea[nombre_linea_actual] = ventas_por_linea.get(nombre_linea_actual, 0) + balance_float
+                
+                # LÓGICA FINAL: Sumar si la RUTA (route_id) coincide con los valores especificados
+                ruta = sale.get('route_id')
+                # Se cambia la comparación al ID de la ruta (ruta[0]) para evitar problemas con traducciones.
+                if isinstance(ruta, list) and len(ruta) > 0 and ruta[0] in [18, 19]:
+                    if nombre_linea_actual:
+                        ventas_por_ruta[nombre_linea_actual] = ventas_por_ruta.get(nombre_linea_actual, 0) + balance_float
+                
+                # Sumar a ventas de productos nuevos (IPN) - Lógica restaurada
+                ciclo_vida = sale.get('product_life_cycle')
+                if ciclo_vida and ciclo_vida == 'nuevo':
+                    if nombre_linea_actual:
+                        ventas_ipn_por_linea[nombre_linea_actual] = ventas_ipn_por_linea.get(nombre_linea_actual, 0) + balance_float
+
         print(f"💰 Ventas por línea comercial: {ventas_por_linea}")
-        
+        print(f"📦 Ventas por Vencimiento (Ciclo de Vida): {ventas_por_ruta}")
+        print(f"✨ Ventas IPN (Productos Nuevos): {ventas_ipn_por_linea}")
+
         for linea in lineas_comerciales_estaticas:
             meta = metas_del_mes.get(linea['id'], 0)
             nombre_linea = linea['nombre'].upper()
@@ -261,8 +279,8 @@ def dashboard():
             
             # Usar la meta IPN registrada por el usuario
             meta_pn = metas_ipn_del_mes.get(linea['id'], 0)
-            venta_pn = venta * 0.25  # 25% de la venta total  
-            vencimiento = 0  # Por ahora 0, se puede calcular después
+            venta_pn = ventas_ipn_por_linea.get(nombre_linea, 0) # Usar el cálculo real de ventas de productos nuevos
+            vencimiento = ventas_por_ruta.get(nombre_linea, 0) # Usamos el nuevo cálculo
             
             porcentaje_total = (venta / meta * 100) if meta > 0 else 0
             porcentaje_pn = (venta_pn / meta_pn * 100) if meta_pn > 0 else 0

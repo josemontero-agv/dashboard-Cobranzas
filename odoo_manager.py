@@ -185,7 +185,8 @@ class OdooManager:
                 'fields': [
                     'move_id', 'partner_id', 'product_id', 'balance', 'move_name',
                     'quantity', 'price_unit', 'tax_ids'
-                ]
+                ],
+                'context': {'lang': 'es_PE'}
             }
             
             # Solo agregar limit si no es None (XML-RPC no maneja None)
@@ -221,7 +222,8 @@ class OdooManager:
                             'payment_state', 'team_id', 'invoice_user_id', 'invoice_origin',
                             'invoice_date', 'l10n_latam_document_type_id', 'origin_number',
                             'order_id', 'name', 'ref', 'journal_id', 'amount_total', 'state'
-                        ]
+                        ],
+                        'context': {'lang': 'es_PE'}
                     }
                 )
                 move_data = {m['id']: m for m in moves}
@@ -237,11 +239,17 @@ class OdooManager:
                         'fields': [
                             'name', 'default_code', 'categ_id', 'commercial_line_national_id',
                             'pharmacological_classification_id', 'pharmaceutical_forms_id',
-                            'administration_way_id', 'production_line_id', 'product_life_cycle'
-                        ]
+                            'administration_way_id', 'production_line_id', 'product_life_cycle',
+                        ],
+                        'context': {'lang': 'es_PE'}
                     }
                 )
                 product_data = {p['id']: p for p in products}
+                # --- DEBUG: Imprimir los campos del primer producto para verificar el nombre del campo ---
+                if products:
+                    print("🔍 DEBUG: Campos del primer producto obtenido:")
+                    print(products[0])
+                # --- FIN DEBUG ---
                 print(f"✅ Productos: {len(product_data)} registros")
             
             # Obtener datos de clientes
@@ -250,7 +258,7 @@ class OdooManager:
                 partners = self.models.execute_kw(
                     self.db, self.uid, self.password, 'res.partner', 'search_read',
                     [[('id', 'in', partner_ids)]],
-                    {'fields': ['vat', 'name']}
+                    {'fields': ['vat', 'name'], 'context': {'lang': 'es_PE'}}
                 )
                 partner_data = {p['id']: p for p in partners}
                 print(f"✅ Clientes: {len(partner_data)} registros")
@@ -267,7 +275,7 @@ class OdooManager:
                             'name', 'delivery_observations', 'partner_supplying_agency_id', 
                             'partner_shipping_id', 'date_order', 'state', 'amount_total',
                             'user_id', 'team_id', 'warehouse_id', 'commitment_date',
-                            'client_order_ref', 'origin'
+                            'client_order_ref', 'origin',
                         ]
                     }
                 )
@@ -286,7 +294,8 @@ class OdooManager:
                                 'order_id', 'product_id', 'route_id', 'name', 'product_uom_qty',
                                 'price_unit', 'price_subtotal', 'discount', 'product_uom',
                                 'analytic_distribution', 'display_type'
-                            ]
+                            ],
+                            'context': {'lang': 'es_PE'}
                         }
                     )
                     for sl in sale_lines:
@@ -307,7 +316,7 @@ class OdooManager:
                 taxes = self.models.execute_kw(
                     self.db, self.uid, self.password, 'account.tax', 'search_read',
                     [[('id', 'in', list(all_tax_ids))]],
-                    {'fields': ['id', 'name']}
+                    {'fields': ['id', 'name'], 'context': {'lang': 'es_PE'}}
                 )
                 tax_names = {t['id']: t['name'] for t in taxes}
             
@@ -341,6 +350,19 @@ class OdooManager:
                 imp_str = ', '.join(imp_list) if imp_list else ''
                 # Filtrar por impuestos IGV o IGV_INC
                 if 'IGV' in imp_list or 'IGV_INC' in imp_list:
+                    # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
+                    # Se hace aquí para que el commercial_line_national_id original esté disponible para otros cálculos si es necesario
+                    commercial_line_id = product.get('commercial_line_national_id')
+                    invoice_user = move.get('invoice_user_id')
+                    
+                    if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
+                        # Verificar si es uno de los usuarios ECOMMERCE específicos
+                        if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
+                            (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
+                            # Cambiar la línea comercial a ECOMMERCE
+                            commercial_line_id = [9, 'ECOMMERCE']
+                            ecommerce_reassigned += 1
+
                     # Crear registro completo con las 27 columnas
                     sales_lines.append({
                         # 1. Estado de Pago
@@ -350,7 +372,7 @@ class OdooManager:
                         'sales_channel_id': move.get('team_id'),
                         
                         # 3. Línea Comercial Local
-                        'commercial_line_national_id': product.get('commercial_line_national_id'),
+                        'commercial_line_national_id': commercial_line_id,
                         
                         # 4. Vendedor
                         'invoice_user_id': move.get('invoice_user_id'),
@@ -447,18 +469,6 @@ class OdooManager:
                         'move_id': line.get('move_id'),
                         'partner_id': line.get('partner_id')
                     })
-                    
-                    # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
-                    current_record = sales_lines[-1]  # Obtener el registro recién agregado
-                    invoice_user = current_record.get('invoice_user_id')
-                    
-                    if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
-                        # Verificar si es uno de los usuarios ECOMMERCE específicos
-                        if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
-                            (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
-                            # Cambiar la línea comercial a ECOMMERCE
-                            current_record['commercial_line_national_id'] = [9, 'ECOMMERCE']
-                            ecommerce_reassigned += 1
             
             print(f"✅ Procesadas {len(sales_lines)} líneas con 27 columnas completas")
             print(f"🔄 Reasignadas {ecommerce_reassigned} líneas a ECOMMERCE (usuarios específicos)")

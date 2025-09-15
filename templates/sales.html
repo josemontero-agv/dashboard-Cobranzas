@@ -3,15 +3,20 @@
 {% block title %}Líneas de Venta{% endblock %}
 
 {% block content %}
-<header class="page-header">
-    <h1 class="page-title">Líneas de Venta</h1>
-    <div class="header-actions">
-        <a href="{{ url_for('dashboard') }}" class="btn">Dashboard</a>
-        <a href="{{ url_for('meta') }}" class="btn btn--info">Metas</a>
-        <button onclick="exportToExcel()" class="btn btn--primary">Exportar Excel</button>
-        <a href="{{ url_for('logout') }}" class="btn">Salir</a>
+<!-- Header estilo Odoo -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <div class="header-info">
+            <h1>LÍNEAS DE VENTA</h1>
+        </div>
     </div>
-</header>
+    <div class="header-nav">
+        <button onclick="exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
+        <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="{{ url_for('meta') }}" class="btn-nav"><i class="bi bi-bullseye"></i> Metas</a>
+        <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
+    </div>
+</div>
 
 <div class="filter-bar">
     <div class="filter-bar__content">
@@ -318,6 +323,70 @@
 </div>
 
 <style>
+/* Estilos del Header Odoo */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --odoo-primary: #875A7B;
+    --odoo-primary-dark: #6B4563;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--odoo-primary) 0%, var(--odoo-primary-dark) 100%);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(135, 90, 123, 0.3);
+    margin-bottom: 25px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-info h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.header-nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.btn-nav, .btn-salir, .btn-nav:visited, .btn-salir:visited {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-nav {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.btn-nav:hover { background-color: rgba(255, 255, 255, 0.25); transform: translateY(-1px); }
+
+.btn-salir { background: #e74c3c; color: white; }
+.btn-salir:hover { background-color: #c0392b; transform: translateY(-1px); }
+
 .status-red { background-color: #ffe5e5; color: #b94a48; padding: 4px 8px; border-radius: 4px; }
 .status-yellow { background-color: #fff7e0; color: #bfa243; padding: 4px 8px; border-radius: 4px; }
 .status-green { background-color: #e3f9ed; color: #3a7d5d; padding: 4px 8px; border-radius: 4px; }
