@@ -135,6 +135,31 @@ class OdooManager:
         """Alias para get_sales_filter_options para compatibilidad"""
         return self.get_sales_filter_options()
 
+    def get_all_sellers(self):
+        """Obtiene una lista única de todos los vendedores (invoice_user_id)."""
+        try:
+            if not self.uid or not self.models:
+                return []
+            
+            # Usamos read_group para obtener vendedores únicos de forma eficiente
+            seller_groups = self.models.execute_kw(
+                self.db, self.uid, self.password, 'account.move', 'read_group',
+                [[('invoice_user_id', '!=', False)]],
+                {'fields': ['invoice_user_id'], 'groupby': ['invoice_user_id']}
+            )
+            
+            # Formatear la lista para el frontend
+            sellers = []
+            for group in seller_groups:
+                if group.get('invoice_user_id'):
+                    seller_id, seller_name = group['invoice_user_id']
+                    sellers.append({'id': seller_id, 'name': seller_name})
+            
+            return sorted(sellers, key=lambda x: x['name'])
+        except Exception as e:
+            print(f"Error obteniendo la lista de vendedores: {e}")
+            return []
+
     def get_sales_lines(self, page=None, per_page=None, filters=None, date_from=None, date_to=None, partner_id=None, linea_id=None, search=None, limit=5000):
         """Obtener líneas de venta completas con todas las 27 columnas"""
         try:

@@ -47,6 +47,18 @@ def guardar_metas_en_archivo(metas):
     with open('metas.json', 'w') as f:
         json.dump(metas, f, indent=4)
 
+def cargar_equipos_ventas():
+    """Carga las asignaciones de equipos de venta desde un archivo JSON."""
+    if os.path.exists('equipos_ventas.json'):
+        with open('equipos_ventas.json', 'r') as f:
+            return json.load(f)
+    return {}
+
+def guardar_equipos_ventas(equipos):
+    """Guarda las asignaciones de equipos de venta en un archivo JSON."""
+    with open('equipos_ventas.json', 'w') as f:
+        json.dump(equipos, f, indent=4)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -608,6 +620,38 @@ def export_excel_sales():
     except Exception as e:
         flash(f'Error al exportar datos: {str(e)}', 'danger')
         return redirect(url_for('sales'))
+
+@app.route('/equipo_ventas', methods=['GET', 'POST'])
+def equipo_ventas():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    equipos = [
+        {'id': 'agrovet_otros', 'nombre': 'AGROVET + OTROS'},
+        {'id': 'petmedica', 'nombre': 'PETMEDICA'},
+        {'id': 'pet_nutriscience', 'nombre': 'PET NUTRISCIENCE'},
+        {'id': 'avivet', 'nombre': 'AVIVET'}
+    ]
+
+    if request.method == 'POST':
+        equipos_guardados = {}
+        for equipo in equipos:
+            vendedores_ids = request.form.getlist(f'vendedores_{equipo["id"]}')
+            # Convertir IDs a enteros
+            equipos_guardados[equipo['id']] = [int(vid) for vid in vendedores_ids]
+        
+        guardar_equipos_ventas(equipos_guardados)
+        flash('Equipos de venta actualizados correctamente.', 'success')
+        return redirect(url_for('equipo_ventas'))
+
+    # GET
+    todos_los_vendedores = data_manager.get_all_sellers()
+    equipos_guardados = cargar_equipos_ventas()
+
+    return render_template('equipo_ventas.html',
+                           equipos=equipos,
+                           todos_los_vendedores=todos_los_vendedores,
+                           equipos_guardados=equipos_guardados)
 
 @app.route('/export/dashboard/details')
 def export_dashboard_details():
