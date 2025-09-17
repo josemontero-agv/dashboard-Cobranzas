@@ -264,12 +264,12 @@
 
         <section id="metas">
             <h2>5. Gestión de Metas</h2>
-            <p>La aplicación centraliza toda la gestión de metas y equipos en una <strong>única hoja de cálculo de Google Sheets</strong>, la cual se administra a través de dos interfaces en la aplicación web.</p>
+            <p>La aplicación centraliza toda la gestión de metas y equipos en una <strong>única hoja de cálculo de Google Sheets</strong>, la cual se administra a través de dos interfaces en la aplicación web. Esto permite una gestión de datos centralizada y colaborativa.</p>
             <h3>Metas por Línea</h3>
             <p>Esta sección te permite establecer los objetivos de venta <strong>generales</strong> para cada línea comercial para un mes específico. Estos valores son los que se usan en el dashboard principal para calcular los porcentajes de avance globales. Los datos se guardan en la pestaña <code>MetasPorLinea</code> de tu Google Sheet.</p>
             
             <h3>Metas Vendedor (Gestión de Metas y Equipos)</h3>
-            <p>Esta es la sección principal para la gestión detallada. Aquí puedes organizar a tus vendedores en equipos y asignarles metas individuales para cada mes del año en una vista de tabla dinámica. Los datos se guardan en las pestañas <code>Equipos</code> y <code>Metas</code> de tu Google Sheet.</p>
+            <p>Esta es la sección principal para la gestión detallada. Aquí puedes organizar a tus vendedores en equipos y asignarles metas individuales para cada mes del año en una vista de tabla dinámica. Los datos se guardan en las pestañas <code>Equipos</code> y <code>Metas</code> de tu Google Sheet, donde cada vendedor asignado a un equipo tiene su propia fila para mayor claridad.</p>
             <ul>
                 <li><strong>Asignar Vendedores:</strong> Usa el selector "Asignar Vendedores" para añadir o quitar miembros de un equipo. Luego, presiona el botón <strong>"Actualizar Miembros"</strong>. Esta acción guarda la nueva lista de integrantes en Google Sheets y recarga la página para que puedas ver las filas de los nuevos vendedores y asignarles sus metas.</li>
                 <li><strong>Ingresar Metas:</strong> En la tabla, puedes ingresar la "Meta" total y la meta "IPN" para cada vendedor en la celda correspondiente a cada mes. Los campos numéricos aceptan separadores de miles para facilitar la lectura.</li>
@@ -277,13 +277,23 @@
             </ul>
             <p class="note"><strong>Importante:</strong> Toda la información de metas y equipos ahora reside en tu Google Sheet, eliminando la necesidad de archivos <code>.json</code> locales para esta tarea.</p>
         </section>
+
+        <section id="dashboard-vendedor">
+            <h2>6. Dashboard por Vendedor</h2>
+            <p>Al hacer clic en una línea comercial en la tabla del dashboard principal, se accede a una vista detallada centrada en el rendimiento de los vendedores para esa línea específica.</p>
+            <ul>
+                <li><strong>Filtros Dinámicos:</strong> Puedes cambiar de mes y de línea comercial directamente desde esta vista.</li>
+                <li><strong>Tabla de Avance por Vendedor:</strong> Muestra un desglose del rendimiento de cada vendedor, incluyendo su meta, venta, avance IPN y la columna de "Vencimiento < 6 Meses".</li>
+                <li><strong>Gráficos Comparativos:</strong> Incluye un gráfico de barras "Meta vs. Venta por Vendedor" para un análisis visual rápido del cumplimiento de objetivos.</li>
+            </ul>
+        </section>
     </main>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const sections = document.querySelectorAll('.manual-content section');
-    const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+    const navLinks = document.querySelectorAll('.sidebar-nav a');
 
     // Función para actualizar el enlace activo
     const updateActiveLink = (id) => {

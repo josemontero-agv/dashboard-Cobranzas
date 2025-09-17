@@ -468,6 +468,7 @@ def dashboard_linea():
         # --- 3. PROCESAR Y AGREGAR DATOS POR VENDEDOR ---
         ventas_por_vendedor = {}
         ventas_ipn_por_vendedor = {}
+        ventas_vencimiento_por_vendedor = {}
         ventas_por_producto = {}
         ventas_por_ciclo_vida = {}
         ventas_por_forma = {}
@@ -491,6 +492,11 @@ def dashboard_linea():
                         if sale.get('product_life_cycle') == 'nuevo':
                             ventas_ipn_por_vendedor[vendedor_id] = ventas_ipn_por_vendedor.get(vendedor_id, 0) + balance
 
+                        # Agrupar ventas por vencimiento < 6 meses
+                        ruta = sale.get('route_id')
+                        if isinstance(ruta, list) and len(ruta) > 0 and ruta[0] in [18, 19]:
+                            ventas_vencimiento_por_vendedor[vendedor_id] = ventas_vencimiento_por_vendedor.get(vendedor_id, 0) + balance
+
                         # Agrupar para gráficos (Top Productos, Ciclo Vida, Forma Farmacéutica)
                         producto_nombre = sale.get('name', '').strip()
                         if producto_nombre:
@@ -509,6 +515,7 @@ def dashboard_linea():
         total_venta = 0
         total_meta_ipn = 0
         total_venta_ipn = 0
+        total_vencimiento = 0
 
         # Iterar sobre todos los vendedores para incluirlos aunque no tengan ventas
         for vendedor_id, vendedor_nombre in todos_los_vendedores.items():
@@ -519,6 +526,7 @@ def dashboard_linea():
             meta_ipn = float(meta_guardada.get('meta_ipn', 0))
             venta = ventas_por_vendedor.get(vendedor_id, 0)
             venta_ipn = ventas_ipn_por_vendedor.get(vendedor_id, 0)
+            vencimiento = ventas_vencimiento_por_vendedor.get(vendedor_id, 0)
 
             # Incluir solo si el vendedor tiene ventas en el mes seleccionado
             if venta > 0:
@@ -530,12 +538,14 @@ def dashboard_linea():
                     'porcentaje_avance': (venta / meta * 100) if meta > 0 else 0,
                     'meta_ipn': meta_ipn,
                     'venta_ipn': venta_ipn,
-                    'porcentaje_avance_ipn': (venta_ipn / meta_ipn * 100) if meta_ipn > 0 else 0
+                    'porcentaje_avance_ipn': (venta_ipn / meta_ipn * 100) if meta_ipn > 0 else 0,
+                    'vencimiento_6_meses': vencimiento
                 })
                 total_meta += meta
                 total_venta += venta
                 total_meta_ipn += meta_ipn
                 total_venta_ipn += venta_ipn
+                total_vencimiento += vencimiento
 
         # Ordenar por venta descendente
         datos_vendedores = sorted(datos_vendedores, key=lambda x: x['venta'], reverse=True)
@@ -548,6 +558,7 @@ def dashboard_linea():
             'meta_ipn': total_meta_ipn,
             'venta_ipn': total_venta_ipn,
             'porcentaje_avance_ipn': (total_venta_ipn / total_meta_ipn * 100) if total_meta_ipn > 0 else 0,
+            'vencimiento_6_meses': total_vencimiento,
             'avance_diario_total': ((total_venta / total_meta * 100) / dia_actual) if total_meta > 0 and dia_actual > 0 else 0,
             'avance_diario_ipn': ((total_venta_ipn / total_meta_ipn * 100) / dia_actual) if total_meta_ipn > 0 and dia_actual > 0 else 0
         }

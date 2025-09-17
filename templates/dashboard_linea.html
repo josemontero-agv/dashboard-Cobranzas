@@ -96,6 +96,7 @@
                         <th>Meta IPN</th>
                         <th>Venta IPN</th>
                         <th>% Avance IPN</th>
+                        <th>Vencimiento &lt; 6 Meses</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,9 +109,10 @@
                         <td>{% if vendedor.meta_ipn > 0 %}{{ "{:,.0f}".format(vendedor.meta_ipn) }}{% else %}-{% endif %}</td>
                         <td>{% if vendedor.venta_ipn > 0 %}{{ "{:,.0f}".format(vendedor.venta_ipn) }}{% else %}-{% endif %}</td>
                         <td class="porcentaje">{% if vendedor.porcentaje_avance_ipn > 0 %}{{ "{:.1f}%".format(vendedor.porcentaje_avance_ipn) }}{% else %}-{% endif %}</td>
+                        <td><strong>{% if vendedor.vencimiento_6_meses > 0 %}{{ "{:,.0f}".format(vendedor.vencimiento_6_meses) }}{% else %}-{% endif %}</strong></td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" style="text-align: center; padding: 20px;">No hay datos de ventas o metas para esta línea en el mes seleccionado.</td></tr>
+                    <tr><td colspan="8" style="text-align: center; padding: 20px;">No hay datos de ventas o metas para esta línea en el mes seleccionado.</td></tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="fila-total">
@@ -122,6 +124,7 @@
                         <td><strong>{% if kpis.meta_ipn > 0 %}{{ "{:,.0f}".format(kpis.meta_ipn) }}{% else %}-{% endif %}</strong></td>
                         <td><strong>{% if kpis.venta_ipn > 0 %}{{ "{:,.0f}".format(kpis.venta_ipn) }}{% else %}-{% endif %}</strong></td>
                         <td class="porcentaje"><strong>{% if kpis.porcentaje_avance_ipn > 0 %}{{ "{:.1f}%".format(kpis.porcentaje_avance_ipn) }}{% else %}-{% endif %}</strong></td>
+                        <td><strong>{% if kpis.vencimiento_6_meses > 0 %}{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}{% else %}-{% endif %}</strong></td>
                     </tr>
                 </tfoot>
             </table>
@@ -143,8 +146,10 @@
             </div>
         </div>
         <div class="grafico-container">
-            <h3>Venta por Forma Farmacéutica</h3>
-            <div id="grafico-forma-farmaceutica" style="width: 100%; height: 300px;"></div>
+            <h3>Meta vs. Venta por Vendedor</h3>
+            <div class="chart-wrapper" style="position: relative; height: 300px;">
+                <canvas id="grafico-vendedores-meta-vs-venta"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -292,6 +297,13 @@ body {
         const seriesData = datosCicloVida.map(item => ({ name: item.ciclo, value: item.venta }));
         const option = {
             tooltip: { trigger: 'item', formatter: '{a}<br/>{b}: S/ {c} ({d}%)' },
+            tooltip: { 
+                trigger: 'item', 
+                formatter: function(params) {
+                    const value = (params.value || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    return `${params.seriesName}<br/>${params.name}: ${value} (${params.percent}%)`;
+                }
+            },
             legend: { top: 'bottom', type: 'scroll' },
             series: [{ name: 'Tipo Producto', type: 'pie', radius: ['40%', '70%'], data: seriesData }]
         };
@@ -308,31 +320,65 @@ body {
             type: 'bar',
             data: { labels, datasets: [{ label: 'Venta', data, backgroundColor: '#3498db' }] },
             options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (context) => `Venta: S/ ${(context.parsed.x || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` } }
+                },
                 scales: { x: { beginAtZero: true } }
             }
         });
     }
 
-    // Gráfico Pie: Forma Farmacéutica
-    function crearGraficoForma() {
-        const chartDom = document.getElementById('grafico-forma-farmaceutica');
-        if (!chartDom) return;
-        const myChart = echarts.init(chartDom);
-        const seriesData = datosFormaFarmaceutica.map(item => ({ name: item.forma, value: item.venta }));
-        const option = {
-            tooltip: { trigger: 'item', formatter: '{a}<br/>{b}: S/ {c} ({d}%)' },
-            legend: { orient: 'vertical', left: 'left', type: 'scroll' },
-            series: [{ name: 'Forma Farmacéutica', type: 'pie', radius: '65%', center: ['65%', '50%'], data: seriesData }]
-        };
-        myChart.setOption(option);
+    // Gráfico Barras Verticales: Meta vs Venta por Vendedor
+    function crearGraficoVendedores() {
+        const ctx = document.getElementById('grafico-vendedores-meta-vs-venta')?.getContext('2d');
+        if (!ctx) return;
+
+        const labels = datosVendedores.map(v => v.nombre);
+        const dataMeta = datosVendedores.map(v => v.meta || 0);
+        const dataVenta = datosVendedores.map(v => v.venta || 0);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Meta',
+                        data: dataMeta,
+                        backgroundColor: '#e74c3c',
+                    },
+                    {
+                        label: 'Venta',
+                        data: dataVenta,
+                        backgroundColor: '#3498db',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: (context) => `${context.dataset.label}: S/ ${(context.parsed.y || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` } }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => 'S/ ' + value.toLocaleString() }
+                    }
+                }
+            }
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         crearGraficoCicloVida();
         crearGraficoProductos();
-        crearGraficoForma();
+        crearGraficoVendedores();
     });
 </script>
 {% endblock %}

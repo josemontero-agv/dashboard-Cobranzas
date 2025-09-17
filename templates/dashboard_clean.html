@@ -594,7 +594,7 @@ function crearGraficoCicloVida() {
         tooltip: {
             trigger: 'item',
             formatter: function(params) {
-                const value = (params.value || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
+                const value = (params.value || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
                 return `${params.seriesName}<br/>${params.name}: ${value} (${params.percent}%)`;
             }
         },
@@ -665,9 +665,7 @@ function crearGraficoProductos() {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return 'Ventas: S/ ' + context.parsed.x.toLocaleString();
-                        }
+                        label: (context) => 'Ventas: S/ ' + (context.parsed.x || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                     }
                 }
             },
@@ -723,9 +721,8 @@ function crearGraficoLineas() {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': S/ ' + context.parsed.y.toLocaleString();
-                        }
+                        label: (context) =>
+                            `${context.dataset.label}: S/ ${(context.parsed.y || 0).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                     }
                 }
             },
@@ -764,7 +761,7 @@ function crearGraficoFormaFarmaceutica() {
         tooltip: {
             trigger: 'item',
             formatter: function(params) {
-                const value = (params.value || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
+                const value = (params.value || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
                 return `${params.seriesName}<br/>${params.name}: ${value} (${params.percent}%)`;
             }
         },
