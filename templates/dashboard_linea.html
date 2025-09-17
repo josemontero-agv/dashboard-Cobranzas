@@ -8,6 +8,7 @@
 <div class="dashboard-header">
     <div class="header-left">
         <h1><i class="bi bi-bar-chart-line-fill"></i> Dashboard Línea Comercial</h1>
+        <span class="header-username">{{ session.user_name }}</span>
     </div>
     <div class="header-filters">
         <div class="filter-group">
@@ -181,7 +182,16 @@ body {
     margin-bottom: 25px;
 }
 
-.header-left h1 { margin: 0; font-size: 22px; }
+.header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+.header-left h1 { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;}
+.header-username { font-size: 14px; font-weight: 400; color: rgba(255, 255, 255, 0.8); padding-left: 32px; }
+
+
 .header-filters { display: flex; gap: 20px; align-items: center; }
 .filter-group { display: flex; flex-direction: column; gap: 5px; }
 .filter-group label { color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 500; }

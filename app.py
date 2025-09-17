@@ -46,10 +46,13 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if data_manager.authenticate_user(username, password):
-            session['username'] = username
+        user_data = data_manager.authenticate_user(username, password)
+        if user_data:
+            session['username'] = user_data.get('login', username)
+            session['user_name'] = user_data.get('name', username)
             flash('¡Inicio de sesión exitoso!', 'success')
-            return redirect(url_for('sales'))
+            # Cambio: Redirigir al dashboard principal por defecto
+            return redirect(url_for('dashboard'))
         else:
             flash('Usuario o contraseña incorrectos.', 'danger')
     return render_template('login.html')
@@ -61,6 +64,10 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
+def index():
+    # Redirigir la ruta raíz al dashboard
+    return redirect(url_for('dashboard'))
+
 @app.route('/sales', methods=['GET', 'POST'])
 def sales():
     if 'username' not in session:
@@ -71,31 +78,35 @@ def sales():
         filter_options = data_manager.get_filter_options()
         
         # Obtener filtros de la request
+        # Usamos request.form para detectar si el formulario fue enviado
         selected_filters = {
-            'date_from': request.form.get('date_from') or request.args.get('date_from'),
-            'date_to': request.form.get('date_to') or request.args.get('date_to'),
-            'linea_id': request.form.get('linea_id') or request.args.get('linea_id'),
-            'partner_id': request.form.get('partner_id') or request.args.get('partner_id')
+            'date_from': request.form.get('date_from') if request.method == 'POST' else None,
+            'date_to': request.form.get('date_to') if request.method == 'POST' else None,
+            'linea_id': request.form.get('linea_id') if request.method == 'POST' else None
+            # Se elimina el partner_id
         }
         
+        sales_data = []
+        # Solo buscar datos si el método es POST (se hizo clic en "Buscar")
+        if request.method == 'POST':
         # Convertir strings vacíos a None
-        for key, value in selected_filters.items():
-            if value == '':
-                selected_filters[key] = None
-            elif key in ['linea_id', 'partner_id'] and value is not None:
-                try:
-                    selected_filters[key] = int(value)
-                except (ValueError, TypeError):
+            for key, value in selected_filters.items():
+                if value == '':
                     selected_filters[key] = None
-        
-        # Obtener datos
-        sales_data = data_manager.get_sales_lines(
-            date_from=selected_filters['date_from'],
-            date_to=selected_filters['date_to'],
-            partner_id=selected_filters['partner_id'],
-            linea_id=selected_filters['linea_id'],
-            limit=1000
-        )
+                elif key == 'linea_id' and value is not None:
+                    try:
+                        selected_filters[key] = int(value)
+                    except (ValueError, TypeError):
+                        selected_filters[key] = None
+            
+            # Obtener datos
+            sales_data = data_manager.get_sales_lines(
+                date_from=selected_filters.get('date_from'),
+                date_to=selected_filters.get('date_to'),
+                partner_id=None, # Ya no se usa el filtro de cliente
+                linea_id=selected_filters['linea_id'],
+                limit=1000
+            )
         
         # Filtrar VENTA INTERNACIONAL (exportaciones)
         sales_data_filtered = []

@@ -9,6 +9,7 @@
         <div class="header-info">
             <!-- El logo se movió al CSS como fondo para un look más limpio -->
             <h1>AVANCE DE VENTAS - {{ mes_nombre.upper() }}</h1>
+            <span class="header-username">{{ session.user_name }}</span>
         </div>
     </div>
     
@@ -228,8 +229,9 @@ body {
 
 .header-info {
     display: flex;
-    align-items: center;
-    gap: 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
 }
 
 .header-info h1 {
@@ -237,6 +239,13 @@ body {
     font-size: 24px;
     font-weight: 700;
     color: white;
+}
+
+.header-username {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.8);
+    padding-left: 2px;
 }
 
 /* Calendario central */

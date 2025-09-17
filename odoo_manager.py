@@ -34,76 +34,63 @@ class OdooManager:
             self.models = None
 
     def authenticate_user(self, username, password):
-        """Autenticar usuario contra Odoo usando las credenciales de la base de datos"""
+        """Autenticar usuario contra Odoo y devolver sus datos si es exitoso."""
         try:
-            # Intentar autenticación contra Odoo con las credenciales proporcionadas
-            import xmlrpc.client
-            
-            # Crear conexión temporal para autenticación
             common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            
-            # Intentar autenticar con las credenciales proporcionadas
             uid = common.authenticate(self.db, username, password, {})
             
             if uid:
-                print(f"✅ Autenticación exitosa para usuario: {username}")
-                return True
+                print(f"✅ Autenticación exitosa para usuario: {username} (UID: {uid})")
+                # Una vez autenticado, obtener el nombre del usuario
+                models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object')
+                user_data = models.execute_kw(
+                    self.db, uid, password, 'res.users', 'read',
+                    [uid], {'fields': ['name', 'login']}
+                )
+                if user_data:
+                    return user_data[0]  # Devuelve {'id': uid, 'name': 'John Doe', 'login': '...'}
+                else:
+                    # Fallback si no se pueden leer los datos del usuario
+                    return {'id': uid, 'name': username, 'login': username}
             else:
                 print(f"❌ Credenciales incorrectas para usuario: {username}")
-                return False
+                return None
                 
         except Exception as e:
             print(f"❌ Error en autenticación contra Odoo: {e}")
-            
-            # Fallback: verificar si las credenciales coinciden con las del .env
-            try:
-                if username == self.user and password == self.password:
-                    print(f"✅ Autenticación exitosa usando credenciales del .env")
-                    return True
-                else:
-                    print(f"❌ Credenciales no coinciden con las configuradas")
-                    return False
-            except Exception as fallback_error:
-                print(f"❌ Error en fallback de autenticación: {fallback_error}")
-                return False
+            # En caso de error de conexión, no se puede autenticar
+            return None
 
     def get_sales_filter_options(self):
         """Obtener opciones para filtros de ventas"""
         try:
-            # Usar el método existente que obtiene líneas comerciales del inventario
-            # Esto garantiza que usamos las mismas líneas que en el resto del sistema
-            existing_options = self._get_filter_options_internal()
-            
             # Obtener líneas comerciales
-            lineas = existing_options.get('lineas', [])
-            
-            # Si no hay líneas en el inventario, intentar obtenerlas directamente de productos
-            if not lineas:
-                try:
-                    # Consulta directa a productos para obtener líneas comerciales
-                    products = self.models.execute_kw(
-                        self.db, self.uid, self.password, 'product.product', 'search_read',
-                        [[('commercial_line_national_id', '!=', False)]],
-                        {'fields': ['commercial_line_national_id'], 'limit': 1000}
-                    )
-                    
-                    # Extraer líneas únicas
-                    unique_lines = {}
-                    for product in products:
-                        if product.get('commercial_line_national_id'):
-                            line_id, line_name = product['commercial_line_national_id']
-                            unique_lines[line_id] = line_name
-                    
-                    # Formatear líneas
-                    lineas = [
-                        {'id': line_id, 'display_name': line_name}
-                        for line_id, line_name in unique_lines.items()
-                    ]
-                    lineas.sort(key=lambda x: x['display_name'])
-                    
-                except Exception as product_error:
-                    print(f"Error obteniendo líneas de productos: {product_error}")
-            
+            lineas = []
+            try:
+                # Consulta directa a productos para obtener líneas comerciales
+                products = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'product.product', 'search_read',
+                    [[('commercial_line_national_id', '!=', False)]],
+                    {'fields': ['commercial_line_national_id'], 'limit': 1000}
+                )
+                
+                # Extraer líneas únicas
+                unique_lines = {}
+                for product in products:
+                    if product.get('commercial_line_national_id'):
+                        line_id, line_name = product['commercial_line_national_id']
+                        unique_lines[line_id] = line_name
+                
+                # Formatear líneas
+                lineas = [
+                    {'id': line_id, 'display_name': line_name}
+                    for line_id, line_name in unique_lines.items()
+                ]
+                lineas.sort(key=lambda x: x['display_name'])
+                
+            except Exception as product_error:
+                print(f"Error obteniendo líneas de productos: {product_error}")
+
             # Para compatibilidad con diferentes templates
             commercial_lines = lineas
             
@@ -194,6 +181,12 @@ class OdooManager:
             # Filtros de fecha
             if date_from:
                 domain.append(('move_id.invoice_date', '>=', date_from))
+            else:
+                # Si no hay fecha de inicio, por defecto buscar en los últimos 30 días
+                if not date_to:
+                    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                    domain.append(('move_id.invoice_date', '>=', thirty_days_ago))
+
             if date_to:
                 domain.append(('move_id.invoice_date', '<=', date_to))
             
