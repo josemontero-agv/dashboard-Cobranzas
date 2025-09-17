@@ -28,7 +28,7 @@
         </select>
         <a href="{{ url_for('sales') }}" class="btn-nav"><i class="bi bi-table"></i> Ventas</a>
         <a href="{{ url_for('meta') }}" class="btn-nav"><i class="bi bi-bullseye"></i> Metas</a>
-        <a href="{{ url_for('equipo_ventas') }}" class="btn-nav"><i class="bi bi-people"></i> Equipos</a>
+        <a href="{{ url_for('metas_vendedor') }}" class="btn-nav"><i class="bi bi-people"></i> Metas Vendedor</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
 </div>
@@ -107,7 +107,11 @@
                 <tbody>
                     {% for linea in datos_lineas_tabla %}
                     <tr>
-                        <td>{{ linea.nombre }}</td>
+                        <td>
+                            <a href="{{ url_for('dashboard_linea', linea_nombre=linea.nombre, mes=mes_seleccionado) }}" title="Ver dashboard de vendedores para {{ linea.nombre }}">
+                                {{ linea.nombre }}
+                            </a>
+                        </td>
                         <td>{{ "{:,.0f}".format(linea.meta) }}</td>
                         <td>{{ "{:,.0f}".format(linea.venta) }}</td>
                         <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_total) }}</td>
@@ -207,6 +211,13 @@ body {
     box-shadow: 0 4px 12px rgba(135, 90, 123, 0.3);
     margin-bottom: 25px;
     font-family: 'Poppins', sans-serif;
+}
+
+/* Estilo para el enlace en la tabla */
+.tabla-avance td a {
+    text-decoration: none;
+    color: var(--odoo-primary);
+    font-weight: 600;
 }
 
 .header-left {

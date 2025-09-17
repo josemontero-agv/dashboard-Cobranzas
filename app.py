@@ -47,6 +47,11 @@ def guardar_metas_en_archivo(metas):
     with open('metas.json', 'w') as f:
         json.dump(metas, f, indent=4)
 
+def guardar_equipos_ventas(equipos):
+    """Guarda las asignaciones de equipos de venta en un archivo JSON."""
+    with open('equipos_ventas.json', 'w') as f:
+        json.dump(equipos, f, indent=4)
+
 def cargar_equipos_ventas():
     """Carga las asignaciones de equipos de venta desde un archivo JSON."""
     if os.path.exists('equipos_ventas.json'):
@@ -54,11 +59,17 @@ def cargar_equipos_ventas():
             return json.load(f)
     return {}
 
-def guardar_equipos_ventas(equipos):
-    """Guarda las asignaciones de equipos de venta en un archivo JSON."""
-    with open('equipos_ventas.json', 'w') as f:
-        json.dump(equipos, f, indent=4)
+def cargar_metas_vendedores():
+    """Carga las metas por vendedor desde un archivo JSON."""
+    if os.path.exists('metas_vendedores.json'):
+        with open('metas_vendedores.json', 'r') as f:
+            return json.load(f)
+    return {}
 
+def guardar_metas_vendedores(metas):
+    """Guarda las metas por vendedor en un archivo JSON."""
+    with open('metas_vendedores.json', 'w') as f:
+        json.dump(metas, f, indent=4)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -429,6 +440,175 @@ def dashboard():
                              datos_forma_farmaceutica=[])
 
 
+@app.route('/dashboard_linea')
+def dashboard_linea():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # --- 1. OBTENER FILTROS ---
+        fecha_actual = datetime.now()
+        mes_seleccionado = request.args.get('mes', fecha_actual.strftime('%Y-%m'))
+        año_actual = fecha_actual.year
+        meses_disponibles = get_meses_del_año(año_actual)
+
+        linea_seleccionada_nombre = request.args.get('linea_nombre', 'PETMEDICA') # Default a PETMEDICA si no se especifica
+
+        # Obtener día correcto según el mes seleccionado (lógica del dashboard principal)
+        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+            # Mes actual: usar día actual
+            dia_actual = fecha_actual.day
+        else:
+            # Mes pasado: usar último día del mes
+            año_sel_dia, mes_sel_dia = mes_seleccionado.split('-')
+            ultimo_dia_mes = calendar.monthrange(int(año_sel_dia), int(mes_sel_dia))[1]
+            dia_actual = ultimo_dia_mes
+
+        # Mapeo de nombre de línea a ID para cargar metas
+        mapeo_nombre_a_id = {
+            'PETMEDICA': 'petmedica', 'AGROVET': 'agrovet', 'PET NUTRISCIENCE': 'pet_nutriscience',
+            'AVIVET': 'avivet', 'ECOMMERCE': 'ecommerce', 'OTROS': 'otros',
+            'GENVET': 'genvet', 'LICITACIÓN': 'licitacion', 'Ninguno': 'ninguno'
+        }
+        linea_seleccionada_id = mapeo_nombre_a_id.get(linea_seleccionada_nombre.upper(), 'petmedica')
+
+        # --- 2. OBTENER DATOS ---
+        año_sel, mes_sel = mes_seleccionado.split('-')
+        fecha_inicio = f"{año_sel}-{mes_sel}-01"
+        ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+        fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
+
+        # Cargar metas de vendedores para el mes y línea seleccionados
+        # La estructura es metas[equipo_id][vendedor_id][mes_key]
+        metas_vendedores_historicas = cargar_metas_vendedores()
+        # 1. Obtener todas las metas del equipo/línea
+        metas_del_equipo = metas_vendedores_historicas.get(linea_seleccionada_id, {})
+
+        # Obtener todos los vendedores de Odoo
+        todos_los_vendedores = {str(v['id']): v['name'] for v in data_manager.get_all_sellers()}
+
+        # Obtener ventas del mes
+        sales_data = data_manager.get_sales_lines(
+            date_from=fecha_inicio,
+            date_to=fecha_fin,
+            limit=10000
+        )
+
+        # --- 3. PROCESAR Y AGREGAR DATOS POR VENDEDOR ---
+        ventas_por_vendedor = {}
+        ventas_ipn_por_vendedor = {}
+        ventas_por_producto = {}
+        ventas_por_ciclo_vida = {}
+        ventas_por_forma = {}
+
+        for sale in sales_data:
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                nombre_linea_actual = linea_comercial[1].upper()
+
+                # Filtrar por la línea comercial seleccionada
+                if nombre_linea_actual == linea_seleccionada_nombre.upper():
+                    user_info = sale.get('invoice_user_id')
+                    if user_info and isinstance(user_info, list) and len(user_info) > 1:
+                        vendedor_id = str(user_info[0])
+                        balance = float(sale.get('balance', 0))
+
+                        # Agrupar ventas totales
+                        ventas_por_vendedor[vendedor_id] = ventas_por_vendedor.get(vendedor_id, 0) + balance
+
+                        # Agrupar ventas IPN
+                        if sale.get('product_life_cycle') == 'nuevo':
+                            ventas_ipn_por_vendedor[vendedor_id] = ventas_ipn_por_vendedor.get(vendedor_id, 0) + balance
+
+                        # Agrupar para gráficos (Top Productos, Ciclo Vida, Forma Farmacéutica)
+                        producto_nombre = sale.get('name', '').strip()
+                        if producto_nombre:
+                            ventas_por_producto[producto_nombre] = ventas_por_producto.get(producto_nombre, 0) + balance
+
+                        ciclo_vida = sale.get('product_life_cycle', 'No definido')
+                        ventas_por_ciclo_vida[ciclo_vida] = ventas_por_ciclo_vida.get(ciclo_vida, 0) + balance
+
+                        forma_farma = sale.get('pharmaceutical_forms_id')
+                        nombre_forma = forma_farma[1] if forma_farma and len(forma_farma) > 1 else 'Instrumental'
+                        ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance
+
+        # --- 4. CONSTRUIR ESTRUCTURA DE DATOS PARA LA PLANTILLA ---
+        datos_vendedores = []
+        total_meta = 0
+        total_venta = 0
+        total_meta_ipn = 0
+        total_venta_ipn = 0
+
+        # Iterar sobre todos los vendedores para incluirlos aunque no tengan ventas
+        for vendedor_id, vendedor_nombre in todos_los_vendedores.items():
+            # 2. Obtener la meta para este vendedor y este mes específico
+            meta_guardada = metas_del_equipo.get(vendedor_id, {}).get(mes_seleccionado, {})
+            
+            meta = float(meta_guardada.get('meta', 0))
+            meta_ipn = float(meta_guardada.get('meta_ipn', 0))
+            venta = ventas_por_vendedor.get(vendedor_id, 0)
+            venta_ipn = ventas_ipn_por_vendedor.get(vendedor_id, 0)
+
+            # Incluir solo si el vendedor tiene ventas en el mes seleccionado
+            if venta > 0:
+                datos_vendedores.append({
+                    'id': vendedor_id,
+                    'nombre': vendedor_nombre,
+                    'meta': meta,
+                    'venta': venta,
+                    'porcentaje_avance': (venta / meta * 100) if meta > 0 else 0,
+                    'meta_ipn': meta_ipn,
+                    'venta_ipn': venta_ipn,
+                    'porcentaje_avance_ipn': (venta_ipn / meta_ipn * 100) if meta_ipn > 0 else 0
+                })
+                total_meta += meta
+                total_venta += venta
+                total_meta_ipn += meta_ipn
+                total_venta_ipn += venta_ipn
+
+        # Ordenar por venta descendente
+        datos_vendedores = sorted(datos_vendedores, key=lambda x: x['venta'], reverse=True)
+
+        # KPIs generales para la línea
+        kpis = {
+            'meta_total': total_meta,
+            'venta_total': total_venta,
+            'porcentaje_avance': (total_venta / total_meta * 100) if total_meta > 0 else 0,
+            'meta_ipn': total_meta_ipn,
+            'venta_ipn': total_venta_ipn,
+            'porcentaje_avance_ipn': (total_venta_ipn / total_meta_ipn * 100) if total_meta_ipn > 0 else 0,
+            'avance_diario_total': ((total_venta / total_meta * 100) / dia_actual) if total_meta > 0 and dia_actual > 0 else 0,
+            'avance_diario_ipn': ((total_venta_ipn / total_meta_ipn * 100) / dia_actual) if total_meta_ipn > 0 and dia_actual > 0 else 0
+        }
+
+        # Datos para gráficos
+        productos_ordenados = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
+        datos_productos = [{'nombre': n, 'venta': v} for n, v in productos_ordenados]
+
+        datos_ciclo_vida = [{'ciclo': c, 'venta': v} for c, v in ventas_por_ciclo_vida.items()]
+        datos_forma_farmaceutica = [{'forma': f, 'venta': v} for f, v in ventas_por_forma.items()]
+
+        # Lista de todas las líneas para el selector
+        lineas_comerciales_disponibles = [
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'ECOMMERCE', 'OTROS', 'GENVET', 'LICITACIÓN'
+        ]
+
+        return render_template('dashboard_linea.html',
+                               linea_nombre=linea_seleccionada_nombre,
+                               mes_seleccionado=mes_seleccionado,
+                               meses_disponibles=meses_disponibles,
+                               kpis=kpis,
+                               datos_vendedores=datos_vendedores,
+                               datos_productos=datos_productos,
+                               datos_ciclo_vida=datos_ciclo_vida,
+                               datos_forma_farmaceutica=datos_forma_farmaceutica,
+                               lineas_disponibles=lineas_comerciales_disponibles)
+
+    except Exception as e:
+        flash(f'Error al generar el dashboard para la línea: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+
 @app.route('/meta', methods=['GET', 'POST'])
 def meta():
     if 'username' not in session:
@@ -621,37 +801,139 @@ def export_excel_sales():
         flash(f'Error al exportar datos: {str(e)}', 'danger')
         return redirect(url_for('sales'))
 
-@app.route('/equipo_ventas', methods=['GET', 'POST'])
-def equipo_ventas():
+@app.route('/metas_vendedor', methods=['GET', 'POST'])
+def metas_vendedor():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    equipos = [
-        {'id': 'agrovet_otros', 'nombre': 'AGROVET + OTROS'},
+    # Obtener meses y líneas comerciales para los filtros
+    fecha_actual = datetime.now()
+    año_actual = fecha_actual.year
+    meses_disponibles = get_meses_del_año(año_actual)
+    lineas_comerciales_estaticas = [
+        {'nombre': 'PETMEDICA', 'id': 'petmedica'},
+        {'nombre': 'AGROVET', 'id': 'agrovet'},
+        {'nombre': 'PET NUTRISCIENCE', 'id': 'pet_nutriscience'},
+        {'nombre': 'AVIVET', 'id': 'avivet'},
+        {'nombre': 'ECOMMERCE', 'id': 'ecommerce'},
+        {'nombre': 'OTROS', 'id': 'otros'},
+        {'nombre': 'GENVET', 'id': 'genvet'},
+        {'nombre': 'LICITACIÓN', 'id': 'licitacion'},
+        {'nombre': 'Ninguno', 'id': 'ninguno'},
+    ]
+    equipos_definidos = [
         {'id': 'petmedica', 'nombre': 'PETMEDICA'},
+        {'id': 'agrovet', 'nombre': 'AGROVET'},
         {'id': 'pet_nutriscience', 'nombre': 'PET NUTRISCIENCE'},
-        {'id': 'avivet', 'nombre': 'AVIVET'}
+        {'id': 'avivet', 'nombre': 'AVIVET'},
+        {'id': 'ecommerce', 'nombre': 'ECOMMERCE'},
+        {'id': 'otros', 'nombre': 'OTROS'},
     ]
 
-    if request.method == 'POST':
-        equipos_guardados = {}
-        for equipo in equipos:
-            vendedores_ids = request.form.getlist(f'vendedores_{equipo["id"]}')
-            # Convertir IDs a enteros
-            equipos_guardados[equipo['id']] = [int(vid) for vid in vendedores_ids]
-        
-        guardar_equipos_ventas(equipos_guardados)
-        flash('Equipos de venta actualizados correctamente.', 'success')
-        return redirect(url_for('equipo_ventas'))
+    # Determinar mes y línea seleccionados (desde form o por defecto)
+    mes_seleccionado = request.form.get('mes_seleccionado', fecha_actual.strftime('%Y-%m'))
+    linea_seleccionada = request.form.get('linea_seleccionada', lineas_comerciales_estaticas[0]['id'])
 
-    # GET
+    if request.method == 'POST':
+        # --- 1. GUARDAR ASIGNACIONES DE EQUIPOS ---
+        equipo_a_actualizar = request.form.get('guardar_equipo')
+        equipos_guardados = cargar_equipos_ventas()
+
+        equipos_a_procesar_miembros = []
+        if equipo_a_actualizar:
+            # Si se actualiza un solo equipo, buscar su definición
+            equipo_obj = next((e for e in equipos_definidos if e['id'] == equipo_a_actualizar), None)
+            if equipo_obj:
+                equipos_a_procesar_miembros.append(equipo_obj)
+        else: # Si es el guardado general, procesar todos
+            equipos_a_procesar_miembros = equipos_definidos
+
+        for equipo in equipos_a_procesar_miembros:
+            campo_vendedores = f'vendedores_{equipo["id"]}'
+            if campo_vendedores in request.form:
+                vendedores_str = request.form.get(campo_vendedores, '')
+                if vendedores_str:
+                    vendedores_ids = [int(vid) for vid in vendedores_str.split(',') if vid.isdigit()]
+                    equipos_guardados[equipo['id']] = vendedores_ids
+                else:
+                    equipos_guardados[equipo['id']] = []
+        guardar_equipos_ventas(equipos_guardados)
+
+        # --- 2. GUARDAR TODAS LAS METAS (ESTRUCTURA PIVOT) ---
+        metas_vendedores_historicas = cargar_metas_vendedores()
+        
+        for equipo in equipos_definidos:
+            equipo_id = equipo['id']
+            if equipo_id not in metas_vendedores_historicas:
+                metas_vendedores_historicas[equipo_id] = {}
+
+            vendedores_ids_en_equipo = equipos_guardados.get(equipo_id, [])
+            for vendedor_id in vendedores_ids_en_equipo:
+                vendedor_id_str = str(vendedor_id)
+                if vendedor_id_str not in metas_vendedores_historicas[equipo_id]:
+                    metas_vendedores_historicas[equipo_id][vendedor_id_str] = {}
+
+                for mes in meses_disponibles:
+                    mes_key = mes['key']
+                    # No es necesario crear la clave del mes aquí, se crea si hay datos
+
+                    meta_valor_str = request.form.get(f'meta_{equipo_id}_{vendedor_id_str}_{mes_key}')
+                    meta_ipn_valor_str = request.form.get(f'meta_ipn_{equipo_id}_{vendedor_id_str}_{mes_key}')
+
+                    # Convertir a float, manejar valores vacíos como None para no guardar ceros innecesarios
+                    meta = float(meta_valor_str) if meta_valor_str else None
+                    meta_ipn = float(meta_ipn_valor_str) if meta_ipn_valor_str else None
+
+                    if meta is not None or meta_ipn is not None:
+                        # Si la clave del mes no existe, créala
+                        if mes_key not in metas_vendedores_historicas[equipo_id][vendedor_id_str]:
+                             metas_vendedores_historicas[equipo_id][vendedor_id_str][mes_key] = {}
+                        metas_vendedores_historicas[equipo_id][vendedor_id_str][mes_key] = {
+                            'meta': meta or 0.0,
+                            'meta_ipn': meta_ipn or 0.0
+                        }
+                    # Si ambos son None y la clave existe, se elimina para limpiar el JSON
+                    elif mes_key in metas_vendedores_historicas[equipo_id][vendedor_id_str]:
+                        del metas_vendedores_historicas[equipo_id][vendedor_id_str][mes_key]
+
+        guardar_metas_vendedores(metas_vendedores_historicas)
+        
+        if equipo_a_actualizar:
+            flash(f'Miembros del equipo actualizados. Ahora puedes asignar sus metas.', 'info')
+        else:
+            flash('Equipos y metas guardados correctamente.', 'success')
+
+        # Redirigir con los parámetros para recargar la página con los filtros correctos
+        return redirect(url_for('metas_vendedor'))
+
+    # GET o después de POST
     todos_los_vendedores = data_manager.get_all_sellers()
+    vendedores_por_id = {v['id']: v for v in todos_los_vendedores}
     equipos_guardados = cargar_equipos_ventas()
 
-    return render_template('equipo_ventas.html',
-                           equipos=equipos,
+    # Construir la estructura de datos para la plantilla
+    equipos_con_vendedores = []
+    for equipo_def in equipos_definidos:
+        equipo_id = equipo_def['id']
+        vendedores_ids = equipos_guardados.get(equipo_id, [])
+        vendedores_de_equipo = [vendedores_por_id[vid] for vid in vendedores_ids if vid in vendedores_por_id]
+        
+        equipos_con_vendedores.append({
+            'id': equipo_id,
+            'nombre': equipo_def['nombre'],
+            'vendedores_ids': [str(vid) for vid in vendedores_ids], # Para Tom-Select
+            'vendedores': sorted(vendedores_de_equipo, key=lambda v: v['name']) # Para la tabla
+        })
+
+    # Para la vista, pasamos todas las metas cargadas
+    metas_guardadas = cargar_metas_vendedores()
+
+    return render_template('metas_vendedor.html',
+                           meses_disponibles=meses_disponibles,
+                           lineas_comerciales=lineas_comerciales_estaticas,
+                           equipos_con_vendedores=equipos_con_vendedores,
                            todos_los_vendedores=todos_los_vendedores,
-                           equipos_guardados=equipos_guardados)
+                           metas_guardadas=metas_guardadas)
 
 @app.route('/export/dashboard/details')
 def export_dashboard_details():

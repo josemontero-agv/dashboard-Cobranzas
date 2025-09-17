@@ -10,12 +10,12 @@
 <div class="dashboard-header">
     <div class="header-left">
         <div class="header-info">
-            <h1>GESTIÓN DE EQUIPOS DE VENTA</h1>
+            <h1><i class="bi bi-people-fill"></i> GESTIÓN DE EQUIPOS DE VENTA</h1>
         </div>
     </div>
     <div class="header-nav">
         <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
-        <a href="{{ url_for('meta') }}" class="btn-nav"><i class="bi bi-bullseye"></i> Metas</a>
+        <a href="{{ url_for('metas_vendedor') }}" class="btn-nav"><i class="bi bi-person-check-fill"></i> Metas Vendedor</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
 </div>
@@ -23,7 +23,7 @@
 <div class="teams-container">
     <div class="teams-intro">
         <h2>Organiza tus Equipos</h2>
-        <p>Asigna vendedores a cada equipo de venta. Estos equipos se usarán para filtrar los dashboards en el futuro.</p>
+        <p>Asigna vendedores a cada equipo de venta. Estos equipos se usarán para filtrar la asignación de metas.</p>
     </div>
 
     <form method="POST" action="{{ url_for('equipo_ventas') }}">
@@ -60,7 +60,6 @@
 </div>
 
 <style>
-/* Estilos del Header Odoo (copiados de dashboard_clean.html) */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
@@ -71,6 +70,7 @@
 body {
     font-family: 'Poppins', sans-serif;
     background-color: #f5f7fa;
+    padding: 20px;
 }
 
 .dashboard-header {
@@ -85,7 +85,7 @@ body {
     margin-bottom: 25px;
 }
 
-.header-left h1 { margin: 0; font-size: 24px; }
+.header-left h1 { margin: 0; font-size: 24px; display: flex; align-items: center; gap: 10px; }
 .header-nav { display: flex; gap: 15px; align-items: center; }
 
 .btn-nav, .btn-salir {
@@ -102,38 +102,15 @@ body {
     transition: all 0.2s ease;
 }
 
-.btn-nav {
-    background-color: rgba(255, 255, 255, 0.15);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
+.btn-nav { background-color: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.2); }
 .btn-nav:hover { background-color: rgba(255, 255, 255, 0.25); }
-
 .btn-salir { background: #e74c3c; color: white; }
 .btn-salir:hover { background-color: #c0392b; }
 
-/* Estilos de la página de Equipos */
-.teams-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.teams-intro {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.teams-intro h2 {
-    font-size: 2.5rem;
-    color: var(--odoo-primary);
-    margin-bottom: 10px;
-}
-
-.teams-intro p {
-    font-size: 1.1rem;
-    color: #6c757d;
-}
+.teams-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.teams-intro { text-align: center; margin-bottom: 40px; }
+.teams-intro h2 { font-size: 2.5rem; color: var(--odoo-primary); margin-bottom: 10px; }
+.teams-intro p { font-size: 1.1rem; color: #6c757d; }
 
 .team-table-container {
     background: white;
@@ -142,11 +119,7 @@ body {
     overflow: hidden;
 }
 
-.team-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
+.team-table { width: 100%; border-collapse: collapse; }
 .team-table th {
     background-color: #f8f9fa;
     padding: 16px 20px;
@@ -155,21 +128,9 @@ body {
     color: #495057;
     border-bottom: 2px solid #dee2e6;
 }
-
-.team-table td {
-    padding: 20px;
-    border-bottom: 1px solid #e9ecef;
-    vertical-align: top;
-}
-
-.team-table tr:last-child td {
-    border-bottom: none;
-}
-
-.team-name-cell {
-    width: 35%;
-}
-
+.team-table td { padding: 20px; border-bottom: 1px solid #e9ecef; vertical-align: top; }
+.team-table tr:last-child td { border-bottom: none; }
+.team-name-cell { width: 35%; }
 .team-name-cell strong {
     font-size: 1.2rem;
     color: var(--odoo-primary);
@@ -178,18 +139,9 @@ body {
     gap: 10px;
     margin-bottom: 5px;
 }
+.team-name-cell p { font-size: 0.9rem; color: #6c757d; margin: 0; }
 
-.team-name-cell p {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin: 0;
-}
-
-.form-actions {
-    text-align: center;
-    margin-top: 40px;
-}
-
+.form-actions { text-align: center; margin-top: 40px; }
 .btn-save-teams {
     background-color: var(--odoo-primary);
     color: white;
@@ -204,7 +156,6 @@ body {
     align-items: center;
     gap: 10px;
 }
-
 .btn-save-teams:hover {
     background-color: var(--odoo-primary-dark);
     box-shadow: 0 4px 15px rgba(135, 90, 123, 0.4);
@@ -212,42 +163,26 @@ body {
 }
 
 /* Estilos para Tom-Select */
-.ts-control {
-    border-radius: 8px !important;
-    padding: 10px 12px !important;
-}
+.ts-control { border-radius: 8px !important; padding: 10px 12px !important; }
 .ts-control .item {
     background-color: var(--odoo-primary) !important;
     color: white !important;
     border-radius: 5px !important;
     padding: 4px 8px !important;
 }
-
 .ts-dropdown {
-    z-index: 20 !important; /* Asegura que el dropdown esté por encima de todo */
+    z-index: 20 !important;
     border: 1px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
-
-.ts-dropdown .option {
-    padding: 10px 15px;
-    font-size: 0.9rem;
-}
-
-.ts-dropdown .option:hover {
-    background-color: #f5f7fa;
-}
-
-.ts-dropdown .active {
-    background-color: var(--odoo-primary) !important;
-    color: white !important;
-}
+.ts-dropdown .option { padding: 10px 15px; font-size: 0.9rem; }
+.ts-dropdown .option:hover { background-color: #f5f7fa; }
+.ts-dropdown .active { background-color: var(--odoo-primary) !important; color: white !important; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Convertir los datos de vendedores de Flask a un formato que TomSelect entiende
     const todosLosVendedores = {{ todos_los_vendedores|tojson|safe }}.map(v => ({
         value: v.id,
         text: v.name
@@ -263,9 +198,8 @@ document.addEventListener('DOMContentLoaded', function() {
             valueField: 'value',
             labelField: 'text',
             searchField: 'text',
-            // No mostrar opciones hasta que el usuario escriba al menos 1 caracter
             openOnFocus: false,
-            maxOptions: 7, // Muestra un máximo de 7 resultados a la vez
+            maxOptions: 7,
         });
     });
 });

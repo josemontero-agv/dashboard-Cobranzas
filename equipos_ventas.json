@@ -6,15 +6,13 @@
         23,
         25
     ],
-    "petmedica": [
-        72,
-        137,
-        19
+    "petmedica": [],
+    "pet_nutriscience": [],
+    "avivet": [],
+    "agrovet": [],
+    "ecommerce": [
+        34,
+        35
     ],
-    "pet_nutriscience": [
-        18
-    ],
-    "avivet": [
-        24
-    ]
+    "otros": []
 }
