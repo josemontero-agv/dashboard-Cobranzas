@@ -208,7 +208,7 @@
                 </td>
                 <td>{{ line.move_name or 'N/A' }}</td>
                 <td>{{ line.origin_number or 'N/A' }}</td>
-                <td class="text-right">S/ {{ "{:,.2f}".format(line.balance|abs if line.balance else 0) }}</td>
+                <td class="text-right">S/ {{ "{:,.2f}".format(line.balance if line.balance else 0) }}</td>
                 <td>
                     {% if line.pharmacological_classification_id %}
                         {% if line.pharmacological_classification_id is iterable and line.pharmacological_classification_id|length > 1 %}
