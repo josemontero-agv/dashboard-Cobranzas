@@ -33,15 +33,21 @@ Una vez obtenidos los datos, se aplica la siguiente lógica en la aplicación Fl
   - La línea comercial (`commercial_line_national_id`) contiene "VENTA INTERNACIONAL".
   - El canal de venta (`sales_channel_id`) contiene "VENTA INTERNACIONAL" o "INTERNACIONAL".
 
-- **Reasignación a ECOMMERCE**: Se modifica la línea comercial a "ECOMMERCE" para las ventas realizadas por los siguientes usuarios (vendedores):
+- **Reasignación a ECOMMERCE**: Se modifica la línea comercial a "ECOMMERCE" para las ventas realizadas por los siguientes usuarios (vendedores), sin importar la línea original del producto:
   - ID 34: HUAMAN CORDOVA, SAMIRE ANDREA
   - ID 35: LA ROSA BONIFACIO, JULIAN TONY
 
-- **Agrupación de Datos**: Los datos ya filtrados y procesados se agrupan para alimentar:
-  - Los KPIs principales (Venta Total, Avance, etc.).
-  - La tabla "Meta LC Total y Venta por Línea Comercial Local".
-  - El gráfico "Venta por tipo de Producto" (agrupado por `product_life_cycle`).
-  - El gráfico "Top 7 Productos Más Vendidos".
-  - El gráfico "Venta por Línea Comercial".
+- **Agrupación y Cálculos Específicos**: Los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes del dashboard.
+  - **Venta Total**: Suma del `balance` de todas las ventas filtradas.
+  - **Venta IPN (Productos Nuevos)**: Suma del `balance` únicamente de las ventas de productos cuyo `product_life_cycle` es `'nuevo'`.
+  - **Vencimiento < 6 Meses**: Suma del `balance` únicamente de las líneas de venta cuya **Ruta** (`route_id`) en la orden de venta tiene el ID `18` ('3 > P < 6') o `19` ('1 ≥ P ≤ 3').
+  - **Gráficos**: Los datos se agrupan por línea comercial, producto, ciclo de vida y forma farmacéutica para alimentar los distintos gráficos.
+
+4. Gestión de Metas
+--------------------
+- **Google Sheets como Única Fuente de Verdad**: Toda la gestión de metas y equipos se ha centralizado en una única hoja de cálculo de Google.
+  - **Pestaña `MetasPorLinea`**: Almacena las metas generales y de IPN para cada línea comercial. Cada fila representa un mes.
+  - **Pestaña `Equipos`**: Guarda la asignación de vendedores a cada equipo. Cada fila representa un vendedor asignado a un equipo, incluyendo su ID y nombre para mayor claridad.
+  - **Pestaña `Metas`**: Guarda las metas individuales (total e IPN) para cada vendedor. Cada fila representa la meta de un vendedor para un mes específico dentro de un equipo.
 
 Esta lógica se aplica de forma consistente para el dashboard y para la función de "Exportar Detalle".

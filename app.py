@@ -3,6 +3,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from dotenv import load_dotenv
 from odoo_manager import OdooManager
+from google_sheets_manager import GoogleSheetsManager
 import os
 import pandas as pd
 import json
@@ -18,7 +19,12 @@ app.secret_key = os.getenv('SECRET_KEY')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+# --- Inicialización de Managers ---
 data_manager = OdooManager()
+gs_manager = GoogleSheetsManager(
+    credentials_file='credentials.json',
+    sheet_name=os.getenv('GOOGLE_SHEET_NAME')
+)
 
 # --- Funciones Auxiliares ---
 
@@ -35,41 +41,6 @@ def get_meses_del_año(año):
         meses_disponibles.append({'key': mes_key, 'nombre': mes_nombre})
     return meses_disponibles
 
-def cargar_metas_desde_archivo():
-    """Carga las metas desde un archivo JSON."""
-    if os.path.exists('metas.json'):
-        with open('metas.json', 'r') as f:
-            return json.load(f)
-    return {}
-
-def guardar_metas_en_archivo(metas):
-    """Guarda las metas en un archivo JSON."""
-    with open('metas.json', 'w') as f:
-        json.dump(metas, f, indent=4)
-
-def guardar_equipos_ventas(equipos):
-    """Guarda las asignaciones de equipos de venta en un archivo JSON."""
-    with open('equipos_ventas.json', 'w') as f:
-        json.dump(equipos, f, indent=4)
-
-def cargar_equipos_ventas():
-    """Carga las asignaciones de equipos de venta desde un archivo JSON."""
-    if os.path.exists('equipos_ventas.json'):
-        with open('equipos_ventas.json', 'r') as f:
-            return json.load(f)
-    return {}
-
-def cargar_metas_vendedores():
-    """Carga las metas por vendedor desde un archivo JSON."""
-    if os.path.exists('metas_vendedores.json'):
-        with open('metas_vendedores.json', 'r') as f:
-            return json.load(f)
-    return {}
-
-def guardar_metas_vendedores(metas):
-    """Guarda las metas por vendedor en un archivo JSON."""
-    with open('metas_vendedores.json', 'w') as f:
-        json.dump(metas, f, indent=4)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -187,7 +158,7 @@ def dashboard():
             dia_actual = ultimo_dia
         
         # Obtener metas del mes seleccionado desde la sesión
-        metas_historicas = cargar_metas_desde_archivo()
+        metas_historicas = gs_manager.read_metas_por_linea()
         metas_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
         metas_ipn_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas_ipn', {})
         
@@ -480,7 +451,7 @@ def dashboard_linea():
 
         # Cargar metas de vendedores para el mes y línea seleccionados
         # La estructura es metas[equipo_id][vendedor_id][mes_key]
-        metas_vendedores_historicas = cargar_metas_vendedores()
+        metas_vendedores_historicas = gs_manager.read_metas()
         # 1. Obtener todas las metas del equipo/línea
         metas_del_equipo = metas_vendedores_historicas.get(linea_seleccionada_id, {})
 
@@ -671,7 +642,7 @@ def meta():
             mes_obj = next((m for m in meses_año if m['key'] == mes_formulario), None)
             mes_nombre_formulario = mes_obj['nombre'] if mes_obj else ""
             
-            metas_historicas = cargar_metas_desde_archivo()
+            metas_historicas = gs_manager.read_metas_por_linea()
             metas_historicas[mes_formulario] = {
                 'metas': metas_data,
                 'metas_ipn': metas_ipn_data,
@@ -679,7 +650,7 @@ def meta():
                 'total_ipn': total_meta_ipn,
                 'mes_nombre': mes_nombre_formulario
             }
-            guardar_metas_en_archivo(metas_historicas)
+            gs_manager.write_metas_por_linea(metas_historicas)
             
             flash(f'Metas guardadas exitosamente para {mes_nombre_formulario}. Total: S/ {total_meta:,.0f}', 'success')
             
@@ -687,7 +658,7 @@ def meta():
             mes_seleccionado = mes_formulario
         
         # Obtener todas las metas históricas
-        metas_historicas = cargar_metas_desde_archivo()
+        metas_historicas = gs_manager.read_metas_por_linea()
         
         # Obtener metas y total del mes seleccionado
         metas_actuales = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
@@ -836,19 +807,11 @@ def metas_vendedor():
 
     if request.method == 'POST':
         # --- 1. GUARDAR ASIGNACIONES DE EQUIPOS ---
-        equipo_a_actualizar = request.form.get('guardar_equipo')
-        equipos_guardados = cargar_equipos_ventas()
+        equipo_actualizado_id = request.form.get('guardar_equipo') # Para el mensaje flash
+        todos_los_vendedores_para_guardar = data_manager.get_all_sellers()
+        equipos_guardados = gs_manager.read_equipos()
 
-        equipos_a_procesar_miembros = []
-        if equipo_a_actualizar:
-            # Si se actualiza un solo equipo, buscar su definición
-            equipo_obj = next((e for e in equipos_definidos if e['id'] == equipo_a_actualizar), None)
-            if equipo_obj:
-                equipos_a_procesar_miembros.append(equipo_obj)
-        else: # Si es el guardado general, procesar todos
-            equipos_a_procesar_miembros = equipos_definidos
-
-        for equipo in equipos_a_procesar_miembros:
+        for equipo in equipos_definidos:
             campo_vendedores = f'vendedores_{equipo["id"]}'
             if campo_vendedores in request.form:
                 vendedores_str = request.form.get(campo_vendedores, '')
@@ -857,10 +820,10 @@ def metas_vendedor():
                     equipos_guardados[equipo['id']] = vendedores_ids
                 else:
                     equipos_guardados[equipo['id']] = []
-        guardar_equipos_ventas(equipos_guardados)
+        gs_manager.write_equipos(equipos_guardados, todos_los_vendedores_para_guardar)
 
         # --- 2. GUARDAR TODAS LAS METAS (ESTRUCTURA PIVOT) ---
-        metas_vendedores_historicas = cargar_metas_vendedores()
+        metas_vendedores_historicas = gs_manager.read_metas()
         
         for equipo in equipos_definidos:
             equipo_id = equipo['id']
@@ -896,9 +859,9 @@ def metas_vendedor():
                     elif mes_key in metas_vendedores_historicas[equipo_id][vendedor_id_str]:
                         del metas_vendedores_historicas[equipo_id][vendedor_id_str][mes_key]
 
-        guardar_metas_vendedores(metas_vendedores_historicas)
+        gs_manager.write_metas(metas_vendedores_historicas)
         
-        if equipo_a_actualizar:
+        if equipo_actualizado_id:
             flash(f'Miembros del equipo actualizados. Ahora puedes asignar sus metas.', 'info')
         else:
             flash('Equipos y metas guardados correctamente.', 'success')
@@ -909,7 +872,7 @@ def metas_vendedor():
     # GET o después de POST
     todos_los_vendedores = data_manager.get_all_sellers()
     vendedores_por_id = {v['id']: v for v in todos_los_vendedores}
-    equipos_guardados = cargar_equipos_ventas()
+    equipos_guardados = gs_manager.read_equipos()
 
     # Construir la estructura de datos para la plantilla
     equipos_con_vendedores = []
@@ -926,7 +889,7 @@ def metas_vendedor():
         })
 
     # Para la vista, pasamos todas las metas cargadas
-    metas_guardadas = cargar_metas_vendedores()
+    metas_guardadas = gs_manager.read_metas()
 
     return render_template('metas_vendedor.html',
                            meses_disponibles=meses_disponibles,

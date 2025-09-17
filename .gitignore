@@ -1,10 +1,30 @@
-# Entorno virtual
+# Entorno Virtual de Python
+# Ignora la carpeta que contiene todas las librerías instaladas.
 venv/
-__pycache__/
 
-# Archivo de variables de entorno locales
+# Archivos de caché de Python
+# Estos se generan automáticamente y no deben ser versionados.
+__pycache__/
+*.py[cod]
+
+# Archivos de entorno
+# Contiene variables sensibles como la SECRET_KEY y el nombre de la hoja de Google.
 .env
 
-# Otros archivos específicos del sistema operativo o IDE
+# Credenciales
+# ¡MUY IMPORTANTE! Nunca subas este archivo a un repositorio público.
+credentials.json
+
+# Archivos específicos del editor de código (ej. VSCode)
+.vscode/
+
+# Archivos de sistema operativo
 .DS_Store
-*.pyc
+
+# Archivos de registro (si se generan)
+*.log
+
+# Archivos de datos locales (ahora obsoletos, pero es bueno ignorarlos)
+metas.json
+equipos_ventas.json
+metas_vendedores.json

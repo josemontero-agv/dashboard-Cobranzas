@@ -110,20 +110,6 @@
         </div>
     </form>
 
-    <!-- Historial de metas anteriores -->
-    {% if metas_historicas %}
-    <div class="meta-history" style="margin-top: 40px;">
-        <h3>Historial de Metas por Mes</h3>
-        <div class="history-grid">
-            {% for mes_key, datos in metas_historicas.items() %}
-            <div class="history-item">
-                <span class="history-mes">{{ datos.mes_nombre }}</span>
-                <span class="history-total">S/ {{ "{:,.0f}".format(datos.total) }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <style>
@@ -435,47 +421,6 @@
     margin: 0 10px;
     padding: 12px 24px;
     font-weight: 600;
-}
-
-.meta-history {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: var(--space-4);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.meta-history h3 {
-    color: #875A7B;
-    margin-bottom: var(--space-4);
-    text-align: center;
-    font-size: 1.3rem;
-}
-
-.history-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-3);
-}
-
-.history-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--space-3);
-    background: #f8f9fa;
-    border-radius: var(--border-radius);
-    border-left: 4px solid #875A7B;
-}
-
-.history-mes {
-    font-weight: 600;
-    color: #495057;
-}
-
-.history-total {
-    font-weight: 700;
-    color: #875A7B;
-    font-size: 1.1rem;
 }
 
 /* Responsivo */

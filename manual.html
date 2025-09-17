@@ -249,7 +249,7 @@
             <div id="logica-agrupacion" class="subsection">
                 <h3>3.4 Agrupación de Datos</h3>
                 <p>Finalmente, los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes visuales del dashboard. Los cálculos más importantes son:</p>
-                <ul>
+                <ul class="code-block">
                     <li><strong>Venta Total:</strong> Suma del <code>balance</code> de todas las ventas filtradas.</li>
                     <li><strong>Venta IPN (Productos Nuevos):</strong> Suma del <code>balance</code> de las ventas de productos cuyo "Ciclo de vida del producto" es exactamente <code>'nuevo'</code>.</li>
                     <li><strong>Vencimiento &lt; 6 Meses:</strong> Suma del <code>balance</code> de las ventas cuya "Ruta" en la línea de pedido tiene el ID <code>18</code> ('3 &gt; P &lt; 6') o <code>19</code> ('1 ≥ P ≤ 3').</li>
@@ -264,8 +264,18 @@
 
         <section id="metas">
             <h2>5. Gestión de Metas</h2>
-            <p>La sección de "Metas" te permite establecer los objetivos de venta mensuales para cada línea comercial. Estos valores son los que se usarán en el dashboard para calcular los porcentajes de avance.</p>
-            <p>Puedes navegar entre los meses del año para definir o consultar las metas guardadas. El total se calcula automáticamente.</p>
+            <p>La aplicación centraliza toda la gestión de metas y equipos en una <strong>única hoja de cálculo de Google Sheets</strong>, accesible a través de dos interfaces en la aplicación web.</p>
+            <h3>Metas por Línea</h3>
+            <p>Esta sección te permite establecer los objetivos de venta <strong>generales</strong> para cada línea comercial para un mes específico. Estos valores son los que se usan en el dashboard principal para calcular los porcentajes de avance globales. Los datos se guardan en la pestaña <code>MetasPorLinea</code> de tu Google Sheet.</p>
+            
+            <h3>Metas Vendedor (Gestión de Metas y Equipos)</h3>
+            <p>Esta es la sección principal para la gestión detallada. Aquí puedes organizar a tus vendedores en equipos y asignarles metas individuales para cada mes del año en una vista de tabla dinámica. Los datos se guardan en las pestañas <code>Equipos</code> y <code>Metas</code> de tu Google Sheet, donde cada vendedor asignado a un equipo tiene su propia fila.</p>
+            <ul>
+                <li><strong>Asignar Vendedores:</strong> Usa el selector "Asignar Vendedores" para añadir o quitar miembros de un equipo. Luego, presiona el botón <strong>"Actualizar Miembros"</strong> para guardar la nueva lista de integrantes y recargar la página. Esto te permitirá ver las filas de los nuevos vendedores para asignarles sus metas.</li>
+                <li><strong>Ingresar Metas:</strong> En la tabla, puedes ingresar la "Meta" total y la meta "IPN" para cada vendedor en la celda correspondiente a cada mes. Los campos numéricos aceptan separadores de miles para facilitar la lectura.</li>
+                <li><strong>Guardar Cambios:</strong> Una vez que hayas ingresado todas las metas, presiona el botón <strong>"Guardar Todas las Metas y Equipos"</strong> al final de la página para almacenar todos los cambios en Google Sheets.</li>
+            </ul>
+            <p class="note"><strong>Importante:</strong> Toda la información de metas y equipos ahora reside en tu Google Sheet, eliminando la necesidad de archivos <code>.json</code> locales para esta tarea.</p>
         </section>
     </main>
 </div>
