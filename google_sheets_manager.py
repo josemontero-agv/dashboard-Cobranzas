@@ -11,6 +11,7 @@ class GoogleSheetsManager:
             ]
             creds = Credentials.from_service_account_file(credentials_file, scopes=scopes)
             self.client = gspread.authorize(creds)
+            print(f"ℹ️ Intentando abrir la hoja de cálculo: '{sheet_name}'")
             self.sheet = self.client.open(sheet_name)
             print("✅ Conexión a Google Sheets establecida exitosamente.")
         except Exception as e:
