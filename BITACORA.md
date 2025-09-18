@@ -36,3 +36,16 @@ Este documento registra los cambios y funcionalidades más importantes implement
   - Se incorporó un nuevo **gráfico de barras "Meta vs. Venta por Vendedor"**.
   - Se estandarizó el formato de números en las ventanas emergentes (tooltips) de todos los gráficos para no mostrar decimales.
 - **Preparación para Despliegue:** Se añadió `gunicorn` y se limpió el archivo `requirements.txt` para asegurar la compatibilidad con servicios de despliegue como Render.com.
+
+---
+
+### Versión 3.1: Mejoras de Flujo y Usabilidad
+
+- **Flujo de Usuario Optimizado:**
+  - La página de inicio después del login es ahora el **Dashboard Principal**.
+  - La página de "Ventas" ya no carga datos por defecto, mejorando la velocidad de carga inicial. Los datos se obtienen al presionar "Buscar".
+- **Interfaz de Ventas Simplificada:**
+  - Se eliminó el filtro por "Cliente".
+  - El botón "Buscar" ahora carga los datos de los últimos 30 días si no se especifican fechas.
+- **Personalización de UI:** Se muestra el nombre del usuario que ha iniciado sesión debajo del título principal en los dashboards.
+- **Corrección de Errores:** Solucionado un error que impedía la carga de los filtros en la página de "Ventas".

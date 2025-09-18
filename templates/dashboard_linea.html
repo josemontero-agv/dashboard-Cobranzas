@@ -78,6 +78,15 @@
             <div class="avance-label">Avance Diario IPN</div>
             <div class="avance-value">{% if kpis.avance_diario_ipn > 0 %}{{ "{:.1f} %".format(kpis.avance_diario_ipn) }}{% else %}-{% endif %}</div>
         </div>
+
+        {% if fecha_actual is defined and mes_seleccionado == fecha_actual.strftime('%Y-%m') %}
+        {% if mes_seleccionado == fecha_actual.strftime('%Y-%m') %}
+        <div class="avance-card avance-requerido">
+            <div class="avance-label">Ritmo Diario Requerido (L-S)</div>
+            <div class="avance-value">{% if kpis.ritmo_diario_requerido > 0 %}{{ "{:.1f} %".format(kpis.ritmo_diario_requerido) }}{% else %}¡Meta Cumplida!{% endif %}</div>
+        </div>
+        {% endif %}
+        {% endif %}
     </div>
 
     <!-- Fila Principal: Tabla y Gráfico Donut -->
@@ -237,8 +246,8 @@ body {
 
 /* Avance Diario */
 .avance-diario {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: grid; /* Se ajustará automáticamente */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
 }
 .avance-card {
@@ -249,6 +258,10 @@ body {
 }
 .avance-label { font-size: 14px; color: #7f8c8d; margin-bottom: 5px; }
 .avance-value { font-size: 20px; font-weight: bold; color: #e67e22; }
+
+.avance-card.avance-requerido .avance-value {
+    color: #e74c3c; /* Rojo para indicar urgencia */
+}
 
 /* Layout Principal */
 .main-content-row { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; align-items: start; }

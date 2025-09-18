@@ -51,3 +51,9 @@ Esta lógica se aplica de forma consistente para el dashboard y para la función
   - **Pestaña `MetasPorLinea`**: Almacena las metas generales y de IPN para cada línea comercial. Cada fila representa un mes.
   - **Pestaña `Equipos`**: Guarda la asignación de vendedores a cada equipo. Cada fila representa un vendedor asignado a un equipo, incluyendo su ID y nombre para mayor claridad.
   - **Pestaña `Metas`**: Guarda las metas individuales (total e IPN) para cada vendedor. Cada fila representa la meta de un vendedor para un mes específico dentro de un equipo.
+
+5. Comportamiento de la Página de Ventas (/sales)
+-------------------------------------------------
+- **Carga a Demanda**: La página no carga datos al inicio. Los datos se obtienen solo al presionar el botón "Buscar".
+- **Búsqueda por Defecto**: Si no se especifican fechas, la búsqueda por defecto trae los datos de los últimos 30 días.
+- **Filtros Simplificados**: Se ha eliminado el filtro por cliente.

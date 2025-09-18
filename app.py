@@ -329,18 +329,34 @@ def dashboard():
             total_venta_pn += venta_pn
             total_vencimiento += vencimiento
         
-        # 2. Calcular KPIs
+        # --- 2. Calcular KPIs ---
+        # Días laborables restantes (Lunes a Sábado)
+        dias_restantes = 0
+        ritmo_diario_requerido = 0
+        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+            hoy = fecha_actual.day
+            ultimo_dia_mes = calendar.monthrange(año_actual, fecha_actual.month)[1]
+            for dia in range(hoy, ultimo_dia_mes + 1):
+                # weekday() -> Lunes=0, Domingo=6
+                if datetime(año_actual, fecha_actual.month, dia).weekday() < 6:
+                    dias_restantes += 1
+            
+            porcentaje_restante = 100 - ((total_venta / total_meta * 100) if total_meta > 0 else 100)
+            if porcentaje_restante > 0 and dias_restantes > 0:
+                ritmo_diario_requerido = porcentaje_restante / dias_restantes
+
         # Calcular KPIs
         kpis = {
-            'meta_total': total_meta, # Meta siempre es positiva
-            'venta_total': total_venta, # Ya es positivo
+            'meta_total': total_meta,
+            'venta_total': total_venta,
             'porcentaje_avance': (total_venta / total_meta * 100) if total_meta > 0 else 0,
-            'meta_ipn': total_meta_pn, # Meta IPN siempre es positiva
-            'venta_ipn': total_venta_pn, # Ya es positivo
+            'meta_ipn': total_meta_pn,
+            'venta_ipn': total_venta_pn,
             'porcentaje_avance_ipn': (total_venta_pn / total_meta_pn * 100) if total_meta_pn > 0 else 0,
             'vencimiento_6_meses': total_vencimiento,
             'avance_diario_total': ((total_venta / total_meta * 100) / dia_actual) if total_meta > 0 and dia_actual > 0 else 0,
-            'avance_diario_ipn': ((total_venta_pn / total_meta_pn * 100) / dia_actual) if total_meta_pn > 0 and dia_actual > 0 else 0
+            'avance_diario_ipn': ((total_venta_pn / total_meta_pn * 100) / dia_actual) if total_meta_pn > 0 and dia_actual > 0 else 0,
+            'ritmo_diario_requerido': ritmo_diario_requerido
         }
         
         # 3. Ordenar productos para el gráfico Top 7
@@ -387,7 +403,8 @@ def dashboard():
                              datos_lineas_tabla=datos_lineas, # Usar para la tabla
                              datos_productos=datos_productos,
                              datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [],
-                             datos_forma_farmaceutica=datos_forma_farmaceutica)
+                             datos_forma_farmaceutica=datos_forma_farmaceutica,
+                             fecha_actual=fecha_actual)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
@@ -419,7 +436,8 @@ def dashboard():
                              datos_lineas_tabla=[],
                              datos_productos=[],
                              datos_ciclo_vida=[],
-                             datos_forma_farmaceutica=[])
+                             datos_forma_farmaceutica=[],
+                             fecha_actual=fecha_actual)
 
 
 @app.route('/dashboard_linea')
@@ -476,6 +494,24 @@ def dashboard_linea():
             limit=10000
         )
 
+        # --- PRE-FILTRAR VENTAS INTERNACIONALES PARA EFICIENCIA ---
+        sales_data_processed = []
+        for sale in sales_data:
+            # Excluir VENTA INTERNACIONAL (exportaciones) por línea comercial
+            linea_comercial = sale.get('commercial_line_national_id')
+            if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
+                if 'VENTA INTERNACIONAL' in linea_comercial[1].upper():
+                    continue
+            
+            # Excluir VENTA INTERNACIONAL por canal de ventas
+            canal_ventas = sale.get('sales_channel_id')
+            if canal_ventas and isinstance(canal_ventas, list) and len(canal_ventas) > 1:
+                nombre_canal = canal_ventas[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_canal or 'INTERNACIONAL' in nombre_canal:
+                    continue
+            
+            sales_data_processed.append(sale)
+
         # --- 3. PROCESAR Y AGREGAR DATOS POR VENDEDOR ---
         ventas_por_vendedor = {}
         ventas_ipn_por_vendedor = {}
@@ -483,18 +519,23 @@ def dashboard_linea():
         ventas_por_producto = {}
         ventas_por_ciclo_vida = {}
         ventas_por_forma = {}
+        ajustes_sin_vendedor = 0 # Para notas de crédito sin vendedor
+        nombres_vendedores_con_ventas = {} # BUGFIX: Guardar nombres de vendedores con ventas
 
-        for sale in sales_data:
+        for sale in sales_data_processed: # Usar los datos pre-filtrados
             linea_comercial = sale.get('commercial_line_national_id')
             if linea_comercial and isinstance(linea_comercial, list) and len(linea_comercial) > 1:
                 nombre_linea_actual = linea_comercial[1].upper()
 
                 # Filtrar por la línea comercial seleccionada
                 if nombre_linea_actual == linea_seleccionada_nombre.upper():
+                    balance = float(sale.get('balance', 0))
                     user_info = sale.get('invoice_user_id')
+
+                    # Si hay un vendedor asignado, se procesa normalmente
                     if user_info and isinstance(user_info, list) and len(user_info) > 1:
                         vendedor_id = str(user_info[0])
-                        balance = float(sale.get('balance', 0))
+                        nombres_vendedores_con_ventas[vendedor_id] = user_info[1] # Guardar el nombre
 
                         # Agrupar ventas totales
                         ventas_por_vendedor[vendedor_id] = ventas_por_vendedor.get(vendedor_id, 0) + balance
@@ -502,23 +543,28 @@ def dashboard_linea():
                         # Agrupar ventas IPN
                         if sale.get('product_life_cycle') == 'nuevo':
                             ventas_ipn_por_vendedor[vendedor_id] = ventas_ipn_por_vendedor.get(vendedor_id, 0) + balance
-
+                        
                         # Agrupar ventas por vencimiento < 6 meses
                         ruta = sale.get('route_id')
                         if isinstance(ruta, list) and len(ruta) > 0 and ruta[0] in [18, 19]:
                             ventas_vencimiento_por_vendedor[vendedor_id] = ventas_vencimiento_por_vendedor.get(vendedor_id, 0) + balance
+                    
+                    # Si NO hay vendedor, se agrupa como un ajuste (ej. Nota de Crédito)
+                    else:
+                        ajustes_sin_vendedor += balance
 
-                        # Agrupar para gráficos (Top Productos, Ciclo Vida, Forma Farmacéutica)
-                        producto_nombre = sale.get('name', '').strip()
-                        if producto_nombre:
-                            ventas_por_producto[producto_nombre] = ventas_por_producto.get(producto_nombre, 0) + balance
+                    # Agrupar para gráficos (Top Productos, Ciclo Vida, Forma Farmacéutica)
+                    # Esto se hace para todas las transacciones de la línea, con o sin vendedor
+                    producto_nombre = sale.get('name', '').strip()
+                    if producto_nombre:
+                        ventas_por_producto[producto_nombre] = ventas_por_producto.get(producto_nombre, 0) + balance
 
-                        ciclo_vida = sale.get('product_life_cycle', 'No definido')
-                        ventas_por_ciclo_vida[ciclo_vida] = ventas_por_ciclo_vida.get(ciclo_vida, 0) + balance
+                    ciclo_vida = sale.get('product_life_cycle', 'No definido')
+                    ventas_por_ciclo_vida[ciclo_vida] = ventas_por_ciclo_vida.get(ciclo_vida, 0) + balance
 
-                        forma_farma = sale.get('pharmaceutical_forms_id')
-                        nombre_forma = forma_farma[1] if forma_farma and len(forma_farma) > 1 else 'Instrumental'
-                        ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance
+                    forma_farma = sale.get('pharmaceutical_forms_id')
+                    nombre_forma = forma_farma[1] if forma_farma and len(forma_farma) > 1 else 'Instrumental'
+                    ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance
 
         # --- 4. CONSTRUIR ESTRUCTURA DE DATOS PARA LA PLANTILLA ---
         datos_vendedores = []
@@ -528,38 +574,91 @@ def dashboard_linea():
         total_venta_ipn = 0
         total_vencimiento = 0
 
-        # Iterar sobre todos los vendedores para incluirlos aunque no tengan ventas
-        for vendedor_id, vendedor_nombre in todos_los_vendedores.items():
-            # 2. Obtener la meta para este vendedor y este mes específico
-            meta_guardada = metas_del_equipo.get(vendedor_id, {}).get(mes_seleccionado, {})
+        # --- 4.1. UNIFICAR VENDEDORES ---
+        # Combinar los vendedores oficiales del equipo con los que tuvieron ventas reales en la línea.
+        # Esto asegura que mostremos a todos los miembros del equipo (incluso con 0 ventas)
+        # y también a cualquier otra persona que haya vendido en esta línea sin ser miembro oficial.
+        equipos_guardados = gs_manager.read_equipos()
+        miembros_oficiales_ids = {str(vid) for vid in equipos_guardados.get(linea_seleccionada_id, [])}
+        vendedores_con_ventas_ids = set(ventas_por_vendedor.keys())
+        
+        todos_los_vendedores_a_mostrar_ids = sorted(list(miembros_oficiales_ids | vendedores_con_ventas_ids))
+
+        # --- 4.2. CONSTRUIR LA TABLA DE VENDEDORES ---
+        for vendedor_id in todos_los_vendedores_a_mostrar_ids:
+            # BUGFIX: Priorizar el nombre de la venta, luego la lista general, y como último recurso el ID.
+            vendedor_nombre = nombres_vendedores_con_ventas.get(vendedor_id, 
+                                todos_los_vendedores.get(vendedor_id, f"Vendedor ID {vendedor_id}"))
+
             
-            meta = float(meta_guardada.get('meta', 0))
-            meta_ipn = float(meta_guardada.get('meta_ipn', 0))
+            # Obtener ventas (será 0 si es un miembro oficial sin ventas)
             venta = ventas_por_vendedor.get(vendedor_id, 0)
             venta_ipn = ventas_ipn_por_vendedor.get(vendedor_id, 0)
             vencimiento = ventas_vencimiento_por_vendedor.get(vendedor_id, 0)
 
-            # Incluir solo si el vendedor tiene ventas en el mes seleccionado
-            if venta > 0:
-                datos_vendedores.append({
-                    'id': vendedor_id,
-                    'nombre': vendedor_nombre,
-                    'meta': meta,
-                    'venta': venta,
-                    'porcentaje_avance': (venta / meta * 100) if meta > 0 else 0,
-                    'meta_ipn': meta_ipn,
-                    'venta_ipn': venta_ipn,
-                    'porcentaje_avance_ipn': (venta_ipn / meta_ipn * 100) if meta_ipn > 0 else 0,
-                    'vencimiento_6_meses': vencimiento
-                })
-                total_meta += meta
-                total_venta += venta
-                total_meta_ipn += meta_ipn
-                total_venta_ipn += venta_ipn
-                total_vencimiento += vencimiento
+            # Asignar meta SOLO si el vendedor es un miembro oficial del equipo
+            meta = 0
+            meta_ipn = 0
+            if vendedor_id in miembros_oficiales_ids:
+                meta_guardada = metas_del_equipo.get(vendedor_id, {}).get(mes_seleccionado, {})
+                meta = float(meta_guardada.get('meta', 0))
+                meta_ipn = float(meta_guardada.get('meta_ipn', 0))
+
+            # Añadir la fila del vendedor a la tabla
+            datos_vendedores.append({
+                'id': vendedor_id,
+                'nombre': vendedor_nombre,
+                'meta': meta,
+                'venta': venta,
+                'porcentaje_avance': (venta / meta * 100) if meta > 0 else 0,
+                'meta_ipn': meta_ipn,
+                'venta_ipn': venta_ipn,
+                'porcentaje_avance_ipn': (venta_ipn / meta_ipn * 100) if meta_ipn > 0 else 0,
+                'vencimiento_6_meses': vencimiento
+            })
+
+            # Sumar a los totales generales de la línea.
+            # La meta solo se suma si fue asignada (es decir, si es miembro oficial).
+            # La venta se suma siempre.
+            total_meta += meta
+            total_venta += venta
+            total_meta_ipn += meta_ipn
+            total_venta_ipn += venta_ipn
+            total_vencimiento += vencimiento
+
+        # --- 4.3. AÑADIR AJUSTES SIN VENDEDOR ---
+        if ajustes_sin_vendedor != 0:
+            datos_vendedores.append({
+                'id': 'ajustes',
+                'nombre': 'Ajustes y Notas de Crédito (Sin Vendedor)',
+                'meta': 0, 'venta': ajustes_sin_vendedor, 'porcentaje_avance': 0,
+                'meta_ipn': 0, 'venta_ipn': 0, 'porcentaje_avance_ipn': 0,
+                'vencimiento_6_meses': 0
+            })
+            # Sumar los ajustes al total de ventas de la línea
+            total_venta += ajustes_sin_vendedor
+
+        # --- 4.4. FILTRAR VENDEDORES CON VENTA NEGATIVA ---
+        # Si un vendedor solo tiene notas de crédito (venta < 0), no se muestra en la tabla,
+        # pero su valor ya fue sumado (restado) al total_venta para mantener la consistencia.
+        datos_vendedores_final = [v for v in datos_vendedores if v['venta'] >= 0 or v['id'] == 'ajustes']
 
         # Ordenar por venta descendente
-        datos_vendedores = sorted(datos_vendedores, key=lambda x: x['venta'], reverse=True)
+        datos_vendedores_final = sorted(datos_vendedores_final, key=lambda x: x['venta'], reverse=True)
+
+        # --- 5. CALCULAR KPIs DE LÍNEA ---
+        ritmo_diario_requerido_linea = 0
+        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+            hoy = fecha_actual.day
+            ultimo_dia_mes = calendar.monthrange(año_actual, fecha_actual.month)[1]
+            dias_restantes = 0
+            for dia in range(hoy, ultimo_dia_mes + 1):
+                if datetime(año_actual, fecha_actual.month, dia).weekday() < 6: # L-S
+                    dias_restantes += 1
+            
+            porcentaje_restante = 100 - ((total_venta / total_meta * 100) if total_meta > 0 else 100)
+            if porcentaje_restante > 0 and dias_restantes > 0:
+                ritmo_diario_requerido_linea = porcentaje_restante / dias_restantes
 
         # KPIs generales para la línea
         kpis = {
@@ -571,7 +670,8 @@ def dashboard_linea():
             'porcentaje_avance_ipn': (total_venta_ipn / total_meta_ipn * 100) if total_meta_ipn > 0 else 0,
             'vencimiento_6_meses': total_vencimiento,
             'avance_diario_total': ((total_venta / total_meta * 100) / dia_actual) if total_meta > 0 and dia_actual > 0 else 0,
-            'avance_diario_ipn': ((total_venta_ipn / total_meta_ipn * 100) / dia_actual) if total_meta_ipn > 0 and dia_actual > 0 else 0
+            'avance_diario_ipn': ((total_venta_ipn / total_meta_ipn * 100) / dia_actual) if total_meta_ipn > 0 and dia_actual > 0 else 0,
+            'ritmo_diario_requerido': ritmo_diario_requerido_linea
         }
 
         # Datos para gráficos
@@ -582,7 +682,7 @@ def dashboard_linea():
         datos_forma_farmaceutica = [{'forma': f, 'venta': v} for f, v in ventas_por_forma.items()]
 
         # Lista de todas las líneas para el selector
-        lineas_comerciales_disponibles = [
+        lineas_disponibles = [
             'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'ECOMMERCE', 'OTROS', 'GENVET', 'LICITACIÓN'
         ]
 
@@ -591,15 +691,40 @@ def dashboard_linea():
                                mes_seleccionado=mes_seleccionado,
                                meses_disponibles=meses_disponibles,
                                kpis=kpis,
-                               datos_vendedores=datos_vendedores,
+                               datos_vendedores=datos_vendedores_final,
                                datos_productos=datos_productos,
                                datos_ciclo_vida=datos_ciclo_vida,
                                datos_forma_farmaceutica=datos_forma_farmaceutica,
-                               lineas_disponibles=lineas_comerciales_disponibles)
+                               lineas_disponibles=lineas_disponibles,
+                               fecha_actual=fecha_actual)
 
     except Exception as e:
         flash(f'Error al generar el dashboard para la línea: {str(e)}', 'danger')
-        return redirect(url_for('dashboard'))
+        # En caso de error, renderizar la plantilla con datos vacíos para no romper la UI
+        fecha_actual = datetime.now()
+        año_actual = fecha_actual.year
+        meses_disponibles = get_meses_del_año(año_actual)
+        linea_seleccionada_nombre = request.args.get('linea_nombre', 'PETMEDICA')
+        lineas_disponibles = [
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'ECOMMERCE', 'OTROS', 'GENVET', 'LICITACIÓN'
+        ]
+        kpis_default = {
+            'meta_total': 0, 'venta_total': 0, 'porcentaje_avance': 0,
+            'meta_ipn': 0, 'venta_ipn': 0, 'porcentaje_avance_ipn': 0,
+            'vencimiento_6_meses': 0, 'avance_diario_total': 0, 'avance_diario_ipn': 0
+        }
+        
+        return render_template('dashboard_linea.html',
+                               linea_nombre=linea_seleccionada_nombre,
+                               mes_seleccionado=fecha_actual.strftime('%Y-%m'),
+                               meses_disponibles=meses_disponibles,
+                               kpis=kpis_default,
+                               datos_vendedores=[],
+                               datos_productos=[],
+                               datos_ciclo_vida=[],
+                               datos_forma_farmaceutica=[],
+                               lineas_disponibles=lineas_disponibles,
+                               fecha_actual=fecha_actual)
 
 
 @app.route('/meta', methods=['GET', 'POST'])

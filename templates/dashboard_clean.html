@@ -80,6 +80,12 @@
             <div class="avance-label">Avance Diario IPN</div>
             <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_ipn) }}</div>
         </div>
+        {% if mes_seleccionado == fecha_actual.strftime('%Y-%m') %}
+        <div class="avance-card avance-requerido">
+            <div class="avance-label">Ritmo Diario Requerido (L-S)</div>
+            <div class="avance-value">{{ "{:.1f} %".format(kpis.ritmo_diario_requerido) }}</div>
+        </div>
+        {% endif %}
     </div>
     
     <!-- FILA PRINCIPAL: TABLA (IZQUIERDA) + GRÁFICO CICLO DE VIDA (DERECHA) -->
@@ -382,8 +388,8 @@ body {
 
 /* Avance Diario */
 .avance-diario {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: grid; /* Se ajustará automáticamente */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
 }
 
@@ -404,6 +410,10 @@ body {
     font-size: 20px;
     font-weight: bold;
     color: #e67e22;
+}
+
+.avance-card.avance-requerido .avance-value {
+    color: #e74c3c; /* Rojo para indicar urgencia */
 }
 
 /* FILA PRINCIPAL - LAYOUT CORRECTO */
