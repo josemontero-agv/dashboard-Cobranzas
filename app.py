@@ -285,10 +285,10 @@ def dashboard():
                 ciclo_vida_grafico = ciclo_vida if ciclo_vida else 'No definido'
                 ventas_por_ciclo_vida[ciclo_vida_grafico] = ventas_por_ciclo_vida.get(ciclo_vida_grafico, 0) + balance_float
 
-                # Agrupar por forma farmacéutica para el gráfico de ECharts
-                forma_farmaceutica = sale.get('pharmaceutical_forms_id')
-                nombre_forma = forma_farmaceutica[1] if forma_farmaceutica and isinstance(forma_farmaceutica, list) and len(forma_farmaceutica) > 1 else 'Instrumental'
-                ventas_por_forma[nombre_forma] = ventas_por_forma.get(nombre_forma, 0) + balance_float
+                # Agrupar por clasificación farmacológica para el gráfico de ECharts
+                clasif_farma = sale.get('pharmacological_classification_id')
+                nombre_clasif = clasif_farma[1] if clasif_farma and isinstance(clasif_farma, list) and len(clasif_farma) > 1 else 'N/A'
+                ventas_por_forma[nombre_clasif] = ventas_por_forma.get(nombre_clasif, 0) + balance_float
 
         print(f"💰 Ventas por línea comercial: {ventas_por_linea}")
         print(f"📦 Ventas por Vencimiento (Ciclo de Vida): {ventas_por_ruta}")
@@ -393,6 +393,74 @@ def dashboard():
                 'venta': venta
             })
         
+        # 6. Procesar datos para el gráfico Drilldown y Top 7 dinámico
+        nested_data = {}
+        for sale in sales_data:
+            balance = float(sale.get('balance', 0))
+            if balance == 0:
+                continue
+
+            producto_nombre = sale.get('name', '').strip()
+            l1 = sale.get('pharmacological_classification_id')
+            l2 = sale.get('administration_way_id')
+            l3 = sale.get('production_line_id')
+            l4 = sale.get('pharmaceutical_forms_id')
+
+            # Asegurarse de que los campos son listas con [id, nombre]
+            l1_name = l1[1] if l1 and isinstance(l1, list) and len(l1) > 1 else 'N/A'
+            l2_name = l2[1] if l2 and isinstance(l2, list) and len(l2) > 1 else 'N/A'
+            l3_name = l3[1] if l3 and isinstance(l3, list) and len(l3) > 1 else 'N/A'
+            l4_name = l4[1] if l4 and isinstance(l4, list) and len(l4) > 1 else 'N/A'
+
+            # Agrupar en estructura anidada
+            d1 = nested_data.setdefault(l1_name, {'total': 0, 'products': {}, 'children': {}})
+            d1['total'] += balance
+            if producto_nombre: d1['products'][producto_nombre] = d1['products'].get(producto_nombre, 0) + balance
+
+            d2 = d1['children'].setdefault(l2_name, {'total': 0, 'products': {}, 'children': {}})
+            d2['total'] += balance
+            if producto_nombre: d2['products'][producto_nombre] = d2['products'].get(producto_nombre, 0) + balance
+
+            d3 = d2['children'].setdefault(l3_name, {'total': 0, 'products': {}, 'children': {}})
+            d3['total'] += balance
+            if producto_nombre: d3['products'][producto_nombre] = d3['products'].get(producto_nombre, 0) + balance
+
+            d4 = d3['children'].setdefault(l4_name, {'total': 0, 'products': {}})
+            d4['total'] += balance
+            if producto_nombre: d4['products'][producto_nombre] = d4['products'].get(producto_nombre, 0) + balance
+
+        # Convertir la estructura anidada al formato que necesita ECharts
+        drilldown_data = {}
+        drilldown_titles = {}
+        top_products_by_level = {}
+
+        # Nivel 1 (root)
+        drilldown_data['root'] = [[l1_name, data['total'], 'root', l1_name] for l1_name, data in nested_data.items()]
+        drilldown_titles['root'] = 'Nivel 1: Clasificación Farmacológica'
+        top_products_by_level['root'] = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
+
+        for l1_name, l1_data in nested_data.items():
+            # Nivel 2
+            drilldown_data[l1_name] = [[l2_name, data['total'], l1_name, f"{l1_name}_{l2_name}"] for l2_name, data in l1_data['children'].items()]
+            drilldown_titles[l1_name] = f'Nivel 2: Vía de Admin. para "{l1_name}"'
+            top_products_by_level[l1_name] = sorted(l1_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+            
+            for l2_name, l2_data in l1_data['children'].items():
+                # Nivel 3
+                parent_id = f"{l1_name}_{l2_name}"
+                drilldown_data[parent_id] = [[l3_name, data['total'], parent_id, f"{parent_id}_{l3_name}"] for l3_name, data in l2_data['children'].items()]
+                drilldown_titles[parent_id] = f'Nivel 3: Línea de Prod. para "{l2_name}"'
+                top_products_by_level[parent_id] = sorted(l2_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+
+                for l3_name, l3_data in l2_data['children'].items():
+                    # Nivel 4 (final)
+                    parent_id_l4 = f"{parent_id}_{l3_name}"
+                    # El último nivel no tiene childGroupId (cuarto elemento)
+                    drilldown_data[parent_id_l4] = [[l4_name, data['total'], parent_id_l4] for l4_name, data in l3_data['children'].items()]
+                    drilldown_titles[parent_id_l4] = f'Nivel 4: Forma Farm. para "{l3_name}"'
+                    top_products_by_level[parent_id_l4] = sorted(l3_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+
+
         return render_template('dashboard_clean.html',
                              meses_disponibles=meses_disponibles,
                              mes_seleccionado=mes_seleccionado,
@@ -404,7 +472,10 @@ def dashboard():
                              datos_productos=datos_productos,
                              datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [],
                              datos_forma_farmaceutica=datos_forma_farmaceutica,
-                             fecha_actual=fecha_actual)
+                             fecha_actual=fecha_actual,
+                             drilldown_data=drilldown_data,
+                             drilldown_titles=drilldown_titles,
+                             top_products_by_level=top_products_by_level)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
@@ -437,7 +508,9 @@ def dashboard():
                              datos_productos=[],
                              datos_ciclo_vida=[],
                              datos_forma_farmaceutica=[],
-                             fecha_actual=fecha_actual)
+                             fecha_actual=fecha_actual,
+                             drilldown_data={},
+                             drilldown_titles={})
 
 
 @app.route('/dashboard_linea')

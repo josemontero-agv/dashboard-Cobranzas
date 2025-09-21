@@ -179,10 +179,18 @@
         </div>
     </div>
 
-    <!-- Fila extra para el nuevo gráfico ECharts -->
+    <!-- Fila para el nuevo gráfico Drilldown -->
     <div class="grafico-extra-container">
         <div class="grafico-echarts">
-            <h3>Venta por Forma Farmacéutica</h3>
+            <h3>Análisis Jerárquico de Ventas</h3>
+            <div id="grafico-drilldown" style="width: 100%; height: 400px;"></div>
+        </div>
+    </div>
+
+    <!-- Fila extra para el gráfico de Forma Farmacéutica -->
+    <div class="grafico-extra-container">
+        <div class="grafico-echarts">
+            <h3>Venta por Clasificación Farmacológica</h3>
             <div id="grafico-forma-farmaceutica" style="width: 100%; height: 350px;"></div>
         </div>
     </div>
@@ -598,6 +606,9 @@ const datosLineas = {{ datos_lineas|tojson|safe }};
 const datosProductos = {{ datos_productos|tojson|safe }};
 const datosCicloVida = {{ datos_ciclo_vida|tojson|safe }};
 const datosFormaFarmaceutica = {{ datos_forma_farmaceutica|tojson|safe }};
+const drilldownData = {{ drilldown_data|tojson|safe }};
+const drilldownTitles = {{ drilldown_titles|tojson|safe }};
+const topProductsByLevel = {{ top_products_by_level|tojson|safe }};
 
 // Gráfico de Ciclo de Vida (Donut)
 function crearGraficoCicloVida() {
@@ -656,13 +667,24 @@ function crearGraficoCicloVida() {
 }
 
 // Gráfico de Productos (Barras Horizontales)
-function crearGraficoProductos() {
+let productosChart = null; // Variable global para la instancia del gráfico
+function crearGraficoProductos(productosData) {
     const ctx = document.getElementById('grafico-productos').getContext('2d');
     
-    const labels = datosProductos.map(item => item.nombre.length > 20 ? item.nombre.substring(0, 20) + '...' : item.nombre);
-    const data = datosProductos.map(item => item.venta || 0);
+    // Si no se pasan datos, usar los datos iniciales
+    if (!productosData) {
+        productosData = datosProductos.map(p => ({nombre: p.nombre, venta: p.venta}));
+    }
+
+    const labels = productosData.map(item => (item.nombre || item[0]).length > 20 ? (item.nombre || item[0]).substring(0, 20) + '...' : (item.nombre || item[0]));
+    const data = productosData.map(item => item.venta || item[1] || 0);
     
-    new Chart(ctx, {
+    // Si el gráfico ya existe, lo destruimos para crearlo de nuevo
+    if (productosChart) {
+        productosChart.destroy();
+    }
+
+    productosChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -794,7 +816,7 @@ function crearGraficoFormaFarmaceutica() {
         },
         series: [
             {
-                name: 'Forma Farmacéutica',
+                name: 'Clasificación',
                 type: 'pie',
                 radius: '65%',
                 center: ['40%', '50%'], // Mueve el gráfico a la izquierda para dar espacio a la leyenda
@@ -812,6 +834,124 @@ function crearGraficoFormaFarmaceutica() {
     myChart.setOption(option);
 }
 
+// Gráfico Drilldown Jerárquico
+function crearGraficoDrilldown() {
+    const chartDom = document.getElementById('grafico-drilldown');
+    if (!chartDom) return;
+    const myChart = echarts.init(chartDom);
+    let currentTitle = '';
+
+    const allOptions = {};
+    for (const [optionId, data] of Object.entries(drilldownData)) {
+        const option = {
+            id: optionId,
+            xAxis: {
+                type: 'category',
+                axisLabel: {
+                    interval: 0,
+                    rotate: 30,
+                    formatter: function (value) {
+                        // Acortar etiquetas largas para que no se superpongan
+                        const maxLength = 15;
+                        return value.length > maxLength ? value.substring(0, maxLength) + '...' : value;
+                    }
+                }
+            },
+            yAxis: {
+                minInterval: 1,
+                axisLabel: {
+                    formatter: function (value) {
+                        return 'S/ ' + Math.round(value).toLocaleString('es-PE');
+                    }
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    const value = (params.value[1] || 0).toLocaleString('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    return `${params.name}<br/>Venta: ${value}`;
+                }
+            },
+            animationDurationUpdate: 500,
+            series: {
+                type: 'bar',
+                dimensions: ['x', 'y', 'groupId', 'childGroupId'],
+                encode: {
+                    x: 0, // Nombre
+                    y: 1, // Valor
+                    itemGroupId: 2,
+                    itemChildGroupId: 3
+                },
+                data: data,
+                universalTransition: {
+                    enabled: true,
+                    divideShape: 'clone'
+                }
+            },
+            graphic: [
+                {
+                    type: 'text',
+                    left: 50,
+                    top: 20,
+                    style: {
+                        text: 'Volver',
+                        fontSize: 18,
+                        fill: 'grey',
+                        fontWeight: 'bold'
+                    },
+                    onclick: function () {
+                        goBack();
+                    }
+                }
+                ,
+                {
+                    id: 'title',
+                    type: 'text',
+                    left: 'center',
+                    top: 10,
+                    style: {
+                        text: drilldownTitles[optionId] || '',
+                        fontSize: 16,
+                        fontWeight: 'bold'
+                    }
+                }
+            ]
+        };
+        allOptions[optionId] = option;
+    }
+
+    const optionStack = [];
+    const goForward = (optionId) => {
+        if (allOptions[optionId]) {
+            optionStack.push(myChart.getOption().id);
+            myChart.setOption(allOptions[optionId]);
+            // Actualizar gráfico de productos
+            crearGraficoProductos(topProductsByLevel[optionId]);
+        }
+    };
+    const goBack = () => {
+        if (optionStack.length > 0) {
+            const prevOptionId = optionStack.pop();
+            myChart.setOption(allOptions[prevOptionId]);
+            // Actualizar gráfico de productos
+            crearGraficoProductos(topProductsByLevel[prevOptionId]);
+        }
+    };
+
+    myChart.on('click', 'series', (params) => {
+        const dataItem = params.data;
+        if (dataItem && dataItem[3]) { // Si tiene un childGroupId
+            const nextOptionId = dataItem[3];
+            goForward(nextOptionId);
+        }
+    });
+
+    // Cargar la opción inicial
+    if (allOptions['root']) {
+        myChart.setOption(allOptions['root']);
+    }
+}
+
 // Función para cambiar mes
 function cambiarMes(mesSeleccionado) {
     window.location.href = `?mes=${mesSeleccionado}`;
@@ -819,10 +959,11 @@ function cambiarMes(mesSeleccionado) {
 
 // Inicializar gráficos cuando la página carga
 document.addEventListener('DOMContentLoaded', function() {
-    crearGraficoCicloVida();
-    crearGraficoProductos();
+    crearGraficoCicloVida(); // ECharts
+    crearGraficoProductos(); // Chart.js - Carga inicial
     crearGraficoLineas();
-    crearGraficoFormaFarmaceutica(); // Inicializar el nuevo gráfico
+    crearGraficoFormaFarmaceutica(); // ECharts
+    crearGraficoDrilldown(); // ECharts
 });
 </script>
 
