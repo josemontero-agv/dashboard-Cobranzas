@@ -433,17 +433,20 @@ def dashboard():
         drilldown_data = {}
         drilldown_titles = {}
         top_products_by_level = {}
+        pie_chart_data_by_level = {}
 
         # Nivel 1 (root)
         drilldown_data['root'] = [[l1_name, data['total'], 'root', l1_name] for l1_name, data in nested_data.items()]
         drilldown_titles['root'] = 'Nivel 1: Clasificación Farmacológica'
         top_products_by_level['root'] = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
+        pie_chart_data_by_level['root'] = [{'name': l1_name, 'value': data['total']} for l1_name, data in nested_data.items()]
 
         for l1_name, l1_data in nested_data.items():
             # Nivel 2
             drilldown_data[l1_name] = [[l2_name, data['total'], l1_name, f"{l1_name}_{l2_name}"] for l2_name, data in l1_data['children'].items()]
             drilldown_titles[l1_name] = f'Nivel 2: Vía de Admin. para "{l1_name}"'
             top_products_by_level[l1_name] = sorted(l1_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+            pie_chart_data_by_level[l1_name] = [{'name': l2_name, 'value': data['total']} for l2_name, data in l1_data['children'].items()]
             
             for l2_name, l2_data in l1_data['children'].items():
                 # Nivel 3
@@ -451,6 +454,7 @@ def dashboard():
                 drilldown_data[parent_id] = [[l3_name, data['total'], parent_id, f"{parent_id}_{l3_name}"] for l3_name, data in l2_data['children'].items()]
                 drilldown_titles[parent_id] = f'Nivel 3: Línea de Prod. para "{l2_name}"'
                 top_products_by_level[parent_id] = sorted(l2_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+                pie_chart_data_by_level[parent_id] = [{'name': l3_name, 'value': data['total']} for l3_name, data in l2_data['children'].items()]
 
                 for l3_name, l3_data in l2_data['children'].items():
                     # Nivel 4 (final)
@@ -459,6 +463,7 @@ def dashboard():
                     drilldown_data[parent_id_l4] = [[l4_name, data['total'], parent_id_l4] for l4_name, data in l3_data['children'].items()]
                     drilldown_titles[parent_id_l4] = f'Nivel 4: Forma Farm. para "{l3_name}"'
                     top_products_by_level[parent_id_l4] = sorted(l3_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
+                    pie_chart_data_by_level[parent_id_l4] = [{'name': l4_name, 'value': data['total']} for l4_name, data in l3_data['children'].items()]
 
 
         return render_template('dashboard_clean.html',
@@ -475,7 +480,8 @@ def dashboard():
                              fecha_actual=fecha_actual,
                              drilldown_data=drilldown_data,
                              drilldown_titles=drilldown_titles,
-                             top_products_by_level=top_products_by_level)
+                             top_products_by_level=top_products_by_level,
+                             pie_chart_data_by_level=pie_chart_data_by_level)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')

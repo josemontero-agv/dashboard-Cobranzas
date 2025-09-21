@@ -609,6 +609,7 @@ const datosFormaFarmaceutica = {{ datos_forma_farmaceutica|tojson|safe }};
 const drilldownData = {{ drilldown_data|tojson|safe }};
 const drilldownTitles = {{ drilldown_titles|tojson|safe }};
 const topProductsByLevel = {{ top_products_by_level|tojson|safe }};
+const pieChartDataByLevel = {{ pie_chart_data_by_level|tojson|safe }};
 
 // Gráfico de Ciclo de Vida (Donut)
 function crearGraficoCicloVida() {
@@ -788,16 +789,26 @@ function crearGraficoLineas() {
 }
 
 // Gráfico de Forma Farmacéutica con ECharts
-function crearGraficoFormaFarmaceutica() {
+let clasificacionChart = null; // Instancia global del gráfico
+function crearGraficoFormaFarmaceutica(chartData, title) {
     const chartDom = document.getElementById('grafico-forma-farmaceutica');
-    const myChart = echarts.init(chartDom);
+    if (!clasificacionChart) {
+        clasificacionChart = echarts.init(chartDom);
+    }
 
-    const legendData = datosFormaFarmaceutica.map(item => item.forma);
-    const seriesData = datosFormaFarmaceutica.map(item => ({
-        name: item.forma,
-        value: item.venta || 0
-    }));
+    // Si no se pasan datos, usar los datos iniciales
+    if (!chartData) {
+        chartData = datosFormaFarmaceutica.map(item => ({
+            name: item.forma,
+            value: item.venta || 0
+        }));
+    }
+    if (!title) {
+        title = 'Venta por Clasificación Farmacológica';
+    }
 
+    const legendData = chartData.map(item => item.name);
+    
     const option = {
         tooltip: {
             trigger: 'item',
@@ -814,13 +825,19 @@ function crearGraficoFormaFarmaceutica() {
             bottom: 20,
             data: legendData
         },
+        title: {
+            text: title,
+            left: 'center',
+            top: 5,
+            textStyle: { fontSize: 16 }
+        },
         series: [
             {
                 name: 'Clasificación',
                 type: 'pie',
-                radius: '65%',
+                radius: '60%', // Un poco más pequeño para el título
                 center: ['40%', '50%'], // Mueve el gráfico a la izquierda para dar espacio a la leyenda
-                data: seriesData,
+                data: chartData,
                 emphasis: {
                     itemStyle: {
                         shadowBlur: 10,
@@ -831,7 +848,7 @@ function crearGraficoFormaFarmaceutica() {
             }
         ]
     };
-    myChart.setOption(option);
+    clasificacionChart.setOption(option, true); // true para limpiar el gráfico anterior
 }
 
 // Gráfico Drilldown Jerárquico
@@ -926,7 +943,9 @@ function crearGraficoDrilldown() {
             optionStack.push(myChart.getOption().id);
             myChart.setOption(allOptions[optionId]);
             // Actualizar gráfico de productos
-            crearGraficoProductos(topProductsByLevel[optionId]);
+            crearGraficoProductos(topProductsByLevel[optionId] || []);
+            // Actualizar gráfico de pastel
+            crearGraficoFormaFarmaceutica(pieChartDataByLevel[optionId] || [], drilldownTitles[optionId] || '');
         }
     };
     const goBack = () => {
@@ -934,7 +953,9 @@ function crearGraficoDrilldown() {
             const prevOptionId = optionStack.pop();
             myChart.setOption(allOptions[prevOptionId]);
             // Actualizar gráfico de productos
-            crearGraficoProductos(topProductsByLevel[prevOptionId]);
+            crearGraficoProductos(topProductsByLevel[prevOptionId] || []);
+            // Actualizar gráfico de pastel
+            crearGraficoFormaFarmaceutica(pieChartDataByLevel[prevOptionId] || [], drilldownTitles[prevOptionId] || '');
         }
     };
 
