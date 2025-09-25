@@ -6,6 +6,57 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class OdooManager:
+    def get_commercial_lines_stacked_data(self, date_from=None, date_to=None, linea_id=None, partner_id=None):
+        """Devuelve datos para gráfico apilado por línea comercial y 5 categorías"""
+        sales_lines = self.get_sales_lines(
+            date_from=date_from,
+            date_to=date_to,
+            partner_id=partner_id,
+            linea_id=linea_id,
+            limit=5000
+        )
+        # Nombres de las categorías a apilar
+        categories = [
+            ('pharmaceutical_forms_id', 'Forma Farmacéutica'),
+            ('pharmacological_classification_id', 'Clasificación Farmacológica'),
+            ('administration_way_id', 'Vía de Administración'),
+            ('categ_id', 'Categoría de Producto'),
+            ('production_line_id', 'Línea de Producción')
+        ]
+        # Agrupar por línea comercial
+        lines = {}
+        for line in sales_lines:
+            cl = line.get('commercial_line_national_id')
+            if cl and isinstance(cl, list) and len(cl) > 1:
+                line_name = cl[1]
+            else:
+                line_name = 'Sin Línea Comercial'
+            if line_name not in lines:
+                lines[line_name] = {cat[1]: 0 for cat in categories}
+            for key, cat_name in categories:
+                val = line.get(key)
+                # Si el campo es una lista [id, nombre], sumar por cantidad
+                if val and isinstance(val, list) and len(val) > 1:
+                    lines[line_name][cat_name] += line.get('quantity', 0)
+                elif val:
+                    lines[line_name][cat_name] += line.get('quantity', 0)
+        # Preparar formato para ECharts
+        yAxis = list(lines.keys())
+        series = []
+        for key, cat_name in categories:
+            data = [lines[line_name][cat_name] for line_name in yAxis]
+            series.append({
+                'name': cat_name,
+                'type': 'bar',
+                'stack': 'total',
+                'label': {'show': True},
+                'data': data
+            })
+        return {
+            'yAxis': yAxis,
+            'series': series,
+            'legend': [cat[1] for cat in categories]
+        }
     def __init__(self):
         # Configurar conexión a Odoo - Usar directamente credenciales del .env
         try:
@@ -349,13 +400,13 @@ class OdooManager:
                 partner_id = line.get('partner_id')
                 
                 # Obtener datos relacionados
-                move = move_data.get(move_id[0]) if move_id else {}
-                product = product_data.get(product_id[0]) if product_id else {}
-                partner = partner_data.get(partner_id[0]) if partner_id else {}
+                move = move_data.get(move_id[0], {}) if move_id else {}
+                product = product_data.get(product_id[0], {}) if product_id else {}
+                partner = partner_data.get(partner_id[0], {}) if partner_id else {}
                 
                 # Obtener datos de orden de venta
                 order_id = move.get('order_id')
-                order = order_data.get(order_id[0]) if order_id else {}
+                order = order_data.get(order_id[0], {}) if order_id else {}
                 
                 # Obtener datos de línea de orden
                 sale_line_key = (order_id[0], product_id[0]) if order_id and product_id else None
@@ -373,13 +424,7 @@ class OdooManager:
                     commercial_line_id = product.get('commercial_line_national_id')
                     invoice_user = move.get('invoice_user_id')
                     
-                    if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
-                        # Verificar si es uno de los usuarios ECOMMERCE específicos
-                        if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
-                            (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
-                            # Cambiar la línea comercial a ECOMMERCE
-                            commercial_line_id = [9, 'ECOMMERCE']
-                            ecommerce_reassigned += 1
+                    
 
                     # Crear registro completo con las 27 columnas
                     sales_lines.append({
