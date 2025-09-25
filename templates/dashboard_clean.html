@@ -179,6 +179,23 @@
         </div>
     </div>
 
+    <!-- Fila para el nuevo gráfico de Líneas Comerciales -->
+    <div class="grafico-extra-container">
+        <div class="grafico-echarts">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Ventas por Clasificación Comercial</h3>
+                <select id="stacked-chart-selector" onchange="updateStackedChart(this.value)">
+                    <option value="Forma Farmacéutica">Forma Farmacéutica</option>
+                    <option value="Clasificación Farmacologica">Clasificación Farmacologica</option>
+                    <option value="Vía de Administración">Vía de Administración</option>
+                    <option value="Categoría de Producto">Categoría de Producto</option>
+                    <option value="Línea de Producción">Línea de Producción</option>
+                </select>
+            </div>
+            <div id="stacked-chart-container" style="width: 100%; height: 500px;"></div>
+        </div>
+    </div>
+
     <!-- Fila para el nuevo gráfico Drilldown -->
     <div class="grafico-extra-container">
         <div class="grafico-echarts">
@@ -610,6 +627,7 @@ const drilldownData = {{ drilldown_data|tojson|safe }};
 const drilldownTitles = {{ drilldown_titles|tojson|safe }};
 const topProductsByLevel = {{ top_products_by_level|tojson|safe }};
 const pieChartDataByLevel = {{ pie_chart_data_by_level|tojson|safe }};
+const allStackedChartData = JSON.parse({{ all_stacked_chart_data|tojson|safe }});
 
 // Gráfico de Ciclo de Vida (Donut)
 function crearGraficoCicloVida() {
@@ -973,6 +991,62 @@ function crearGraficoDrilldown() {
     }
 }
 
+// Nuevo gráfico de Barras Apiladas con Selector
+let stackedChart = null;
+function updateStackedChart(dimension) {
+    const chartDom = document.getElementById('stacked-chart-container');
+    if (!chartDom) return;
+    if (!stackedChart) {
+        stackedChart = echarts.init(chartDom);
+    }
+
+    const chartData = allStackedChartData[dimension];
+    if (!chartData) return;
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function (params) {
+                let tooltipText = `${params[0].axisValue}<br/>`;
+                let total = 0;
+                params.sort((a, b) => b.value - a.value);
+                params.forEach(param => {
+                    const value = param.value || 0;
+                    if (value !== 0) {
+                        tooltipText += `${param.marker} ${param.seriesName}: ${Math.round(value).toLocaleString('es-PE')}<br/>`;
+                    }
+                    total += value;
+                });
+                tooltipText += `<strong>Total: ${Math.round(total).toLocaleString('es-PE')}</strong>`;
+                return tooltipText;
+            }
+        },
+        legend: {
+            type: 'scroll'
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            min: 0
+        },
+        yAxis: {
+            type: 'category',
+            data: chartData.yAxis
+        },
+        series: chartData.series
+    };
+
+    stackedChart.setOption(option, true);
+}
+
+
+
 // Función para cambiar mes
 function cambiarMes(mesSeleccionado) {
     window.location.href = `?mes=${mesSeleccionado}`;
@@ -985,6 +1059,7 @@ document.addEventListener('DOMContentLoaded', function() {
     crearGraficoLineas();
     crearGraficoFormaFarmaceutica(); // ECharts
     crearGraficoDrilldown(); // ECharts
+    updateStackedChart('Forma Farmacéutica'); // Carga inicial del nuevo gráfico
 });
 </script>
 

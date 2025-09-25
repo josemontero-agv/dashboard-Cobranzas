@@ -179,11 +179,8 @@ def dashboard():
             {'nombre': 'AGROVET', 'id': 'agrovet'},
             {'nombre': 'PET NUTRISCIENCE', 'id': 'pet_nutriscience'},
             {'nombre': 'AVIVET', 'id': 'avivet'},
-            {'nombre': 'ECOMMERCE', 'id': 'ecommerce'},
             {'nombre': 'OTROS', 'id': 'otros'},
             {'nombre': 'GENVET', 'id': 'genvet'},
-            {'nombre': 'LICITACIÓN', 'id': 'licitacion'},
-            {'nombre': 'Ninguno', 'id': 'ninguno'},
         ]
         
         # Obtener datos reales de ventas desde Odoo
@@ -223,10 +220,8 @@ def dashboard():
             'AGROVET': 'agrovet', 
             'PET NUTRISCIENCE': 'pet_nutriscience',
             'AVIVET': 'avivet',
-            'ECOMMERCE': 'ecommerce',
             'OTROS': 'otros',
             'GENVET': 'genvet',
-            'LICITACIÓN': 'licitacion'
         }
         
         # Calcular ventas reales por línea comercial
@@ -465,6 +460,56 @@ def dashboard():
                     top_products_by_level[parent_id_l4] = sorted(l3_data['products'].items(), key=lambda x: x[1], reverse=True)[:7]
                     pie_chart_data_by_level[parent_id_l4] = [{'name': l4_name, 'value': data['total']} for l4_name, data in l3_data['children'].items()]
 
+        # 7. Preparar datos para el nuevo gráfico de barras apiladas con selector
+        def get_stacked_chart_data_for_dimension(dimension_field):
+            datos_grafico = {}
+            dimension_values = set()
+            for sale in sales_data:
+                balance_float = float(sale.get('balance', 0))
+                if balance_float == 0:
+                    continue
+                linea_comercial_obj = sale.get('commercial_line_national_id')
+                if not (linea_comercial_obj and isinstance(linea_comercial_obj, list) and len(linea_comercial_obj) > 1):
+                    continue
+                linea_comercial_nombre = linea_comercial_obj[1].upper()
+                if 'VENTA INTERNACIONAL' in linea_comercial_nombre:
+                    continue
+                dimension_obj = sale.get(dimension_field)
+                dimension_value = 'N/A'
+                if dimension_obj and isinstance(dimension_obj, list) and len(dimension_obj) > 1:
+                    dimension_value = dimension_obj[1]
+                dimension_values.add(dimension_value)
+                if linea_comercial_nombre not in datos_grafico:
+                    datos_grafico[linea_comercial_nombre] = {}
+                current_total = datos_grafico[linea_comercial_nombre].get(dimension_value, 0)
+                datos_grafico[linea_comercial_nombre][dimension_value] = current_total + balance_float
+            series_names = sorted(list(dimension_values))
+            y_axis_data = sorted(list(datos_grafico.keys()))
+            series_data = []
+            for name in series_names:
+                data_points = [datos_grafico.get(linea, {}).get(name, 0) for linea in y_axis_data]
+                series_data.append({
+                    'name': name,
+                    'type': 'bar',
+                    'stack': 'total',
+                    'emphasis': {'focus': 'series'},
+                    'data': data_points
+                })
+            return {
+                'yAxis': y_axis_data,
+                'series': series_data
+            }
+
+        dimension_map = {
+            "Forma Farmacéutica": "pharmaceutical_forms_id",
+            "Clasificación Farmacologica": "pharmacological_classification_id",
+            "Vía de Administración": "administration_way_id",
+            "Categoría de Producto": "categ_id",
+            "Línea de Producción": "production_line_id"
+        }
+        all_stacked_chart_data = {}
+        for name, field in dimension_map.items():
+            all_stacked_chart_data[name] = get_stacked_chart_data_for_dimension(field)
 
         return render_template('dashboard_clean.html',
                              meses_disponibles=meses_disponibles,
@@ -481,7 +526,8 @@ def dashboard():
                              drilldown_data=drilldown_data,
                              drilldown_titles=drilldown_titles,
                              top_products_by_level=top_products_by_level,
-                             pie_chart_data_by_level=pie_chart_data_by_level)
+                             pie_chart_data_by_level=pie_chart_data_by_level,
+                             all_stacked_chart_data=json.dumps(all_stacked_chart_data))
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
@@ -546,8 +592,8 @@ def dashboard_linea():
         # Mapeo de nombre de línea a ID para cargar metas
         mapeo_nombre_a_id = {
             'PETMEDICA': 'petmedica', 'AGROVET': 'agrovet', 'PET NUTRISCIENCE': 'pet_nutriscience',
-            'AVIVET': 'avivet', 'ECOMMERCE': 'ecommerce', 'OTROS': 'otros',
-            'GENVET': 'genvet', 'LICITACIÓN': 'licitacion', 'Ninguno': 'ninguno'
+            'AVIVET': 'avivet', 'OTROS': 'otros',
+            'GENVET': 'genvet',
         }
         linea_seleccionada_id = mapeo_nombre_a_id.get(linea_seleccionada_nombre.upper(), 'petmedica')
 
@@ -762,7 +808,7 @@ def dashboard_linea():
 
         # Lista de todas las líneas para el selector
         lineas_disponibles = [
-            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'ECOMMERCE', 'OTROS', 'GENVET', 'LICITACIÓN'
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET'
         ]
 
         return render_template('dashboard_linea.html',
@@ -785,7 +831,7 @@ def dashboard_linea():
         meses_disponibles = get_meses_del_año(año_actual)
         linea_seleccionada_nombre = request.args.get('linea_nombre', 'PETMEDICA')
         lineas_disponibles = [
-            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'ECOMMERCE', 'OTROS', 'GENVET', 'LICITACIÓN'
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET'
         ]
         kpis_default = {
             'meta_total': 0, 'venta_total': 0, 'porcentaje_avance': 0,
@@ -818,11 +864,8 @@ def meta():
             {'nombre': 'AGROVET', 'id': 'agrovet'},
             {'nombre': 'PET NUTRISCIENCE', 'id': 'pet_nutriscience'},
             {'nombre': 'AVIVET', 'id': 'avivet'},
-            {'nombre': 'ECOMMERCE', 'id': 'ecommerce'},
             {'nombre': 'OTROS', 'id': 'otros'},
             {'nombre': 'GENVET', 'id': 'genvet'},
-            {'nombre': 'LICITACIÓN', 'id': 'licitacion'},
-            {'nombre': 'Ninguno', 'id': 'ninguno'},
         ]
         
         # Obtener año actual y mes seleccionado
@@ -1012,18 +1055,14 @@ def metas_vendedor():
         {'nombre': 'AGROVET', 'id': 'agrovet'},
         {'nombre': 'PET NUTRISCIENCE', 'id': 'pet_nutriscience'},
         {'nombre': 'AVIVET', 'id': 'avivet'},
-        {'nombre': 'ECOMMERCE', 'id': 'ecommerce'},
         {'nombre': 'OTROS', 'id': 'otros'},
         {'nombre': 'GENVET', 'id': 'genvet'},
-        {'nombre': 'LICITACIÓN', 'id': 'licitacion'},
-        {'nombre': 'Ninguno', 'id': 'ninguno'},
     ]
     equipos_definidos = [
         {'id': 'petmedica', 'nombre': 'PETMEDICA'},
         {'id': 'agrovet', 'nombre': 'AGROVET'},
         {'id': 'pet_nutriscience', 'nombre': 'PET NUTRISCIENCE'},
         {'id': 'avivet', 'nombre': 'AVIVET'},
-        {'id': 'ecommerce', 'nombre': 'ECOMMERCE'},
         {'id': 'otros', 'nombre': 'OTROS'},
     ]
 
