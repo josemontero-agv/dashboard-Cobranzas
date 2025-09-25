@@ -42,6 +42,7 @@ Una vez obtenidos los datos, se aplica la siguiente lógica en la aplicación Fl
   - **Venta IPN (Productos Nuevos)**: Suma del `balance` únicamente de las ventas de productos cuyo `product_life_cycle` es `'nuevo'`.
   - **Vencimiento < 6 Meses**: Suma del `balance` únicamente de las líneas de venta cuya **Ruta** (`route_id`) en la orden de venta tiene el ID `18` ('3 > P < 6') o `19` ('1 ≥ P ≤ 3').
   - **Gráficos**: Los datos se agrupan por línea comercial, producto, ciclo de vida y forma farmacéutica para alimentar los distintos gráficos.
+  - **Análisis Jerárquico Interactivo**: Se procesan los datos para crear una estructura anidada (Clasificación Farmacológica > Vía de Administración > Línea de Producción > Forma Farmacéutica). Esta estructura alimenta un gráfico de barras interactivo que permite "profundizar" en los datos. Al navegar, los gráficos "Top 7 Productos" y "Venta por Clasificación Farmacológica" se actualizan dinámicamente para reflejar la categoría seleccionada.
 
 4. Gestión de Metas
 --------------------
