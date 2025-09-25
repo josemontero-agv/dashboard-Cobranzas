@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 
-{% block head %}<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <!-- Header con logo y título -->
@@ -184,13 +189,16 @@
         <div class="grafico-echarts">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3>Ventas por Clasificación Comercial</h3>
-                <select id="stacked-chart-selector" onchange="updateStackedChart(this.value)">
-                    <option value="Forma Farmacéutica">Forma Farmacéutica</option>
-                    <option value="Clasificación Farmacologica">Clasificación Farmacologica</option>
-                    <option value="Vía de Administración">Vía de Administración</option>
-                    <option value="Categoría de Producto">Categoría de Producto</option>
-                    <option value="Línea de Producción">Línea de Producción</option>
-                </select>
+                <div style="display: flex; gap: 15px;">
+                    <select id="line-selector" multiple placeholder="Seleccionar líneas..."></select>
+                    <select id="stacked-chart-selector" onchange="updateStackedChart()">
+                        <option value="Forma Farmacéutica">Forma Farmacéutica</option>
+                        <option value="Clasificación Farmacologica">Clasificación Farmacologica</option>
+                        <option value="Vía de Administración">Vía de Administración</option>
+                        <option value="Categoría de Producto">Categoría de Producto</option>
+                        <option value="Línea de Producción">Línea de Producción</option>
+                    </select>
+                </div>
             </div>
             <div id="stacked-chart-container" style="width: 100%; height: 500px;"></div>
         </div>
@@ -993,15 +1001,32 @@ function crearGraficoDrilldown() {
 
 // Nuevo gráfico de Barras Apiladas con Selector
 let stackedChart = null;
-function updateStackedChart(dimension) {
+let lineSelector = null;
+
+function updateStackedChart() {
     const chartDom = document.getElementById('stacked-chart-container');
     if (!chartDom) return;
     if (!stackedChart) {
         stackedChart = echarts.init(chartDom);
     }
 
+    const dimension = document.getElementById('stacked-chart-selector').value;
+    const selectedLines = lineSelector.getValue();
     const chartData = allStackedChartData[dimension];
+
     if (!chartData) return;
+
+    // Filtrar datos según las líneas comerciales seleccionadas
+    const filteredYAxis = chartData.yAxis.filter(line => selectedLines.includes(line));
+    const filteredSeries = chartData.series.map(s => {
+        const newData = [];
+        chartData.yAxis.forEach((line, index) => {
+            if (selectedLines.includes(line)) {
+                newData.push(s.data[index]);
+            }
+        });
+        return { ...s, data: newData };
+    });
 
     const option = {
         tooltip: {
@@ -1023,12 +1048,15 @@ function updateStackedChart(dimension) {
             }
         },
         legend: {
-            type: 'scroll'
+            type: 'scroll',
+            orient: 'horizontal',
+            bottom: 10,
+            left: 'center'
         },
         grid: {
             left: '3%',
             right: '4%',
-            bottom: '3%',
+            bottom: 60,
             containLabel: true
         },
         xAxis: {
@@ -1037,14 +1065,13 @@ function updateStackedChart(dimension) {
         },
         yAxis: {
             type: 'category',
-            data: chartData.yAxis
+            data: filteredYAxis
         },
-        series: chartData.series
+        series: filteredSeries
     };
 
     stackedChart.setOption(option, true);
 }
-
 
 
 // Función para cambiar mes
@@ -1059,7 +1086,20 @@ document.addEventListener('DOMContentLoaded', function() {
     crearGraficoLineas();
     crearGraficoFormaFarmaceutica(); // ECharts
     crearGraficoDrilldown(); // ECharts
-    updateStackedChart('Forma Farmacéutica'); // Carga inicial del nuevo gráfico
+
+    // Inicializar selector de líneas para el gráfico apilado
+    const allLines = allStackedChartData['Forma Farmacéutica'].yAxis.map(line => ({ value: line, text: line }));
+    lineSelector = new TomSelect('#line-selector', {
+        plugins: ['remove_button'],
+        placeholder: 'Comparar líneas...',
+        options: allLines,
+        onChange: function() {
+            updateStackedChart();
+        }
+    });
+    lineSelector.setValue(allLines.map(l => l.value)); // Seleccionar todo por defecto
+
+    updateStackedChart(); // Carga inicial del nuevo gráfico
 });
 </script>
 

@@ -175,14 +175,14 @@
                     <ul>
                         <li><a href="#logica-inversion" class="nav-link">3.1 Inversión del Saldo</a></li>
                         <li><a href="#logica-exclusion" class="nav-link">3.2 Exclusión Internacional</a></li>
-                        <li><a href="#logica-ecommerce" class="nav-link">3.3 Reasignación ECOMMERCE</a></li>
-                        <li><a href="#logica-agrupacion" class="nav-link">3.4 Agrupación de Datos</a></li>
+                        <li><a href="#logica-agrupacion" class="nav-link">3.3 Agrupación de Datos</a></li>
                     </ul>
                 </li>
                 <li>
 <a href="#dashboard" class="nav-link">4. Uso del Dashboard</a>
                     <ul>
                         <li><a href="#dashboard-interactivo" class="nav-link">4.1 Gráficos Interactivos</a></li>
+                        <li><a href="#dashboard-apilado" class="nav-link">4.2 Gráfico Apilado</a></li>
                     </ul>
                 </li>
                 <li><a href="#metas" class="nav-link">5. Gestión de Metas</a></li>
@@ -245,17 +245,8 @@
                 </ul>
             </div>
 
-            <div id="logica-ecommerce" class="subsection">
-                <h3>3.3 Reasignación a ECOMMERCE</h3>
-                <p>Las ventas realizadas por ciertos usuarios específicos se reasignan automáticamente a la línea comercial "ECOMMERCE", sin importar la línea original del producto. Los usuarios afectados son:</p>
-                <ul>
-                    <li>ID 34: HUAMAN CORDOVA, SAMIRE ANDREA</li>
-                    <li>ID 35: LA ROSA BONIFACIO, JULIAN TONY</li>
-                </ul>
-            </div>
-
             <div id="logica-agrupacion" class="subsection">
-                <h3>3.4 Agrupación de Datos</h3>
+                <h3>3.3 Agrupación de Datos</h3>
                 <p>Finalmente, los datos ya filtrados y procesados se agrupan para alimentar los diferentes componentes visuales del dashboard. Los cálculos más importantes son:</p>
                 <ul class="code-block">
                     <li><strong>Venta Total:</strong> Suma del <code>balance</code> de todas las ventas filtradas.</li>
@@ -282,6 +273,26 @@
                     <li><strong>Gráficos Conectados:</strong> A medida que navegas por el gráfico jerárquico, los gráficos <strong>"Top 7 Productos Más Vendidos"</strong> y <strong>"Venta por Clasificación Farmacológica"</strong> se actualizarán automáticamente para mostrar los datos correspondientes al nivel que estás visualizando. Esto te permite ver, por ejemplo, cuáles son los productos más vendidos de una vía de administración específica dentro de una clasificación farmacológica.</li>
                 </ul>
                 <p class="note">Esta funcionalidad convierte el dashboard en una herramienta de exploración de datos, permitiéndote descubrir patrones y tendencias de forma intuitiva.</p>
+            </div>
+
+            <div id="dashboard-apilado" class="subsection">
+                <h3>4.2 Gráfico de Ventas por Clasificación Comercial</h3>
+                <p>Este nuevo gráfico de barras apiladas te permite analizar la composición de las ventas de cada línea comercial según diferentes criterios.</p>
+                <ul>
+                    <li><strong>Eje Vertical (Y):</strong> Muestra las principales líneas comerciales (Petmedica, Agrovet, etc.).</li>
+                    <li><strong>Eje Horizontal (X):</strong> Representa el total de ventas.</li>
+                    <li><strong>Barras Apiladas:</strong> Cada barra de una línea comercial está segmentada por colores, donde cada color representa una subcategoría.</li>
+                </ul>
+                <h4>Uso del Selector de Dimensión</h4>
+                <p>En la esquina superior derecha del gráfico encontrarás un menú desplegable. Este menú te permite cambiar dinámicamente la dimensión por la cual se apilan las barras. Puedes elegir entre:</p>
+                <ul>
+                    <li>Forma Farmacéutica</li>
+                    <li>Clasificación Farmacologica</li>
+                    <li>Vía de Administración</li>
+                    <li>Categoría de Producto</li>
+                    <li>Línea de Producción</li>
+                </ul>
+                <p class="note">Al seleccionar una nueva dimensión, el gráfico se redibujará automáticamente para reflejar la nueva estructura de datos, permitiéndote un análisis flexible y detallado de la composición de las ventas.</p>
             </div>
         </section>
 
