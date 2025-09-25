@@ -87,7 +87,7 @@
         </div>
         {% if mes_seleccionado == fecha_actual.strftime('%Y-%m') %}
         <div class="avance-card avance-requerido">
-            <div class="avance-label">Ritmo Diario Requerido (L-S)</div>
+            <div class="avance-label">Ritmo Diario Requerido de Venta (L-S)</div>
             <div class="avance-value">{{ "{:.1f} %".format(kpis.ritmo_diario_requerido) }}</div>
         </div>
         {% endif %}
@@ -99,9 +99,14 @@
         <div class="tabla-container">
             <div class="tabla-header">
                 <h3>Meta LC Total y Venta por Línea Comercial Local</h3>
-                <a href="{{ url_for('export_dashboard_details', mes=mes_seleccionado) }}" class="btn-export-tabla">
-                    <i class="bi bi-file-earmark-excel"></i> Exportar Detalle
-                </a>
+                <div class="tabla-header-botones">
+                    <a href="https://stockodoo.onrender.com" target="_blank" class="btn-custom-action">
+                        <i class="bi bi-box-arrow-up-right"></i> Stock Odoo
+                    </a>
+                    <a href="{{ url_for('export_dashboard_details', mes=mes_seleccionado) }}" class="btn-export-tabla">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar Detalle
+                    </a>
+                </div>
             </div>
             <table class="tabla-avance">
                 <thead>
@@ -109,11 +114,12 @@
                         <th>Línea Comercial</th>
                         <th>Meta</th>
                         <th>Venta</th>
-                        <th>% Var. Total</th>
+                        <th>% Cump</th>
+                        <th>% Total Vta.</th>
                         <th>Meta IPN</th>
                         <th>Venta IPN</th>
                         <th>% Var. IPN</th>
-                        <th>Vencimiento &lt; 6 Meses</th>
+                        <th>Venc &lt;6 mss</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -127,6 +133,7 @@
                         <td>{{ "{:,.0f}".format(linea.meta) }}</td>
                         <td>{{ "{:,.0f}".format(linea.venta) }}</td>
                         <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_total) }}</td>
+                        <td class="porcentaje">{{ "%.1f%%"|format(linea.porcentaje_sobre_total) }}</td>
                         <td>{{ "{:,.0f}".format(linea.meta_pn) }}</td>
                         <td>{{ "{:,.0f}".format(linea.venta_pn) }}</td>
                         <td class="porcentaje">{{ "{:.1f}%".format(linea.porcentaje_pn) }}</td>
@@ -139,10 +146,11 @@
                         <td><strong>{{ "{:,.0f}".format(kpis.meta_total) }}</strong></td>
                         <td><strong>{{ "{:,.0f}".format(kpis.venta_total) }}</strong></td>
                         <td class="porcentaje"><strong>{{ "{:.1f}%".format(kpis.porcentaje_avance) }}</strong></td>
+                        <td class="porcentaje"><strong>100.0%</strong></td>
                         <td><strong>{{ "{:,.0f}".format(kpis.meta_ipn) }}</strong></td>
                         <td><strong>{{ "{:,.0f}".format(kpis.venta_ipn) }}</strong></td>
                         <td class="porcentaje"><strong>{{ "{:.1f}%".format(kpis.porcentaje_avance_ipn) }}</strong></td>
-                        <td colspan="2"><strong>{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</strong></td>
+                        <td><strong>{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -157,11 +165,7 @@
                     <div id="grafico-donut" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
-            <!-- KPI Vencimiento movido aquí -->
-            <div class="kpi-card kpi-vencimiento">
-                <div class="kpi-label">Vencimiento a 6 meses</div>
-                <div class="kpi-value">{{ "{:,.0f}".format(kpis.vencimiento_6_meses) }}</div>
-            </div>
+
         </div>
     </div>
     
@@ -484,6 +488,11 @@ body {
     font-size: 18px;
 }
 
+.tabla-header-botones {
+    display: flex;
+    gap: 10px;
+}
+
 .btn-export-tabla {
     display: inline-flex;
     align-items: center;
@@ -498,6 +507,23 @@ body {
     transition: background-color 0.2s;
 }
 
+.btn-custom-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    color: white;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    background-color: var(--odoo-primary);
+}
+.btn-custom-action:hover {
+    background-color: var(--odoo-primary-dark);
+}
+
 .tabla-avance {
     width: 100%;
     border-collapse: collapse;
@@ -505,7 +531,7 @@ body {
 }
 
 .tabla-avance th {
-    background: #34495e;
+    background: var(--odoo-primary);
     color: white;
     padding: 12px 8px;
     text-align: center;
@@ -524,13 +550,13 @@ body {
 }
 
 .fila-total {
-    background: #2c3e50 !important;
+    background: var(--odoo-primary) !important;
     color: white !important;
 }
 
 .fila-total td {
     color: white !important;
-    border-top: 2px solid #34495e;
+    border-top: 2px solid var(--odoo-primary-dark);
 }
 
 /* Gráfico Ciclo de Vida (DERECHA) */

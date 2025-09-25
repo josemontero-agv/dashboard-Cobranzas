@@ -102,11 +102,12 @@
                         <th>Vendedor</th>
                         <th>Meta</th>
                         <th>Venta</th>
-                        <th>% Avance</th>
+                        <th>% Cump</th>
+                        <th>% Total Vta.</th>
                         <th>Meta IPN</th>
                         <th>Venta IPN</th>
                         <th>% Avance IPN</th>
-                        <th>Vencimiento &lt; 6 Meses</th>
+                        <th>Venc &lt;6 mss</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -116,13 +117,14 @@
                         <td>{% if vendedor.meta > 0 %}{{ "{:,.0f}".format(vendedor.meta) }}{% else %}-{% endif %}</td>
                         <td>{% if vendedor.venta > 0 %}{{ "{:,.0f}".format(vendedor.venta) }}{% else %}-{% endif %}</td>
                         <td class="porcentaje">{% if vendedor.porcentaje_avance > 0 %}{{ "{:.1f}%".format(vendedor.porcentaje_avance) }}{% else %}-{% endif %}</td>
+                        <td class="porcentaje">{% if vendedor.porcentaje_sobre_total > 0 %}{{ "%.1f%%"|format(vendedor.porcentaje_sobre_total) }}{% else %}-{% endif %}</td>
                         <td>{% if vendedor.meta_ipn > 0 %}{{ "{:,.0f}".format(vendedor.meta_ipn) }}{% else %}-{% endif %}</td>
                         <td>{% if vendedor.venta_ipn > 0 %}{{ "{:,.0f}".format(vendedor.venta_ipn) }}{% else %}-{% endif %}</td>
                         <td class="porcentaje">{% if vendedor.porcentaje_avance_ipn > 0 %}{{ "{:.1f}%".format(vendedor.porcentaje_avance_ipn) }}{% else %}-{% endif %}</td>
                         <td><strong>{% if vendedor.vencimiento_6_meses > 0 %}{{ "{:,.0f}".format(vendedor.vencimiento_6_meses) }}{% else %}-{% endif %}</strong></td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="8" style="text-align: center; padding: 20px;">No hay datos de ventas o metas para esta línea en el mes seleccionado.</td></tr>
+                    <tr><td colspan="9" style="text-align: center; padding: 20px;">No hay datos de ventas o metas para esta línea en el mes seleccionado.</td></tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="fila-total">
@@ -131,6 +133,7 @@
                         <td><strong>{% if kpis.meta_total > 0 %}{{ "{:,.0f}".format(kpis.meta_total) }}{% else %}-{% endif %}</strong></td>
                         <td><strong>{% if kpis.venta_total > 0 %}{{ "{:,.0f}".format(kpis.venta_total) }}{% else %}-{% endif %}</strong></td>
                         <td class="porcentaje"><strong>{% if kpis.porcentaje_avance > 0 %}{{ "{:.1f}%".format(kpis.porcentaje_avance) }}{% else %}-{% endif %}</strong></td>
+                        <td class="porcentaje"><strong>100.0%</strong></td>
                         <td><strong>{% if kpis.meta_ipn > 0 %}{{ "{:,.0f}".format(kpis.meta_ipn) }}{% else %}-{% endif %}</strong></td>
                         <td><strong>{% if kpis.venta_ipn > 0 %}{{ "{:,.0f}".format(kpis.venta_ipn) }}{% else %}-{% endif %}</strong></td>
                         <td class="porcentaje"><strong>{% if kpis.porcentaje_avance_ipn > 0 %}{{ "{:.1f}%".format(kpis.porcentaje_avance_ipn) }}{% else %}-{% endif %}</strong></td>
@@ -199,6 +202,7 @@ body {
 }
 .header-left h1 { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;}
 .header-username { font-size: 14px; font-weight: 400; color: rgba(255, 255, 255, 0.8); padding-left: 32px; }
+
 
 
 .header-filters { display: flex; gap: 20px; align-items: center; }
@@ -275,12 +279,12 @@ body {
 }
 .tabla-header h3 { margin: 0 0 15px 0; font-size: 18px; color: var(--odoo-primary); }
 .tabla-avance { width: 100%; border-collapse: collapse; font-size: 12px; }
-.tabla-avance th { background: #f8f9fa; padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid #dee2e6; color: #343a40; }
+.tabla-avance th { background: var(--odoo-primary); color: white; padding: 12px 8px; text-align: center; font-weight: 600; }
 .tabla-avance td { padding: 10px 8px; border-bottom: 1px solid #ecf0f1; text-align: center; }
 .tabla-avance .text-left { text-align: left; font-weight: 500; }
 .tabla-avance .porcentaje { font-weight: bold; color: #e67e22; }
-.tabla-avance .fila-total { background: #f8f9fa; font-weight: bold; }
-.tabla-avance .fila-total td { border-top: 2px solid #dee2e6; }
+.tabla-avance tfoot.fila-total { background: var(--odoo-primary) !important; color: white !important; font-weight: bold; }
+.tabla-avance tfoot.fila-total td { border-top: 2px solid var(--odoo-primary-dark); color: white !important; }
 
 /* Gráficos */
 .grafico-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }

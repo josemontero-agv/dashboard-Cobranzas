@@ -11,7 +11,6 @@
         </div>
     </div>
     <div class="header-nav">
-        <button onclick="exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
         <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
         <a href="{{ url_for('meta') }}" class="btn-nav"><i class="bi bi-bullseye"></i> Metas</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
@@ -32,29 +31,7 @@
                 <input type="date" name="date_to" id="date_to" value="{{ selected_filters.date_to or '' }}" class="form-control">
             </div>
             
-            <div>
-                <label for="linea_id">Línea Comercial</label>
-                <select name="linea_id" id="linea_id" class="form-select">
-                    <option value="">Todas</option>
-                    {% for linea in filter_options.lineas %}
-                        <option value="{{ linea.id }}" {% if linea.id == selected_filters.linea_id %}selected{% endif %}>
-                            {{ linea.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div>
-                <label for="partner_id">Cliente</label>
-                <select name="partner_id" id="partner_id" class="form-select">
-                    <option value="">Todos</option>
-                    {% for cliente in filter_options.clientes %}
-                        <option value="{{ cliente.id }}" {% if cliente.id == selected_filters.partner_id %}selected{% endif %}>
-                            {{ cliente.display_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+
             
             <div style="flex-grow: 1;">
                 <label for="search_term">Búsqueda</label>
@@ -537,28 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('scroll', handleScroll);
 });
 
-// Función para exportar a Excel
-function exportToExcel() {
-    // Obtener filtros actuales
-    const dateFrom = document.querySelector('input[name="date_from"]')?.value || '';
-    const dateTo = document.querySelector('input[name="date_to"]')?.value || '';
-    const lineaId = document.querySelector('select[name="linea_id"]')?.value || '';
-    const partnerId = document.querySelector('select[name="partner_id"]')?.value || '';
-    
-    // Construir URL de exportación con parámetros
-    const params = new URLSearchParams();
-    if (dateFrom) params.append('date_from', dateFrom);
-    if (dateTo) params.append('date_to', dateTo);
-    if (lineaId) params.append('linea_id', lineaId);
-    if (partnerId) params.append('partner_id', partnerId);
-    
-    // Redirigir a la URL de exportación
-    const exportUrl = `/export/excel/sales?${params.toString()}`;
-    console.log('📊 Exportando a Excel:', exportUrl);
-    
-    // Crear enlace temporal para descarga
-    window.location.href = exportUrl;
-}
+
 </script>
 
 {% endblock %}

@@ -77,36 +77,36 @@ def sales():
         # Obtener opciones de filtro
         filter_options = data_manager.get_filter_options()
         
-        # Obtener filtros de la request
-        # Usamos request.form para detectar si el formulario fue enviado
-        selected_filters = {
-            'date_from': request.form.get('date_from') if request.method == 'POST' else None,
-            'date_to': request.form.get('date_to') if request.method == 'POST' else None,
-            'linea_id': request.form.get('linea_id') if request.method == 'POST' else None
-            # Se elimina el partner_id
-        }
-        
-        sales_data = []
-        # Solo buscar datos si el método es POST (se hizo clic en "Buscar")
         if request.method == 'POST':
-        # Convertir strings vacíos a None
-            for key, value in selected_filters.items():
-                if value == '':
-                    selected_filters[key] = None
-                elif key == 'linea_id' and value is not None:
-                    try:
-                        selected_filters[key] = int(value)
-                    except (ValueError, TypeError):
-                        selected_filters[key] = None
-            
-            # Obtener datos
-            sales_data = data_manager.get_sales_lines(
-                date_from=selected_filters.get('date_from'),
-                date_to=selected_filters.get('date_to'),
-                partner_id=None, # Ya no se usa el filtro de cliente
-                linea_id=selected_filters['linea_id'],
-                limit=1000
-            )
+            # For POST, get filters from the form
+            selected_filters = {
+                'date_from': request.form.get('date_from'),
+                'date_to': request.form.get('date_to')
+            }
+        else:
+            # For GET, start with no filters, so defaults will be used
+            selected_filters = {
+                'date_from': None,
+                'date_to': None
+            }
+
+        # Create a clean copy for the database query
+        query_filters = selected_filters.copy()
+
+        # Clean up filter values for the query
+        for key, value in query_filters.items():
+            if not value:  # Handles empty strings and None
+                query_filters[key] = None
+        
+        # Fetch data on every page load (GET and POST)
+        # On GET, filters are None, so odoo_manager will use defaults (last 30 days)
+        sales_data = data_manager.get_sales_lines(
+            date_from=query_filters.get('date_from'),
+            date_to=query_filters.get('date_to'),
+            partner_id=None,
+            linea_id=None,
+            limit=1000
+        )
         
         # Filtrar VENTA INTERNACIONAL (exportaciones)
         sales_data_filtered = []
@@ -129,7 +129,7 @@ def sales():
         return render_template('sales.html', 
                              sales_data=sales_data_filtered,
                              filter_options=filter_options,
-                             selected_filters=selected_filters,
+                             selected_filters=selected_filters, # Pass original filters to re-populate form
                              fecha_actual=datetime.now())
     
     except Exception as e:
@@ -173,15 +173,7 @@ def dashboard():
         metas_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
         metas_ipn_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas_ipn', {})
         
-        # Líneas comerciales estáticas
-        lineas_comerciales_estaticas = [
-            {'nombre': 'PETMEDICA', 'id': 'petmedica'},
-            {'nombre': 'AGROVET', 'id': 'agrovet'},
-            {'nombre': 'PET NUTRISCIENCE', 'id': 'pet_nutriscience'},
-            {'nombre': 'AVIVET', 'id': 'avivet'},
-            {'nombre': 'OTROS', 'id': 'otros'},
-            {'nombre': 'GENVET', 'id': 'genvet'},
-        ]
+        # Las líneas comerciales se generan dinámicamente más adelante.
         
         # Obtener datos reales de ventas desde Odoo
         try:
@@ -292,7 +284,35 @@ def dashboard():
         # --- Procesamiento de datos para gráficos (después del bucle) ---
 
         # 1. Procesar datos para la tabla principal
-        for linea in lineas_comerciales_estaticas:
+        # Generar dinámicamente las líneas comerciales a partir de ventas y metas
+        all_lines = {}  # Usar un dict para evitar duplicados, con el id como clave
+
+        # Añadir líneas desde las ventas reales
+        for nombre_linea_venta in ventas_por_linea.keys():
+            linea_id = nombre_linea_venta.lower().replace(' ', '_')
+            all_lines[linea_id] = {'nombre': nombre_linea_venta.upper(), 'id': linea_id}
+
+        # Añadir líneas desde las metas (para aquellas que no tuvieron ventas)
+        for linea_id_meta in metas_del_mes.keys():
+            if linea_id_meta not in all_lines:
+                # Reconstruir el nombre desde el ID de la meta
+                nombre_reconstruido = linea_id_meta.replace('_', ' ').upper()
+                all_lines[linea_id_meta] = {'nombre': nombre_reconstruido, 'id': linea_id_meta}
+        
+        # Convertir el diccionario de líneas a una lista ordenada por nombre
+        lineas_comerciales_dinamicas = sorted(all_lines.values(), key=lambda x: x['nombre'])
+
+        # Excluir líneas no deseadas que pueden venir de los datos
+        lineas_a_excluir = ['LICITACION', 'NINGUNO', 'ECOMMERCE']
+        lineas_comerciales_filtradas = [
+            linea for linea in lineas_comerciales_dinamicas
+            if linea['nombre'].upper() not in lineas_a_excluir
+        ]
+
+        # Pre-calcular la venta total para el cálculo de porcentajes
+        total_venta_calculado = sum(ventas_por_linea.values())
+
+        for linea in lineas_comerciales_filtradas:
             meta = metas_del_mes.get(linea['id'], 0)
             nombre_linea = linea['nombre'].upper()
             
@@ -306,12 +326,14 @@ def dashboard():
             
             porcentaje_total = (venta / meta * 100) if meta > 0 else 0
             porcentaje_pn = (venta_pn / meta_pn * 100) if meta_pn > 0 else 0
+            porcentaje_sobre_total = (venta / total_venta_calculado * 100) if total_venta_calculado > 0 else 0
 
             datos_lineas.append({
                 'nombre': linea['nombre'],
                 'meta': meta,
                 'venta': venta, # Ahora es positivo
-                'porcentaje_total': (venta / meta * 100) if meta > 0 else 0,
+                'porcentaje_total': porcentaje_total,
+                'porcentaje_sobre_total': porcentaje_sobre_total,
                 'meta_pn': meta_pn,
                 'venta_pn': venta_pn,
                 'porcentaje_pn': porcentaje_pn,
@@ -511,14 +533,17 @@ def dashboard():
         for name, field in dimension_map.items():
             all_stacked_chart_data[name] = get_stacked_chart_data_for_dimension(field)
 
+        # Ordenar los datos de la tabla por venta descendente
+        datos_lineas_tabla_sorted = sorted(datos_lineas, key=lambda x: x['venta'], reverse=True)
+
         return render_template('dashboard_clean.html',
                              meses_disponibles=meses_disponibles,
                              mes_seleccionado=mes_seleccionado,
                              mes_nombre=mes_nombre,
                              dia_actual=dia_actual,
                              kpis=kpis,
-                             datos_lineas=datos_lineas, # Usar para gráficos
-                             datos_lineas_tabla=datos_lineas, # Usar para la tabla
+                             datos_lineas=datos_lineas, # Para gráficos, mantener el orden original (alfabético por nombre)
+                             datos_lineas_tabla=datos_lineas_tabla_sorted, # Para la tabla, usar los datos ordenados por venta
                              datos_productos=datos_productos,
                              datos_ciclo_vida=datos_ciclo_vida if 'datos_ciclo_vida' in locals() else [],
                              datos_forma_farmaceutica=datos_forma_farmaceutica,
@@ -762,6 +787,14 @@ def dashboard_linea():
             })
             # Sumar los ajustes al total de ventas de la línea
             total_venta += ajustes_sin_vendedor
+
+        # Añadir porcentaje sobre el total a cada vendedor
+        if total_venta > 0:
+            for v in datos_vendedores:
+                v['porcentaje_sobre_total'] = (v.get('venta', 0) / total_venta) * 100
+        else:
+            for v in datos_vendedores:
+                v['porcentaje_sobre_total'] = 0
 
         # --- 4.4. FILTRAR VENDEDORES CON VENTA NEGATIVA ---
         # Si un vendedor solo tiene notas de crédito (venta < 0), no se muestra en la tabla,
