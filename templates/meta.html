@@ -90,6 +90,34 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    <!-- Fila estática para ECOMMERCE -->
+                    <tr>
+                        <td class="linea-nombre">ECOMMERCE</td>
+                        <td class="meta-input-cell">
+                            <input 
+                                type="text" 
+                                name="meta_ecommerce" 
+                                class="meta-input-table meta-total-input" 
+                                value="{{ '{:,.0f}'.format(metas_actuales.get('ecommerce', 0)) if metas_actuales and metas_actuales.get('ecommerce', 0) > 0 else '' }}"
+                                placeholder="50,000"
+                                onchange="calculateTotal()"
+                                oninput="formatNumber(this)"
+                                onkeypress="return onlyNumbers(event)"
+                            >
+                        </td>
+                        <td class="meta-input-cell">
+                            <input 
+                                type="text" 
+                                name="meta_ipn_ecommerce" 
+                                class="meta-input-table meta-ipn-input" 
+                                value="{{ '{:,.0f}'.format(metas_ipn_actuales.get('ecommerce', 0)) if metas_ipn_actuales and metas_ipn_actuales.get('ecommerce', 0) > 0 else '' }}"
+                                placeholder="10,000"
+                                onchange="calculateTotal()"
+                                oninput="formatNumber(this)"
+                                onkeypress="return onlyNumbers(event)"
+                            >
+                        </td>
+                    </tr>
                     <tr class="total-row">
                         <td class="total-label"><strong>Total</strong></td>
                         <td class="total-value"><strong id="total-amount">{{ "{:,.0f}".format(total_actual) }}</strong></td>

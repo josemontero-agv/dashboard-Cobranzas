@@ -200,11 +200,15 @@ def dashboard():
         
         # Procesar datos de ventas por línea comercial
         datos_lineas = []
-        total_meta = 0
         total_venta = 0
-        total_meta_pn = 0
-        total_venta_pn = 0
         total_vencimiento = 0
+        total_venta_pn = 0
+        
+        # --- CÁLCULO DE TOTALES ---
+        # Calcular totales de metas ANTES de filtrar las líneas para la tabla.
+        # Esto asegura que ECOMMERCE se incluya en el total general del KPI.
+        total_meta = sum(metas_del_mes.values())
+        total_meta_pn = sum(metas_ipn_del_mes.values())
         
         # Mapeo de líneas comerciales de Odoo a IDs locales
         mapeo_lineas = {
@@ -311,7 +315,8 @@ def dashboard():
         ]
 
         # Pre-calcular la venta total para el cálculo de porcentajes
-        total_venta_calculado = sum(ventas_por_linea.values())
+        total_venta = sum(ventas_por_linea.values())
+        total_venta_calculado = total_venta # Renombrar para claridad en el bucle
 
         for linea in lineas_comerciales_filtradas:
             meta = metas_del_mes.get(linea['id'], 0)
@@ -341,9 +346,7 @@ def dashboard():
                 'vencimiento_6_meses': vencimiento
             })
             
-            total_meta += meta
-            total_venta += venta
-            total_meta_pn += meta_pn
+            # Los totales de metas ya se calcularon. Aquí solo sumamos los totales de ventas.
             total_venta_pn += venta_pn
             total_vencimiento += vencimiento
         
@@ -942,6 +945,28 @@ def meta():
                 except (ValueError, TypeError):
                     metas_ipn_data[linea['id']] = 0.0
             
+            # --- Procesar Meta ECOMMERCE (campo estático) ---
+            # Procesar Meta Total ECOMMERCE
+            meta_ecommerce_value = request.form.get('meta_ecommerce', '0')
+            try:
+                clean_value_ecommerce = str(meta_ecommerce_value).replace(',', '') if meta_ecommerce_value else '0'
+                valor_ecommerce = float(clean_value_ecommerce) if clean_value_ecommerce else 0.0
+                metas_data['ecommerce'] = valor_ecommerce
+                total_meta += valor_ecommerce
+            except (ValueError, TypeError):
+                metas_data['ecommerce'] = 0.0
+
+            # Procesar Meta IPN ECOMMERCE
+            meta_ipn_ecommerce_value = request.form.get('meta_ipn_ecommerce', '0')
+            try:
+                clean_value_ipn_ecommerce = str(meta_ipn_ecommerce_value).replace(',', '') if meta_ipn_ecommerce_value else '0'
+                valor_ipn_ecommerce = float(clean_value_ipn_ecommerce) if clean_value_ipn_ecommerce else 0.0
+                metas_ipn_data['ecommerce'] = valor_ipn_ecommerce
+                total_meta_ipn += valor_ipn_ecommerce
+            except (ValueError, TypeError):
+                metas_ipn_data['ecommerce'] = 0.0
+            # --- Fin del procesamiento de ECOMMERCE ---
+
             # Encontrar el nombre del mes
             mes_obj = next((m for m in meses_año if m['key'] == mes_formulario), None)
             mes_nombre_formulario = mes_obj['nombre'] if mes_obj else ""
