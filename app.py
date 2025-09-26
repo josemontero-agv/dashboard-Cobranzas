@@ -214,6 +214,7 @@ def dashboard():
             'AVIVET': 'avivet',
             'OTROS': 'otros',
             'GENVET': 'genvet',
+            'INTERPET': 'interpet',
         }
         
         # Calcular ventas reales por línea comercial
@@ -618,7 +619,7 @@ def dashboard_linea():
         mapeo_nombre_a_id = {
             'PETMEDICA': 'petmedica', 'AGROVET': 'agrovet', 'PET NUTRISCIENCE': 'pet_nutriscience',
             'AVIVET': 'avivet', 'OTROS': 'otros',
-            'GENVET': 'genvet',
+            'GENVET': 'genvet', 'INTERPET': 'interpet',
         }
         linea_seleccionada_id = mapeo_nombre_a_id.get(linea_seleccionada_nombre.upper(), 'petmedica')
 
@@ -841,7 +842,7 @@ def dashboard_linea():
 
         # Lista de todas las líneas para el selector
         lineas_disponibles = [
-            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET'
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET'
         ]
 
         return render_template('dashboard_linea.html',
@@ -864,7 +865,7 @@ def dashboard_linea():
         meses_disponibles = get_meses_del_año(año_actual)
         linea_seleccionada_nombre = request.args.get('linea_nombre', 'PETMEDICA')
         lineas_disponibles = [
-            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET'
+            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET'
         ]
         kpis_default = {
             'meta_total': 0, 'venta_total': 0, 'porcentaje_avance': 0,
@@ -899,6 +900,7 @@ def meta():
             {'nombre': 'AVIVET', 'id': 'avivet'},
             {'nombre': 'OTROS', 'id': 'otros'},
             {'nombre': 'GENVET', 'id': 'genvet'},
+            {'nombre': 'INTERPET', 'id': 'interpet'},
         ]
         
         # Obtener año actual y mes seleccionado
@@ -1090,6 +1092,7 @@ def metas_vendedor():
         {'nombre': 'AVIVET', 'id': 'avivet'},
         {'nombre': 'OTROS', 'id': 'otros'},
         {'nombre': 'GENVET', 'id': 'genvet'},
+        {'nombre': 'INTERPET', 'id': 'interpet'},
     ]
     equipos_definidos = [
         {'id': 'petmedica', 'nombre': 'PETMEDICA'},
@@ -1097,6 +1100,7 @@ def metas_vendedor():
         {'id': 'pet_nutriscience', 'nombre': 'PET NUTRISCIENCE'},
         {'id': 'avivet', 'nombre': 'AVIVET'},
         {'id': 'otros', 'nombre': 'OTROS'},
+        {'id': 'interpet', 'nombre': 'INTERPET'},
     ]
 
     # Determinar mes y línea seleccionados (desde form o por defecto)
