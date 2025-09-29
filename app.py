@@ -899,6 +899,20 @@ def dashboard_linea():
             'ritmo_diario_requerido': ritmo_diario_requerido_linea
         }
 
+        # --- Avance lineal específico de la línea: proyección de cierre y faltante ---
+        try:
+            dias_en_mes = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+        except Exception:
+            dias_en_mes = 30
+
+        if dia_actual > 0:
+            proyeccion_mensual_linea = (total_venta / dia_actual) * dias_en_mes
+        else:
+            proyeccion_mensual_linea = 0
+
+        avance_lineal_pct = (proyeccion_mensual_linea / total_meta * 100) if total_meta > 0 else 0
+        faltante_meta = max(total_meta - total_venta, 0)
+
         # Datos para gráficos
         productos_ordenados = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
         datos_productos = [{'nombre': n, 'venta': v} for n, v in productos_ordenados]
@@ -930,7 +944,6 @@ def dashboard_linea():
             lineas_disponibles = ['PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET']
         else:
             lineas_disponibles = sorted(list(lineas_set))
-
         return render_template('dashboard_linea.html',
                                linea_nombre=linea_seleccionada_nombre,
                                mes_seleccionado=mes_seleccionado,
@@ -942,7 +955,9 @@ def dashboard_linea():
                                datos_forma_farmaceutica=datos_forma_farmaceutica,
                                lineas_disponibles=lineas_disponibles,
                                fecha_actual=fecha_actual,
-                               dia_actual=dia_actual)
+                               dia_actual=dia_actual,
+                               avance_lineal_pct=avance_lineal_pct,
+                               faltante_meta=faltante_meta)
 
     except Exception as e:
         flash(f'Error al generar el dashboard para la línea: {str(e)}', 'danger')
@@ -971,7 +986,10 @@ def dashboard_linea():
                                datos_ciclo_vida=[],
                                datos_forma_farmaceutica=[],
                                lineas_disponibles=lineas_disponibles,
-                               fecha_actual=fecha_actual)
+                               fecha_actual=fecha_actual,
+                               dia_actual=dia_actual,
+                               avance_lineal_pct=0,
+                               faltante_meta=0)
 
 
 @app.route('/meta', methods=['GET', 'POST'])

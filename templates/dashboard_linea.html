@@ -124,6 +124,18 @@
         </div>
         {% endif %}
         {% endif %}
+
+        <!-- Proyección lineal: porcentaje estimado de cierre -->
+        <div class="avance-card">
+            <div class="avance-label">Proyección Cierre</div>
+            <div class="avance-value">{% if avance_lineal_pct is defined and avance_lineal_pct > 0 %}{{ "{:.1f} %".format(avance_lineal_pct) }}{% else %}-{% endif %}</div>
+        </div>
+
+        <!-- Faltante en soles -->
+        <div class="avance-card">
+            <div class="avance-label">Faltante (S/)</div>
+            <div class="avance-value">{% if faltante_meta is defined and faltante_meta > 0 %}S/ {{ "{:,.0f}".format(faltante_meta) }}{% else %}-{% endif %}</div>
+        </div>
     </div>
 
     <!-- Fila Principal: Tabla y Gráfico Donut -->
