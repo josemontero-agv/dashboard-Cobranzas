@@ -20,7 +20,21 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # --- Inicialización de Managers ---
-data_manager = OdooManager()
+try:
+    data_manager = OdooManager()
+except Exception as e:
+    print(f"⚠️ No se pudo inicializar OdooManager: {e}. Continuando en modo offline.")
+    # Crear un stub mínimo con las funciones usadas en la app para evitar fallos
+    class _StubManager:
+        def get_filter_options(self):
+            return {'lineas': [], 'clients': []}
+        def get_sales_lines(self, *args, **kwargs):
+            return []
+        def get_all_sellers(self):
+            return []
+        def get_commercial_lines_stacked_data(self, *args, **kwargs):
+            return {'yAxis': [], 'series': [], 'legend': []}
+    data_manager = _StubManager()
 gs_manager = GoogleSheetsManager(
     credentials_file='credentials.json',
     sheet_name=os.getenv('GOOGLE_SHEET_NAME')
@@ -392,6 +406,22 @@ def dashboard():
             'avance_diario_ipn': ((total_venta_pn / total_meta_pn * 100) / dia_actual) if total_meta_pn > 0 and dia_actual > 0 else 0,
             'ritmo_diario_requerido': ritmo_diario_requerido
         }
+
+        # --- Avance lineal: proyección de cierre y faltante ---
+        # Proyección mensual lineal: proyectar ventas actuales al mes completo
+        try:
+            dias_en_mes = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+        except Exception:
+            dias_en_mes = 30
+
+        if dia_actual > 0:
+            proyeccion_mensual = (total_venta / dia_actual) * dias_en_mes
+        else:
+            proyeccion_mensual = 0
+
+        avance_lineal_pct = (proyeccion_mensual / total_meta * 100) if total_meta > 0 else 0
+        faltante_meta = max(total_meta - total_venta, 0)
+
         
         # 3. Ordenar productos para el gráfico Top 7
         # Ordenar productos por ventas y tomar los top 7
@@ -569,7 +599,9 @@ def dashboard():
                              drilldown_titles=drilldown_titles,
                              top_products_by_level=top_products_by_level,
                              pie_chart_data_by_level=pie_chart_data_by_level,
-                             all_stacked_chart_data=json.dumps(all_stacked_chart_data))
+                             all_stacked_chart_data=json.dumps(all_stacked_chart_data),
+                             avance_lineal_pct=avance_lineal_pct,
+                             faltante_meta=faltante_meta)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
@@ -603,6 +635,8 @@ def dashboard():
                              datos_ciclo_vida=[],
                              datos_forma_farmaceutica=[],
                              fecha_actual=fecha_actual,
+                             avance_lineal_pct=0,
+                             faltante_meta=0,
                              drilldown_data={},
                              drilldown_titles={})
 

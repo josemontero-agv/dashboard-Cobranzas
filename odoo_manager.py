@@ -1,6 +1,8 @@
 # odoo_manager.py - Versión Completa Restaurada
 
 import xmlrpc.client
+import http.client
+import socket
 import os
 import pandas as pd
 from datetime import datetime, timedelta
@@ -65,13 +67,43 @@ class OdooManager:
             self.db = os.getenv('ODOO_DB', 'amah-staging-23367866')
             self.username = os.getenv('ODOO_USER', 'AMAHOdoo@agrovetmarket.com')
             self.password = os.getenv('ODOO_PASSWORD', 'Agrovet25**')
-            
-            # Establecer conexión
-            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            self.uid = common.authenticate(self.db, self.username, self.password, {})
+            # Timeout configurable para llamadas XML-RPC (segundos)
+            try:
+                rpc_timeout = int(os.getenv('ODOO_RPC_TIMEOUT', '10'))
+            except Exception:
+                rpc_timeout = 10
+
+            # Transport personalizado que aplica timeout a la conexión HTTP/HTTPS
+            class TimeoutTransport(xmlrpc.client.Transport):
+                def __init__(self, timeout=None, use_https=False):
+                    super().__init__()
+                    self._timeout = timeout
+                    self._use_https = use_https
+
+                def make_connection(self, host):
+                    # host may include :port
+                    if self._use_https:
+                        return http.client.HTTPSConnection(host, timeout=self._timeout)
+                    return http.client.HTTPConnection(host, timeout=self._timeout)
+
+            use_https = str(self.url).lower().startswith('https')
+            transport = TimeoutTransport(timeout=rpc_timeout, use_https=use_https)
+
+            # Establecer conexión con timeout
+            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common', transport=transport)
+            try:
+                self.uid = common.authenticate(self.db, self.username, self.password, {})
+            except socket.timeout:
+                print(f"⏱️ Timeout al conectar a Odoo después de {rpc_timeout}s. Continuando en modo offline.")
+                self.uid = None
+            except Exception as auth_e:
+                # Manejar errores de protocolo o conexión sin bloquear
+                print(f"⚠️ Error durante authenticate() a Odoo: {auth_e}")
+                self.uid = None
             
             if self.uid:
-                self.models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object')
+                # Usar el mismo transport para el endpoint de object
+                self.models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object', transport=transport)
                 print("✅ Conexión a Odoo establecida exitosamente.")
             else:
                 print("❌ Advertencia: No se pudo autenticar. Continuando en modo offline.")
