@@ -4,6 +4,8 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 {% endblock %}
 
 {% block content %}
@@ -19,10 +21,10 @@
     </div>
     
     <!-- Calendario central -->
-    <div class="calendario-dia">
+    <a id="date-picker-trigger" class="calendario-dia" style="cursor: pointer; text-decoration: none;">
         <div class="dia-numero">{{ dia_actual }}</div>
         <div class="dia-texto">{{ mes_nombre.split()[0][:3] }}</div>
-    </div>
+    </a>
     
     <div class="header-nav">
         <select id="mes-selector" onchange="cambiarMes(this.value)">
@@ -1112,6 +1114,30 @@ document.addEventListener('DOMContentLoaded', function() {
     crearGraficoLineas();
     crearGraficoFormaFarmaceutica(); // ECharts
     crearGraficoDrilldown(); // ECharts
+
+    // --- Flatpickr Initialization ---
+    const mesSeleccionado = document.getElementById('mes-selector').value; // "YYYY-MM"
+    const [year, month] = mesSeleccionado.split('-').map(Number);
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+    const diaFinParam = new URLSearchParams(window.location.search).get('dia_fin') || '{{ dia_actual }}';
+
+    flatpickr("#date-picker-trigger", {
+        defaultDate: `${mesSeleccionado}-${String(diaFinParam).padStart(2, '0')}`,
+        minDate: `${mesSeleccionado}-01`,
+        maxDate: `${mesSeleccionado}-${lastDayOfMonth}`,
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length > 0) {
+                const selectedDay = selectedDates[0].getDate();
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('dia_fin', selectedDay);
+                if (!currentUrl.searchParams.has('mes')) {
+                    currentUrl.searchParams.set('mes', mesSeleccionado);
+                }
+                window.location.href = currentUrl.toString();
+            }
+        },
+    });
 
     // Inicializar selector de líneas para el gráfico apilado
     const allLines = allStackedChartData['Forma Farmacéutica'].yAxis.map(line => ({ value: line, text: line }));

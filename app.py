@@ -151,6 +151,10 @@ def dashboard():
         año_actual = fecha_actual.year
         mes_seleccionado = request.args.get('mes', fecha_actual.strftime('%Y-%m'))
         
+        # --- NUEVA LÓGICA DE FILTRADO POR DÍA ---
+        # Obtener el día final del filtro, si existe
+        dia_fin_param = request.args.get('dia_fin')
+
         # Crear todos los meses del año actual
         meses_disponibles = get_meses_del_año(año_actual)
         
@@ -158,16 +162,31 @@ def dashboard():
         mes_obj = next((m for m in meses_disponibles if m['key'] == mes_seleccionado), None)
         mes_nombre = mes_obj['nombre'] if mes_obj else "Mes Desconocido"
         
-        # Obtener día correcto según el mes seleccionado
-        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
-            # Mes actual: usar día actual
-            dia_actual = fecha_actual.day
-        else:
-            # Mes pasado: usar último día del mes para mostrar el total del mes completo
-            año_sel, mes_sel = mes_seleccionado.split('-')
-            ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
-            dia_actual = ultimo_dia
+        año_sel, mes_sel = mes_seleccionado.split('-')
         
+        # Determinar el día a usar para los cálculos y la fecha final
+        if dia_fin_param:
+            try:
+                dia_actual = int(dia_fin_param)
+                fecha_fin = f"{año_sel}-{mes_sel}-{str(dia_actual).zfill(2)}"
+            except (ValueError, TypeError):
+                # Si el parámetro no es un número válido, usar el comportamiento por defecto
+                dia_fin_param = None # Resetear para que entre al siguiente bloque
+        
+        if not dia_fin_param:
+            # Comportamiento original si no hay filtro de día
+            if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+                # Mes actual: usar día actual
+                dia_actual = fecha_actual.day
+            else:
+                # Mes pasado: usar último día del mes
+                ultimo_dia_mes = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+                dia_actual = ultimo_dia_mes
+            fecha_fin = f"{año_sel}-{mes_sel}-{str(dia_actual).zfill(2)}"
+
+        fecha_inicio = f"{año_sel}-{mes_sel}-01"
+        # --- FIN DE LA NUEVA LÓGICA ---
+
         # Obtener metas del mes seleccionado desde la sesión
         metas_historicas = gs_manager.read_metas_por_linea()
         metas_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
@@ -177,13 +196,7 @@ def dashboard():
         
         # Obtener datos reales de ventas desde Odoo
         try:
-            # Calcular fechas para el mes seleccionado
-            año_sel, mes_sel = mes_seleccionado.split('-')
-            fecha_inicio = f"{año_sel}-{mes_sel}-01"
-            
-            # Último día del mes
-            ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
-            fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
+            # Las fechas de inicio y fin ahora se calculan más arriba
             
             # Obtener datos de ventas reales desde Odoo
             sales_data = data_manager.get_sales_lines(
@@ -608,15 +621,27 @@ def dashboard_linea():
 
         linea_seleccionada_nombre = request.args.get('linea_nombre', 'PETMEDICA') # Default a PETMEDICA si no se especifica
 
-        # Obtener día correcto según el mes seleccionado (lógica del dashboard principal)
-        if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
-            # Mes actual: usar día actual
-            dia_actual = fecha_actual.day
-        else:
-            # Mes pasado: usar último día del mes
-            año_sel_dia, mes_sel_dia = mes_seleccionado.split('-')
-            ultimo_dia_mes = calendar.monthrange(int(año_sel_dia), int(mes_sel_dia))[1]
-            dia_actual = ultimo_dia_mes
+        # --- NUEVA LÓGICA DE FILTRADO POR DÍA ---
+        dia_fin_param = request.args.get('dia_fin')
+        año_sel, mes_sel = mes_seleccionado.split('-')
+
+        if dia_fin_param:
+            try:
+                dia_actual = int(dia_fin_param)
+                fecha_fin = f"{año_sel}-{mes_sel}-{str(dia_actual).zfill(2)}"
+            except (ValueError, TypeError):
+                dia_fin_param = None
+        
+        if not dia_fin_param:
+            if mes_seleccionado == fecha_actual.strftime('%Y-%m'):
+                dia_actual = fecha_actual.day
+            else:
+                ultimo_dia_mes = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+                dia_actual = ultimo_dia_mes
+            fecha_fin = f"{año_sel}-{mes_sel}-{str(dia_actual).zfill(2)}"
+        
+        fecha_inicio = f"{año_sel}-{mes_sel}-01"
+        # --- FIN DE LA NUEVA LÓGICA ---
 
         # Mapeo de nombre de línea a ID para cargar metas
         mapeo_nombre_a_id = {
@@ -627,10 +652,14 @@ def dashboard_linea():
         linea_seleccionada_id = mapeo_nombre_a_id.get(linea_seleccionada_nombre.upper(), 'petmedica')
 
         # --- 2. OBTENER DATOS ---
+        # fecha_inicio y fecha_fin se calculan arriba usando la lógica de dia_fin.
+        # Asegurar que fecha_inicio siempre esté definida
         año_sel, mes_sel = mes_seleccionado.split('-')
         fecha_inicio = f"{año_sel}-{mes_sel}-01"
-        ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
-        fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
+        # Si no se definió fecha_fin arriba (por alguna razón), usar el último día del mes
+        if 'fecha_fin' not in locals():
+            ultimo_dia = calendar.monthrange(int(año_sel), int(mes_sel))[1]
+            fecha_fin = f"{año_sel}-{mes_sel}-{ultimo_dia}"
 
         # Cargar metas de vendedores para el mes y línea seleccionados
         # La estructura es metas[equipo_id][vendedor_id][mes_key]
@@ -843,10 +872,30 @@ def dashboard_linea():
         datos_ciclo_vida = [{'ciclo': c, 'venta': v} for c, v in ventas_por_ciclo_vida.items()]
         datos_forma_farmaceutica = [{'forma': f, 'venta': v} for f, v in ventas_por_forma.items()]
 
-        # Lista de todas las líneas para el selector
-        lineas_disponibles = [
-            'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET'
-        ]
+        # Lista dinámica de todas las líneas para el selector (a partir de ventas y metas)
+        lineas_set = set()
+        # Extraer líneas desde los datos de ventas crudos
+        for sale in sales_data:
+            linea_obj = sale.get('commercial_line_national_id')
+            if linea_obj and isinstance(linea_obj, list) and len(linea_obj) > 1:
+                nombre_linea = linea_obj[1].upper()
+                if 'VENTA INTERNACIONAL' in nombre_linea:
+                    continue
+                if nombre_linea.upper() in ['LICITACION', 'NINGUNO', 'ECOMMERCE']:
+                    continue
+                lineas_set.add(nombre_linea)
+
+        # Añadir líneas desde las metas (reconstruir nombre desde el id)
+        for linea_id_meta in metas_vendedores_historicas.keys():
+            nombre_reconstruido = linea_id_meta.replace('_', ' ').upper()
+            if nombre_reconstruido not in lineas_set:
+                lineas_set.add(nombre_reconstruido)
+
+        # Fallback a la lista estática si quedó vacío
+        if not lineas_set:
+            lineas_disponibles = ['PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET']
+        else:
+            lineas_disponibles = sorted(list(lineas_set))
 
         return render_template('dashboard_linea.html',
                                linea_nombre=linea_seleccionada_nombre,
@@ -858,7 +907,8 @@ def dashboard_linea():
                                datos_ciclo_vida=datos_ciclo_vida,
                                datos_forma_farmaceutica=datos_forma_farmaceutica,
                                lineas_disponibles=lineas_disponibles,
-                               fecha_actual=fecha_actual)
+                               fecha_actual=fecha_actual,
+                               dia_actual=dia_actual)
 
     except Exception as e:
         flash(f'Error al generar el dashboard para la línea: {str(e)}', 'danger')
@@ -870,6 +920,7 @@ def dashboard_linea():
         lineas_disponibles = [
             'PETMEDICA', 'AGROVET', 'PET NUTRISCIENCE', 'AVIVET', 'OTROS', 'GENVET', 'INTERPET'
         ]
+        dia_actual = fecha_actual.day
         kpis_default = {
             'meta_total': 0, 'venta_total': 0, 'porcentaje_avance': 0,
             'meta_ipn': 0, 'venta_ipn': 0, 'porcentaje_avance_ipn': 0,

@@ -1,8 +1,34 @@
 {% extends 'base.html' %}
 
-{% block head %}<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+.calendario-dia {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #3498db;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    min-width: 60px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    gap: 8px;
+}
+.dia-numero {
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+}
+.dia-texto {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+</style>
 
 <!-- Header estilo Odoo -->
 <div class="dashboard-header">
@@ -10,29 +36,40 @@
         <h1><i class="bi bi-bar-chart-line-fill"></i> Dashboard Línea Comercial</h1>
         <span class="header-username">{{ session.user_name }}</span>
     </div>
-    <div class="header-filters">
-        <div class="filter-group">
-            <label for="mes-selector"><i class="bi bi-calendar-month"></i> Mes</label>
-            <select id="mes-selector" onchange="cambiarFiltro()">
-                {% for mes in meses_disponibles %}
-                <option value="{{ mes.key }}" {% if mes.key == mes_seleccionado %}selected{% endif %}>
-                    {{ mes.nombre }}
-                </option>
-                {% endfor %}
-            </select>
+    
+    <!-- Calendario central (botón de día) -->
+    <a id="date-picker-trigger" class="calendario-dia" style="cursor: pointer; text-decoration: none;">
+        <div class="dia-numero">{{ dia_actual }}</div>
+        <div class="dia-texto">
+            {% for mes in meses_disponibles %}
+                {% if mes.key == mes_seleccionado %}
+                    {{ mes.nombre.split()[0][:3] }}
+                {% endif %}
+            {% endfor %}
         </div>
-        <div class="filter-group">
-            <label for="linea-selector"><i class="bi bi-tag-fill"></i> Línea Comercial</label>
-            <select id="linea-selector" onchange="cambiarFiltro()">
-                {% for linea in lineas_disponibles %}
-                <option value="{{ linea }}" {% if linea.upper() == linea_nombre.upper() %}selected{% endif %}>
-                    {{ linea }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
-    <div class="header-nav">
+    </a>
+            <div class="header-filters">
+                <div class="filter-group">
+                    <label for="mes-selector"><i class="bi bi-calendar-month"></i> Mes</label>
+                    <select id="mes-selector" onchange="cambiarFiltro()">
+                        {% for mes in meses_disponibles %}
+                        <option value="{{ mes.key }}" {% if mes.key == mes_seleccionado %}selected{% endif %}>
+                            {{ mes.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                        <label for="linea-selector"><i class="bi bi-tag-fill"></i> Línea Comercial</label>
+                        <select id="linea-selector" onchange="cambiarFiltro()">
+                            {% for linea in lineas_disponibles %}
+                            <option value="{{ linea }}" {% if linea.upper() == linea_nombre.upper() %}selected{% endif %}>
+                                {{ linea }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+            </div>    <div class="header-nav">
         <a href="{{ url_for('dashboard', mes=mes_seleccionado) }}" class="btn-nav"><i class="bi bi-arrow-left-circle"></i> Volver al Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
@@ -313,7 +350,17 @@ body {
     function cambiarFiltro() {
         const linea = document.getElementById('linea-selector').value;
         const mes = document.getElementById('mes-selector').value;
-        window.location.href = `{{ url_for('dashboard_linea') }}?linea_nombre=${linea}&mes=${mes}`;
+        const diaElem = document.querySelector('#date-picker-trigger .dia-numero');
+        const dia_fin = diaElem ? diaElem.textContent.trim() : null;
+
+        let params = new URLSearchParams();
+        params.set('linea_nombre', linea);
+        params.set('mes', mes);
+        if (dia_fin) {
+            params.set('dia_fin', dia_fin);
+        }
+
+        window.location.href = `{{ url_for('dashboard_linea') }}?${params.toString()}`;
     }
 
     // Gráfico Donut: Ciclo de Vida
@@ -403,6 +450,32 @@ body {
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        const mesSeleccionado = document.getElementById('mes-selector').value; // "YYYY-MM"
+        const [year, month] = mesSeleccionado.split('-').map(Number);
+        const lastDayOfMonth = new Date(year, month, 0).getDate();
+        const urlParams = new URLSearchParams(window.location.search);
+        const diaFinParam = urlParams.get('dia_fin') || '{{ dia_actual }}';
+
+        flatpickr("#date-picker-trigger", {
+            defaultDate: `${mesSeleccionado}-${String(diaFinParam).padStart(2, '0')}`,
+            minDate: `${mesSeleccionado}-01`,
+            maxDate: `${mesSeleccionado}-${lastDayOfMonth}`,
+            dateFormat: "Y-m-d",
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length > 0) {
+                    const selectedDay = selectedDates[0].getDate();
+                    const diaNumeroEl = document.querySelector('#date-picker-trigger .dia-numero');
+                    if (diaNumeroEl) diaNumeroEl.textContent = selectedDay;
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('dia_fin', selectedDay);
+                    if (!currentUrl.searchParams.has('mes')) {
+                        currentUrl.searchParams.set('mes', mesSeleccionado);
+                    }
+                    window.location.href = currentUrl.toString();
+                }
+            },
+        });
+
         crearGraficoCicloVida();
         crearGraficoProductos();
         crearGraficoVendedores();
