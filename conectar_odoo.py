@@ -20,7 +20,7 @@ if not all([url, db, username, password]):
 
 # --- 2. AUTENTICACIÓN ---
 # El resto del código funciona exactamente igual, pero ahora usa las variables cargadas.
-common = xmlrpc.client.ServerProxy(f'https://{url}/xmlrpc/2/common')
+common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common')
 
 try:
     uid = common.authenticate(db, username, password, {})
@@ -34,7 +34,7 @@ except Exception as e:
     exit()
 
 # --- 3. EJECUTAR UNA ACCIÓN (LEER DATOS) ---
-models = xmlrpc.client.ServerProxy(f'https://{url}/xmlrpc/2/object')
+models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object')
 
 print("\nBuscando los primeros 5 productos...")
 

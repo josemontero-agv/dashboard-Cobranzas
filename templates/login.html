@@ -86,7 +86,10 @@ body.login-bg {
 </style>
 <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
     <div class="agrovet-login-card">
-        <img src="https://amah-test.odoo.com/web/binary/company_logo" alt="Agrovet Market" class="agrovet-login-logo">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #333; margin: 0;">AGROVET MARKET</h2>
+            <p style="color: #666; margin: 5px 0 0 0; font-size: 14px;">Dashboard de Ventas</p>
+        </div>
         <hr class="agrovet-login-divider">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

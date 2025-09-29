@@ -60,13 +60,22 @@ class OdooManager:
             'legend': [cat[1] for cat in categories]
         }
     def __init__(self):
-        # Configurar conexión a Odoo - Usar directamente credenciales del .env
+        # Configurar conexión a Odoo - Usar credenciales del .env
         try:
-            # Usar directamente las credenciales que funcionan
-            self.url = os.getenv('ODOO_URL', 'https://amah-test.odoo.com')
-            self.db = os.getenv('ODOO_DB', 'amah-staging-23367866')
-            self.username = os.getenv('ODOO_USER', 'AMAHOdoo@agrovetmarket.com')
-            self.password = os.getenv('ODOO_PASSWORD', 'Agrovet25**')
+            # Cargar credenciales desde variables de entorno (sin valores por defecto)
+            self.url = os.getenv('ODOO_URL')
+            self.db = os.getenv('ODOO_DB')
+            self.username = os.getenv('ODOO_USER')
+            self.password = os.getenv('ODOO_PASSWORD')
+            
+            # Validar que todas las credenciales estén configuradas
+            if not all([self.url, self.db, self.username, self.password]):
+                missing = [var for var, val in [
+                    ('ODOO_URL', self.url), ('ODOO_DB', self.db), 
+                    ('ODOO_USER', self.username), ('ODOO_PASSWORD', self.password)
+                ] if not val]
+                raise ValueError(f"Variables de entorno faltantes: {', '.join(missing)}")
+            
             # Timeout configurable para llamadas XML-RPC (segundos)
             try:
                 rpc_timeout = int(os.getenv('ODOO_RPC_TIMEOUT', '10'))
