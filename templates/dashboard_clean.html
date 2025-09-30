@@ -78,32 +78,50 @@
     </div>
     
     <!-- Avance diario -->
-    <div class="avance-diario">
+    <div class="avance-diario-grid">
+        <!-- FILA 1 -->
         <div class="avance-card">
-            <div class="avance-label">Avance Diario Total</div>
+            <div class="avance-label">Avance Diario</div>
             <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_total) }}</div>
         </div>
         
         <div class="avance-card">
-            <div class="avance-label">Avance Diario IPN</div>
-            <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_ipn) }}</div>
+            <div class="avance-label">Avance Diario Acumulado</div>
+            <div class="avance-value">{% if avance_lineal_pct is defined and avance_lineal_pct > 0 %}{{ "{:.1f} %".format(avance_lineal_pct) }}{% else %}-{% endif %}</div>
         </div>
+
         {% if mes_seleccionado == fecha_actual.strftime('%Y-%m') %}
         <div class="avance-card avance-requerido">
             <div class="avance-label">Ritmo Diario Requerido de Venta (L-S)</div>
             <div class="avance-value">{{ "{:.1f} %".format(kpis.ritmo_diario_requerido) }}</div>
         </div>
+        {% else %}
+        <div class="avance-card-placeholder"></div>
         {% endif %}
-        <!-- Proyección lineal: porcentaje estimado de cierre -->
+
         <div class="avance-card">
-            <div class="avance-label">Proyección Cierre</div>
-            <div class="avance-value">{% if avance_lineal_pct is defined and avance_lineal_pct > 0 %}{{ "{:.1f} %".format(avance_lineal_pct) }}{% else %}-{% endif %}</div>
+            <div class="avance-label">Avance Diario IPN</div>
+            <div class="avance-value">{{ "{:.1f} %".format(kpis.avance_diario_ipn) }}</div>
         </div>
 
-        <!-- Faltante en soles -->
         <div class="avance-card">
-            <div class="avance-label">Faltante (S/)</div>
+            <div class="avance-label">Avance Diario IPN Acumulado</div>
+            <div class="avance-value">{% if avance_lineal_ipn_pct is defined and avance_lineal_ipn_pct > 0 %}{{ "{:.1f} %".format(avance_lineal_ipn_pct) }}{% else %}-{% endif %}</div>
+        </div>
+
+        <!-- FILA 2 -->
+        <div class="avance-card">
+            <div class="avance-label">Brecha Comercial (S/)</div>
             <div class="avance-value">{% if faltante_meta is defined and faltante_meta > 0 %}S/ {{ "{:,.0f}".format(faltante_meta) }}{% else %}-{% endif %}</div>
+        </div>
+
+        <div class="avance-card-spacer"></div>
+        <div class="avance-card-spacer"></div>
+        <div class="avance-card-spacer"></div>
+
+        <div class="avance-card">
+            <div class="avance-label">Brecha Comercial IPN (S/)</div>
+            <div class="avance-value">{% if faltante_meta_ipn is defined and faltante_meta_ipn > 0 %}S/ {{ "{:,.0f}".format(faltante_meta_ipn) }}{% else %}-{% endif %}</div>
         </div>
     </div>
     
@@ -405,10 +423,21 @@ body {
 
 .kpi-card {
     background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 5px 15px; /* Aumentado padding para más espacio interno */
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     text-align: center;
+    height: auto; /* Altura automática basada en contenido */
+    min-height: 30px; /* Aumentado de 20px a 30px */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Eliminar completamente cualquier animación */
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    pointer-events: auto;
 }
 .kpi-card.kpi-meta {
     border-left: 4px solid #8e44ad;
@@ -424,56 +453,107 @@ body {
     background: #d6eaf8;
 }
 
+/* Eliminar cualquier estado hover, focus, active */
+.kpi-card:hover,
+.kpi-card:focus,
+.kpi-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+}
+
 .kpi-label {
-    font-size: 12px;
+    font-size: 12px; /* Tamaño normal - NO reducir */
     color: #7f8c8d;
-    margin-bottom: 8px;
+    margin-bottom: 2px; /* Pequeño espacio entre label y valor */
     font-weight: 600;
+    line-height: 1;
 }
 
 .kpi-value {
-    font-size: 18px;
+    font-size: 18px; /* Tamaño normal - NO reducir */
     font-weight: bold;
     color: #2c3e50;
+    line-height: 1;
 }
 
-/* Avance Diario */
-.avance-diario {
+/* Avance Diario - Layout agrupado con IPN a la derecha */
+.avance-diario-grid {
     display: grid;
-    /* Mostrar hasta 5 tarjetas en una línea en pantallas anchas */
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* 5 columnas iguales */
+    grid-template-rows: auto auto; /* 2 filas automáticas */
     gap: 15px;
+    margin-bottom: 20px;
 }
 
-/* Responsividad: reducir columnas en pantallas medianas/pequeñas */
-@media (max-width: 1200px) {
-    .avance-diario { grid-template-columns: repeat(3, 1fr); }
+.avance-card-spacer {
+    /* Espacios vacíos en la segunda fila */
+    visibility: hidden;
 }
+
+.avance-card-placeholder {
+    /* Placeholder para cuando no hay ritmo diario */
+    visibility: hidden;
+}
+
+/* Responsividad */
+@media (max-width: 1200px) {
+    .avance-diario-grid { 
+        grid-template-columns: repeat(3, 1fr); 
+    }
+}
+
 @media (max-width: 768px) {
-    .avance-diario { grid-template-columns: repeat(2, 1fr); }
+    .avance-diario-grid { 
+        grid-template-columns: 1fr; 
+    }
+    .avance-card-spacer {
+        display: none;
+    }
 }
 
 .avance-card {
     background: #ecf0f1;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 5px 15px; /* Aumentado padding para más espacio interno */
+    border-radius: 6px;
     text-align: center;
+    height: auto; /* Altura automática basada en contenido */
+    min-height: 30px; /* Aumentado de 20px a 30px */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Eliminar completamente cualquier animación */
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
 }
 
 .avance-label {
-    font-size: 14px;
+    font-size: 14px; /* Mantener tamaño original */
     color: #7f8c8d;
-    margin-bottom: 5px;
+    margin-bottom: 2px; /* Pequeño espacio entre label y valor */
+    line-height: 1;
 }
 
 .avance-value {
-    font-size: 20px;
+    font-size: 20px; /* Mantener tamaño original */
     font-weight: bold;
     color: #e67e22;
+    line-height: 1;
 }
 
 .avance-card.avance-requerido .avance-value {
     color: #e74c3c; /* Rojo para indicar urgencia */
+}
+
+/* Eliminar cualquier estado hover, focus, active en tarjetas de avance */
+.avance-card:hover,
+.avance-card:focus,
+.avance-card:active {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
 }
 
 /* FILA PRINCIPAL - LAYOUT CORRECTO */

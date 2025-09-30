@@ -422,6 +422,20 @@ def dashboard():
         avance_lineal_pct = (proyeccion_mensual / total_meta * 100) if total_meta > 0 else 0
         faltante_meta = max(total_meta - total_venta, 0)
 
+        # Cálculos específicos para IPN (usando las variables ya calculadas)
+        # total_meta_pn ya está calculado arriba
+        # total_venta_pn ya está calculado arriba
+        
+        # Proyección lineal IPN
+        if dia_actual > 0:
+            promedio_diario_ipn = total_venta_pn / dia_actual
+            proyeccion_mensual_ipn = promedio_diario_ipn * dias_en_mes
+        else:
+            proyeccion_mensual_ipn = 0
+
+        avance_lineal_ipn_pct = (proyeccion_mensual_ipn / total_meta_pn * 100) if total_meta_pn > 0 else 0
+        faltante_meta_ipn = max(total_meta_pn - total_venta_pn, 0)
+
         
         # 3. Ordenar productos para el gráfico Top 7
         # Ordenar productos por ventas y tomar los top 7
@@ -601,7 +615,9 @@ def dashboard():
                              pie_chart_data_by_level=pie_chart_data_by_level,
                              all_stacked_chart_data=json.dumps(all_stacked_chart_data),
                              avance_lineal_pct=avance_lineal_pct,
-                             faltante_meta=faltante_meta)
+                             faltante_meta=faltante_meta,
+                             avance_lineal_ipn_pct=avance_lineal_ipn_pct,
+                             faltante_meta_ipn=faltante_meta_ipn)
     
     except Exception as e:
         flash(f'Error al obtener datos del dashboard: {str(e)}', 'danger')
