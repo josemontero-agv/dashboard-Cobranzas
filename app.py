@@ -929,6 +929,16 @@ def dashboard_linea():
         avance_lineal_pct = (proyeccion_mensual_linea / total_meta * 100) if total_meta > 0 else 0
         faltante_meta = max(total_meta - total_venta, 0)
 
+        # Cálculos específicos para IPN de la línea
+        if dia_actual > 0:
+            promedio_diario_ipn_linea = total_venta_ipn / dia_actual
+            proyeccion_mensual_ipn_linea = promedio_diario_ipn_linea * dias_en_mes
+        else:
+            proyeccion_mensual_ipn_linea = 0
+
+        avance_lineal_ipn_pct = (proyeccion_mensual_ipn_linea / total_meta_ipn * 100) if total_meta_ipn > 0 else 0
+        faltante_meta_ipn = max(total_meta_ipn - total_venta_ipn, 0)
+
         # Datos para gráficos
         productos_ordenados = sorted(ventas_por_producto.items(), key=lambda x: x[1], reverse=True)[:7]
         datos_productos = [{'nombre': n, 'venta': v} for n, v in productos_ordenados]
@@ -973,7 +983,9 @@ def dashboard_linea():
                                fecha_actual=fecha_actual,
                                dia_actual=dia_actual,
                                avance_lineal_pct=avance_lineal_pct,
-                               faltante_meta=faltante_meta)
+                               faltante_meta=faltante_meta,
+                               avance_lineal_ipn_pct=avance_lineal_ipn_pct,
+                               faltante_meta_ipn=faltante_meta_ipn)
 
     except Exception as e:
         flash(f'Error al generar el dashboard para la línea: {str(e)}', 'danger')
@@ -1005,7 +1017,9 @@ def dashboard_linea():
                                fecha_actual=fecha_actual,
                                dia_actual=dia_actual,
                                avance_lineal_pct=0,
-                               faltante_meta=0)
+                               faltante_meta=0,
+                               avance_lineal_ipn_pct=0,
+                               faltante_meta_ipn=0)
 
 
 @app.route('/meta', methods=['GET', 'POST'])
