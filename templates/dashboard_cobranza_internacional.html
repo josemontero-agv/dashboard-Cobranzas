@@ -1,0 +1,524 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Cobranza Internacional{% endblock %}
+
+{% block content %}
+<div class="dashboard-cobranza">
+<!-- Header estilo Dashboard amplio -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <div class="header-info">
+            <h1>DASHBOARD COBRANZA INTERNACIONAL</h1>
+        </div>
+    </div>
+    <div class="header-nav">
+        <a href="{{ url_for('reporte_cxc_general') }}" class="btn-nav"><i class="bi bi-file-text"></i> Reporte CxC</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
+    </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading-indicator" class="loading-indicator">
+    <div class="loading-spinner"></div>
+    <div>Cargando KPIs de cobranza internacional...</div>
+</div>
+
+<div class="container py-4">
+    <!-- Filtros -->
+    <div class="filter-card">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" id="start" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" id="end" />
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Estado de Pago</label>
+                    <select class="form-control" id="payment_state">
+                        <option value="">Todos</option>
+                        <option value="not_paid">No Pagado</option>
+                        <option value="in_payment">En Pago</option>
+                        <option value="paid">Pagado</option>
+                        <option value="partial">Parcial</option>
+                        <option value="reversed">Reversado</option>
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Línea Comercial</label>
+                    <select class="form-control" id="linea_id">
+                        <option value="">Todas</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <button class="btn btn-primary w-100" id="btnFiltrar" type="button">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs Principales -->
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-title">Facturas por Cobrar Total</div>
+                <div id="kpi-total-cobrar" class="kpi-value currency">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-title">Monto Facturas Vencidas</div>
+                <div id="kpi-vencido" class="kpi-value danger">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-title">Monto Facturas Vigentes</div>
+                <div id="kpi-vigente" class="kpi-value">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-title">Prom. Días Morosidad</div>
+                <div id="kpi-morosidad" class="kpi-value warning">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Principales -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="card-header">Cobranza por Línea Comercial</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div id="cobranzaLineaChart" style="height:300px"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="estadosPagoChart" style="height:300px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Cobranza por Línea Comercial -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="table-card">
+                <div class="card-header">Detalle de Cobranza por Línea Comercial</div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle" id="tblCobranzaLinea">
+                            <thead>
+                                <tr>
+                                    <th>Línea Comercial</th>
+                                    <th class="text-end">Facturas Total</th>
+                                    <th class="text-end">Monto Vigente</th>
+                                    <th class="text-end">Monto Vencido</th>
+                                    <th class="text-end">Total por Cobrar</th>
+                                    <th class="text-end">% Vencido</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Morosidad por Días -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="card-header">Análisis de Morosidad por Días</div>
+                <div class="card-body">
+                    <div id="morosidadChart" style="height:300px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 15 Clientes con Mayor Deuda -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="card-header">Top 15 Clientes con Mayor Deuda</div>
+                <div class="card-body">
+                    <div id="top15Chart" style="height:400px"></div>
+                    <div class="table-responsive mt-4">
+                        <table class="table table-sm table-striped align-middle" id="tblTop15">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Documento</th>
+                                    <th>Fecha</th>
+                                    <th>Vence</th>
+                                    <th class="text-end">Monto</th>
+                                    <th class="text-end">Saldo</th>
+                                    <th>Estado</th>
+                                    <th>Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ECharts 6.0.0 -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+
+<script>
+    // Variables globales para los gráficos
+    let cobranzaLineaChart, estadosPagoChart, morosidadChart, top15Chart;
+
+    // Función para formatear números
+    function formatNumber(n) {
+        return new Intl.NumberFormat('es-PE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(n || 0);
+    }
+
+    // Función para construir query string
+    function buildQuery() {
+        const start = document.getElementById('start').value;
+        const end = document.getElementById('end').value;
+        const paymentState = document.getElementById('payment_state').value;
+        const lineaId = document.getElementById('linea_id').value;
+        const p = new URLSearchParams();
+        if (start) p.set('start', start);
+        if (end) p.set('end', end);
+        if (paymentState) p.set('payment_state', paymentState);
+        if (lineaId) p.set('linea_id', lineaId);
+        return p.toString();
+    }
+
+    // Cargar KPIs
+    async function loadKpis() {
+        const qs = buildQuery();
+        const res = await fetch('/api/cobranza/kpis' + (qs ? ('?' + qs) : ''));
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        // Actualizar KPIs
+        const totalCobrar = (data.monto_vigente || 0) + (data.monto_vencido || 0);
+        document.getElementById('kpi-total-cobrar').textContent = formatNumber(totalCobrar);
+        document.getElementById('kpi-vencido').textContent = formatNumber(data.monto_vencido);
+        document.getElementById('kpi-vigente').textContent = formatNumber(data.monto_vigente);
+        document.getElementById('kpi-morosidad').textContent = formatNumber(data.promedio_dias_morosidad);
+        
+        // Renderizar gráficos
+        renderCobranzaLineaChart(data.cobranza_por_linea);
+        renderEstadosPagoChart(data.estados_pago);
+        renderMorosidadChart(data.morosidad_series);
+    }
+
+    // Cargar líneas comerciales
+    async function loadLineasComerciales() {
+        try {
+            const res = await fetch('/api/cobranza/lineas');
+            if (res.ok) {
+                const data = await res.json();
+                const select = document.getElementById('linea_id');
+                select.innerHTML = '<option value="">Todas</option>';
+                data.forEach(linea => {
+                    const option = document.createElement('option');
+                    option.value = linea.id;
+                    option.textContent = linea.name;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error cargando líneas comerciales:', error);
+        }
+    }
+
+    // Cargar Top 15
+    async function loadTop15() {
+        const qs = buildQuery();
+        const res = await fetch('/api/cobranza/top15' + (qs ? ('?' + qs) : ''));
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        renderTop15Chart(data.clientes || [], data.montos || []);
+        
+        // Cargar detalle
+        const det = await fetch('/api/cobranza/top15/details' + (qs ? ('?' + qs) : ''));
+        if (det.ok) {
+            const j = await det.json();
+            renderTop15Table(j.rows || []);
+        }
+    }
+
+    // Cargar tabla de cobranza por línea
+    async function loadCobranzaLinea() {
+        const qs = buildQuery();
+        const res = await fetch('/api/cobranza/linea' + (qs ? ('?' + qs) : ''));
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        renderCobranzaLineaTable(data.rows || []);
+    }
+
+    // Renderizar gráfico de cobranza por línea
+    function renderCobranzaLineaChart(data) {
+        const el = document.getElementById('cobranzaLineaChart');
+        cobranzaLineaChart = echarts.init(el);
+        
+        const labels = data?.labels || [];
+        const values = data?.values || [];
+        
+        cobranzaLineaChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                axisLabel: {
+                    rotate: 45
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Monto'
+            },
+            series: [{
+                data: values,
+                type: 'bar',
+                itemStyle: {
+                    color: '#0d6efd'
+                }
+            }]
+        });
+    }
+
+    // Renderizar gráfico de estados de pago
+    function renderEstadosPagoChart(estados) {
+        const el = document.getElementById('estadosPagoChart');
+        estadosPagoChart = echarts.init(el);
+        estadosPagoChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: {c} ({d}%)'
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                label: {
+                    show: true,
+                    formatter: '{b}: {c}'
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                    }
+                },
+                data: estados || [],
+                color: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6c757d']
+            }]
+        });
+    }
+
+    // Renderizar gráfico de morosidad
+    function renderMorosidadChart(series) {
+        const el = document.getElementById('morosidadChart');
+        morosidadChart = echarts.init(el);
+        morosidadChart.setOption({
+            tooltip: {
+                trigger: 'axis'
+            },
+            xAxis: {
+                type: 'category',
+                data: series.labels || []
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Días'
+            },
+            series: [{
+                data: series.values || [],
+                type: 'line',
+                smooth: true,
+                lineStyle: {
+                    color: '#dc3545'
+                },
+                itemStyle: {
+                    color: '#dc3545'
+                }
+            }]
+        });
+    }
+
+    // Renderizar gráfico Top 15
+    function renderTop15Chart(clientes, montos) {
+        const el = document.getElementById('top15Chart');
+        top15Chart = echarts.init(el);
+        top15Chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            xAxis: {
+                type: 'value',
+                name: 'Monto'
+            },
+            yAxis: {
+                type: 'category',
+                data: clientes,
+                name: 'Clientes'
+            },
+            series: [{
+                data: montos,
+                type: 'bar',
+                itemStyle: {
+                    color: function(params) {
+                        return params.value > 0 ? '#0d6efd' : '#6c757d';
+                    }
+                }
+            }]
+        });
+    }
+
+    // Renderizar tabla Top 15
+    function renderTop15Table(rows) {
+        const tbody = document.querySelector('#tblTop15 tbody');
+        tbody.innerHTML = '';
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.cliente || ''}</td>
+                <td>${r.documento || ''}</td>
+                <td>${r.fecha || ''}</td>
+                <td>${r.vence || ''}</td>
+                <td class="text-end">${formatNumber(r.monto)}</td>
+                <td class="text-end fw-semibold">${formatNumber(r.saldo)}</td>
+                <td><span class="badge bg-${getPaymentStateColor(r.estado)}">${r.estado || ''}</span></td>
+                <td>${r.origen || ''}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Renderizar tabla de cobranza por línea
+    function renderCobranzaLineaTable(rows) {
+        const tbody = document.querySelector('#tblCobranzaLinea tbody');
+        tbody.innerHTML = '';
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+            const porcentajeVencido = r.total_por_cobrar > 0 ? 
+                ((r.monto_vencido / r.total_por_cobrar) * 100).toFixed(1) : 0;
+            
+            tr.innerHTML = `
+                <td>${r.linea_comercial || ''}</td>
+                <td class="text-end">${r.facturas_total || 0}</td>
+                <td class="text-end">${formatNumber(r.monto_vigente)}</td>
+                <td class="text-end">${formatNumber(r.monto_vencido)}</td>
+                <td class="text-end fw-semibold">${formatNumber(r.total_por_cobrar)}</td>
+                <td class="text-end">${porcentajeVencido}%</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Función para obtener color del estado de pago
+    function getPaymentStateColor(estado) {
+        const colors = {
+            'not_paid': 'danger',
+            'in_payment': 'warning',
+            'paid': 'success',
+            'partial': 'info',
+            'reversed': 'secondary'
+        };
+        return colors[estado] || 'secondary';
+    }
+
+    // Funciones de loading
+    function showLoading() {
+        document.getElementById('loading-indicator').style.display = 'block';
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading-indicator').style.display = 'none';
+    }
+
+    // Event listeners
+    document.getElementById('btnFiltrar').addEventListener('click', function() {
+        showLoading();
+        this.disabled = true;
+        this.textContent = 'Cargando...';
+        
+        Promise.all([loadKpis(), loadTop15(), loadCobranzaLinea()]).finally(() => {
+            this.disabled = false;
+            this.textContent = 'Aplicar';
+            hideLoading();
+        });
+    });
+
+    // Inicializar
+    window.addEventListener('load', function() {
+        showLoading();
+        Promise.all([loadLineasComerciales(), loadKpis(), loadTop15(), loadCobranzaLinea()]).finally(() => {
+            hideLoading();
+        });
+    });
+
+    // Redimensionar gráficos
+    window.addEventListener('resize', function() {
+        if (cobranzaLineaChart) cobranzaLineaChart.resize();
+        if (estadosPagoChart) estadosPagoChart.resize();
+        if (morosidadChart) morosidadChart.resize();
+        if (top15Chart) top15Chart.resize();
+    });
+</script>
+
+<style>
+.loading-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0d6efd;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+    }
+</style>
+</div> <!-- Cierre del div dashboard-cobranza -->
+{% endblock %}

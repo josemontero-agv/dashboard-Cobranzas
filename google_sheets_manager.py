@@ -140,8 +140,21 @@ class GoogleSheetsManager:
                     # Eliminar la clave del mes para no incluirla en los diccionarios de metas
                     del row['mes_key']
                     
-                    metas = {k: float(v) for k, v in row.items() if not k.endswith('_ipn') and v != ''}
-                    metas_ipn = {k.replace('_ipn', ''): float(v) for k, v in row.items() if k.endswith('_ipn') and v != ''}
+                    metas = {}
+                    for k, v in row.items():
+                        if not k.endswith('_ipn') and v != '':
+                            try:
+                                metas[k] = float(v)
+                            except (ValueError, TypeError):
+                                metas[k] = 0.0
+
+                    metas_ipn = {}
+                    for k, v in row.items():
+                        if k.endswith('_ipn') and v != '':
+                            try:
+                                metas_ipn[k.replace('_ipn', '')] = float(v)
+                            except (ValueError, TypeError):
+                                metas_ipn[k.replace('_ipn', '')] = 0.0
                     
                     metas_por_linea[mes_key] = {
                         'metas': metas,

@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+
+{% block title %}Reporte CxC General{% endblock %}
+
+{% block content %}
+<!-- Header estilo Odoo -->
+<div class="dashboard-header">
+    <div class="header-left">
+        <div class="header-info">
+            <h1>REPORTE CxC GENERAL - CUENTA 12</h1>
+        </div>
+    </div>
+    <div class="header-nav">
+        <button onclick="exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
+        <a href="{{ url_for('sales') }}" class="btn-nav"><i class="bi bi-graph-up"></i> Ventas</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <div class="filter-bar__content">
+        <form method="GET" action="{{ url_for('reporte_cxc_general') }}" style="display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; width: 100%;">
+            
+            <div>
+                <label for="date_from">Desde</label>
+                <input type="date" name="date_from" id="date_from" value="{{ selected_filters.date_from or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="date_to">Hasta</label>
+                <input type="date" name="date_to" id="date_to" value="{{ selected_filters.date_to or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="customer">Cliente</label>
+                <input type="text" name="customer" id="customer" placeholder="Nombre del cliente..." value="{{ selected_filters.customer or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="account_codes">Códigos de Cuenta</label>
+                <input type="text" name="account_codes" id="account_codes" placeholder="1212,122,1312,132" value="{{ selected_filters.account_codes or '' }}" class="form-control">
+            </div>
+            
+            <div style="flex-grow: 1;">
+                <label for="search_term">Búsqueda</label>
+                <input type="text" name="search_term" placeholder="Factura, cliente, referencia..." value="{{ selected_filters.search_term or '' }}" class="form-control">
+            </div>
+            
+            <div>
+                <label for="per_page">Resultados</label>
+                <select name="per_page" id="per_page" class="form-select">
+                    <option value="500" {% if request.values.get('per_page', '1000') == '500' %}selected{% endif %}>500</option>
+                    <option value="1000" {% if request.values.get('per_page', '1000') == '1000' %}selected{% endif %}>1,000</option>
+                    <option value="2000" {% if request.values.get('per_page', '1000') == '2000' %}selected{% endif %}>2,000</option>
+                    <option value="5000" {% if request.values.get('per_page', '1000') == '5000' %}selected{% endif %}>5,000</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn--primary">Buscar</button>
+            <a href="{{ url_for('reporte_cxc_general') }}" class="btn">Limpiar</a>
+        </form>
+    </div>
+</div>
+
+<!-- Información de resultados -->
+{% if cxc_data %}
+<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <div>
+        <strong>📊 Reporte CxC General:</strong> 
+        Mostrando {{ cxc_data|length }} registros de cuentas por cobrar
+    </div>
+</div>
+{% endif %}
+
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo Documento</th>
+                <th>Factura</th>
+                <th>Origen</th>
+                <th>Código Cuenta</th>
+                <th>Nombre Cuenta</th>
+                <th>RUC/DNI</th>
+                <th>Cliente</th>
+                <th>Moneda</th>
+                <th>Total</th>
+                <th>Importe Adeudado</th>
+                <th>Fecha Vencimiento</th>
+                <th>Referencia</th>
+                <th>Condición Pago</th>
+                <th>Descripción</th>
+                <th>Vendedor</th>
+                <th>Provincia</th>
+                <th>Distrito</th>
+                <th>Código País</th>
+                <th>País</th>
+                <th>Grupo de Venta</th>
+                <th>Sub Canal</th>
+                <th>Canal de Venta</th>
+                <th>Tipo de Venta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in cxc_data %}
+            <tr>
+                <td>{{ line.date or 'N/A' }}</td>
+                <td>{{ line.I10nn_latam_document_type_id or 'N/A' }}</td>
+                <td>{{ line.move_name or 'N/A' }}</td>
+                <td>{{ line.invoice_origin or 'N/A' }}</td>
+                <td>{{ line['account_id/code'] or 'N/A' }}</td>
+                <td>{{ line['account_id/name'] or 'N/A' }}</td>
+                <td>{{ line['patner_id/vat'] or 'N/A' }}</td>
+                <td>{{ line.patner_id or 'N/A' }}</td>
+                <td>{{ line.currency_id or 'N/A' }}</td>
+                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_currency if line.amount_currency else 0) }}</td>
+                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_residual_currency if line.amount_residual_currency else 0) }}</td>
+                <td>{{ line.date_maturity or 'N/A' }}</td>
+                <td>{{ line.ref or 'N/A' }}</td>
+                <td>{{ line.invoice_payment_term_id or 'N/A' }}</td>
+                <td>{{ line.name or 'N/A' }}</td>
+                <td>{{ line['move_id/invoice_user_id'] or 'N/A' }}</td>
+                <td>{{ line['patner_id/state_id'] or 'N/A' }}</td>
+                <td>{{ line['patner_id/l10n_pe_district'] or 'N/A' }}</td>
+                <td>{{ line['patner_id/country_code'] or 'N/A' }}</td>
+                <td>{{ line['patner_id/country_id'] or 'N/A' }}</td>
+                <td>{{ line.patner_groups_ids or 'N/A' }}</td>
+                <td>{{ line.sub_channel_id or 'N/A' }}</td>
+                <td>{{ line['move_id/sales_channel_id'] or 'N/A' }}</td>
+                <td>{{ line['move_id/sales_type_id'] or 'N/A' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="24" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+/* Estilos del Header Odoo */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --odoo-primary: #875A7B;
+    --odoo-primary-dark: #6B4563;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--odoo-primary) 0%, var(--odoo-primary-dark) 100%);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(135, 90, 123, 0.3);
+    margin-bottom: 25px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-info h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}
+
+.header-nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.btn-nav, .btn-salir, .btn-nav:visited, .btn-salir:visited {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-nav {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.btn-nav:hover { background-color: rgba(255, 255, 255, 0.25); transform: translateY(-1px); }
+
+.btn-salir { background: #e74c3c; color: white; }
+.btn-salir:hover { background-color: #c0392b; transform: translateY(-1px); }
+
+/* Estilos para tabla con muchas columnas */
+.table-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.table {
+    min-width: 3000px; /* Ancho mínimo para acomodar todas las columnas */
+    font-size: 0.85rem; /* Reducir tamaño de fuente */
+}
+
+.table th, .table td {
+    white-space: nowrap;
+    padding: 8px 6px;
+    border: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Columnas específicas con ancho fijo */
+.table th:nth-child(1), .table td:nth-child(1) { min-width: 100px; } /* Fecha */
+.table th:nth-child(3), .table td:nth-child(3) { min-width: 120px; } /* Factura */
+.table th:nth-child(8), .table td:nth-child(8) { min-width: 150px; } /* Cliente */
+.table th:nth-child(10), .table td:nth-child(10) { min-width: 100px; } /* Total */
+.table th:nth-child(11), .table td:nth-child(11) { min-width: 120px; } /* Importe Adeudado */
+
+/* Hacer que las columnas de texto largo sean scrollables horizontalmente */
+.table td {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Expandir al hacer hover */
+.table td:hover {
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: none;
+    background-color: #f0f8ff;
+    z-index: 5;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Optimización de tabla para grandes datasets */
+.table-container {
+    max-height: 70vh;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+/* Lazy loading para filas */
+.table tbody tr {
+    transition: background-color 0.1s ease;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.text-right {
+    text-align: right;
+}
+</style>
+
+<script>
+// Función para exportar a Excel
+function exportToExcel() {
+    // Obtener filtros actuales
+    const dateFrom = document.querySelector('input[name="date_from"]')?.value || '';
+    const dateTo = document.querySelector('input[name="date_to"]')?.value || '';
+    const customer = document.querySelector('input[name="customer"]')?.value || '';
+    const accountCodes = document.querySelector('input[name="account_codes"]')?.value || '';
+    
+    // Construir URL de exportación con parámetros
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (customer) params.append('customer', customer);
+    if (accountCodes) params.append('account_codes', accountCodes);
+    
+    // Redirigir a la URL de exportación
+    const exportUrl = `/export/excel/cxc?${params.toString()}`;
+    console.log('📊 Exportando CxC a Excel:', exportUrl);
+    
+    // Crear enlace temporal para descarga
+    window.location.href = exportUrl;
+}
+
+// Optimización de carga
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    // Mostrar indicador al enviar formulario
+    if (form) {
+        form.addEventListener('submit', function() {
+            // Deshabilitar botón de envío para evitar doble envío
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Cargando...';
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

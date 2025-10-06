@@ -719,3 +719,473 @@ class OdooManager:
             'kpi_total_invoices': 0,
             'kpi_total_quantity': 0
         }
+
+    def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None):
+        """
+        Obtener líneas de reporte de CxC usando la lógica eficaz del bi_creditos_cobranzas
+        Campos extraídos según especificaciones del usuario
+        """
+        try:
+            print(f"🔍 Obteniendo líneas de reporte CxC...")
+            
+            # Verificar conexión
+            if not self.uid or not self.models:
+                print("❌ No hay conexión a Odoo disponible")
+                return []
+            
+            # Query account.move.line focused on receivable lines (with fallbacks)
+            # SIN FILTRO DE CANAL - Para reportes CxC 12 y 13 necesitamos TODOS los canales
+            base_domain = [
+                ['reconciled', '=', False],
+                ['move_id.state', '=', 'posted']
+            ]
+            if start_date:
+                base_domain.append(['date', '>=', start_date])
+            if end_date:
+                base_domain.append(['date', '<=', end_date])
+            if customer:
+                base_domain.append(['partner_id', 'ilike', customer])
+
+            fields = [
+                'date',
+                'move_name',
+                'ref',
+                'name',
+                'date_maturity',
+                'amount_currency',
+                'amount_residual_currency',
+                'partner_id',
+                'account_id',
+                'move_id',
+            ]
+            
+            # Filtros de negocio (Odoo 16):
+            # (account_id.code like '12%' OR like '13%')
+            # AND NOT contiene '10', '123', '133'
+            # AND tipo de cuenta por cobrar
+            # Si vienen códigos por parámetro, usarlos; si no, los predeterminados para CxC 12 y 13
+            if account_codes:
+                codes = [c.strip() for c in account_codes.split(',') if c.strip()]
+            else:
+                codes = ['1212', '122', '1312', '132']
+
+            # Construir OR plano de Odoo: ['|', cond1, '|', cond2, cond3]
+            code_clauses = [[ 'account_id.code', 'like', f"{c}%" ] for c in codes]
+            account_code_tokens = []
+            for i, clause in enumerate(code_clauses):
+                if i > 0:
+                    account_code_tokens.append('|')
+                account_code_tokens.append(clause)
+
+            # Dominio final
+            final_domain = base_domain + account_code_tokens + [['account_id.account_type', '=', 'asset_receivable']]
+            lines = self.models.execute_kw(
+                self.db, self.uid, self.password, 'account.move.line', 'search_read',
+                [final_domain],
+                {'fields': fields, 'limit': limit}
+            )
+
+            # Collect related ids to batch read partners, accounts, moves
+            partner_ids = sorted({l['partner_id'][0] for l in lines if isinstance(l.get('partner_id'), list)})
+            account_ids = sorted({l['account_id'][0] for l in lines if isinstance(l.get('account_id'), list)})
+            move_ids = sorted({l['move_id'][0] for l in lines if isinstance(l.get('move_id'), list)})
+
+            partner_map = {}
+            account_map = {}
+            move_map = {}
+
+            if partner_ids:
+                partner_map = {}
+                # Campos completos para partners (clientes) según especificaciones
+                partner_fields_full = ['vat', 'state_id', 'l10n_pe_district', 'country_id', 'contact_address', 'cod_client_sap', 'country_code']
+                try:
+                    partner_recs = self.models.execute_kw(self.db, self.uid, self.password, 'res.partner', 'read', [partner_ids], {'fields': partner_fields_full})
+                except Exception as e:
+                    print(f"⚠️ Error extrayendo todos los campos del partner, usando campos básicos: {e}")
+                    # Fallback without custom fields
+                    partner_recs = self.models.execute_kw(self.db, self.uid, self.password, 'res.partner', 'read', [partner_ids], {'fields': ['vat', 'state_id', 'l10n_pe_district', 'country_id', 'contact_address']})
+                partner_map = {p['id']: p for p in partner_recs}
+
+            if account_ids:
+                acc_fields = ['code', 'name']
+                acc_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.account', 'read', [account_ids], {'fields': acc_fields})
+                account_map = {a['id']: a for a in acc_recs}
+
+            if move_ids:
+                move_map = {}
+                # Intentar obtener todos los campos necesarios para CxC 12 y 13 (todos los canales)
+                move_fields_base = ['invoice_origin', 'invoice_user_id', 'team_id', 'l10n_latam_document_type_id', 'name', 'ref', 'state']
+                move_fields_optional = ['sales_type_id', 'amount_total', 'invoice_date', 'invoice_date_due', 'currency_id', 'move_type', 'payment_state']
+                
+                try:
+                    # Intentar con todos los campos
+                    all_move_fields = move_fields_base + move_fields_optional
+                    move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': all_move_fields})
+                    print(f"✅ Extraídos todos los campos del move: {len(all_move_fields)} campos")
+                except Exception as e:
+                    print(f"⚠️ Error extrayendo campos opcionales del move: {e}")
+                    try:
+                        # Fallback sin campos opcionales
+                        move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': move_fields_base})
+                        print(f"✅ Extraídos campos básicos del move: {len(move_fields_base)} campos")
+                    except Exception as e2:
+                        print(f"❌ Error crítico extrayendo campos del move: {e2}")
+                        move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': ['invoice_origin', 'invoice_user_id', 'team_id']})
+                move_map = {m['id']: m for m in move_recs}
+
+            # Build rows per requested schema
+            rows = []
+            for l in lines:
+                partner = partner_map.get(l['partner_id'][0]) if isinstance(l.get('partner_id'), list) else {}
+                account = account_map.get(l['account_id'][0]) if isinstance(l.get('account_id'), list) else {}
+                move = move_map.get(l['move_id'][0]) if isinstance(l.get('move_id'), list) else {}
+
+                def m2o_name(val):
+                    if isinstance(val, list) and len(val) >= 2:
+                        return val[1]
+                    return ''
+
+                rows.append({
+                    # Campos exactos según especificaciones del usuario
+                    'date': l.get('date'),
+                    'I10nn_latam_document_type_id': m2o_name(move.get('l10n_latam_document_type_id')),
+                    'move_name': l.get('move_name'),
+                    'invoice_origin': move.get('invoice_origin') or '',
+                    'account_id/code': account.get('code') or '',
+                    'account_id/name': account.get('name') or m2o_name(l.get('account_id')),
+                    'patner_id/cod_client_sap': partner.get('cod_client_sap') or '',
+                    'patner_id/vat': partner.get('vat') or '',
+                    'patner_id': m2o_name(l.get('partner_id')),
+                    'amount_currency': l.get('amount_currency') or 0.0,
+                    'amount_residual_currency': l.get('amount_residual_currency') or 0.0,
+                    'date_maturity': l.get('date_maturity'),
+                    'ref': l.get('ref') or '',
+                    'name': l.get('name') or '',
+                    'move_id/invoice_user_id': m2o_name(move.get('invoice_user_id')),
+                    'patner_id/state_id': m2o_name(partner.get('state_id')),
+                    'patner_id/l10n_pe_district': partner.get('l10n_pe_district') or '',
+                    'patner_id/contact_adress': partner.get('contact_address') or '',
+                    'patner_id/country_code': partner.get('country_code') or '',
+                    'patner_id/country_id': m2o_name(partner.get('country_id')),
+                    'move_id/sales_channel_id': m2o_name(move.get('team_id')),
+                    'move_id/sales_type_id': m2o_name(move.get('sales_type_id')),
+                    'move_id/payment_state': move.get('payment_state') or '',
+                    # Campos adicionales para completar las especificaciones
+                    'currency_id': move.get('currency_id') or '',
+                    'invoice_payment_term_id': move.get('invoice_payment_term_id') or '',
+                    'patner_groups_ids': '',  # Campo adicional si existe
+                    'sub_channel_id': '',  # Campo adicional si existe
+                })
+
+            print(f"✅ Procesadas {len(rows)} líneas de CxC con todos los campos")
+            return rows
+
+        except Exception as e:
+            print(f"Error al obtener las líneas de reporte CxC: {e}")
+            return []
+
+    def get_cobranza_kpis(self, date_from=None, date_to=None, payment_state=None):
+        """Obtener KPIs de cobranza para el dashboard internacional"""
+        try:
+            # Construir dominio
+            domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]
+            
+            if date_from:
+                domain.append(('invoice_date', '>=', date_from))
+            if date_to:
+                domain.append(('invoice_date', '<=', date_to))
+            if payment_state:
+                domain.append(('payment_state', '=', payment_state))
+            
+            # Obtener facturas
+            invoices = self.odoo_client.search_read(
+                'account.move',
+                domain,
+                ['payment_state', 'amount_total', 'amount_residual', 'invoice_date_due'],
+                limit=10000
+            )
+            
+            # Calcular KPIs
+            from datetime import date
+            today = date.today()
+            
+            total_facturas = len(invoices)
+            monto_vencido = 0.0
+            monto_vigente = 0.0
+            total_overdue_days = 0
+            overdue_count = 0
+            
+            # Contadores de estados de pago
+            estados_pago = {}
+            
+            for inv in invoices:
+                residual = float(inv.get('amount_residual') or 0.0)
+                due_date = inv.get('invoice_date_due')
+                estado = inv.get('payment_state', 'not_paid')
+                
+                # Contar estados de pago
+                if estado not in estados_pago:
+                    estados_pago[estado] = 0
+                estados_pago[estado] += 1
+                
+                if residual <= 0:
+                    continue
+                    
+                if due_date:
+                    try:
+                        due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+                        if due_date_obj < today:
+                            monto_vencido += residual
+                            overdue_days = (today - due_date_obj).days
+                            if overdue_days > 0:
+                                total_overdue_days += overdue_days
+                                overdue_count += 1
+                        else:
+                            monto_vigente += residual
+                    except:
+                        monto_vigente += residual
+                else:
+                    monto_vigente += residual
+            
+            promedio_dias_morosidad = (total_overdue_days / overdue_count) if overdue_count else 0.0
+            
+            # Formatear estados de pago
+            estados_pago_data = []
+            estado_names = {
+                'not_paid': 'No Pagado',
+                'in_payment': 'En Pago',
+                'paid': 'Pagado',
+                'partial': 'Parcial',
+                'reversed': 'Reversado'
+            }
+            
+            for estado, count in estados_pago.items():
+                estados_pago_data.append({
+                    'name': estado_names.get(estado, estado),
+                    'value': count
+                })
+            
+            return {
+                'total_facturas': total_facturas,
+                'monto_vencido': round(monto_vencido, 2),
+                'monto_vigente': round(monto_vigente, 2),
+                'promedio_dias_morosidad': round(promedio_dias_morosidad, 2),
+                'estados_pago': estados_pago_data,
+                'cobranza_por_linea': {
+                    'labels': ['Línea A', 'Línea B', 'Línea C', 'Línea D'],
+                    'values': [15000, 22000, 18000, 12000]  # Datos de ejemplo
+                },
+                'morosidad_series': {
+                    'labels': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                    'values': [15, 18, 22, 19, 25, 28]  # Datos de ejemplo
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error obteniendo KPIs de cobranza: {e}")
+            return {
+                'total_facturas': 0,
+                'monto_vencido': 0,
+                'monto_vigente': 0,
+                'promedio_dias_morosidad': 0,
+                'estados_pago': [],
+                'morosidad_series': {'labels': [], 'values': []}
+            }
+
+    def get_top15_cobranza(self, date_from=None, date_to=None, payment_state=None):
+        """Obtener top 15 clientes con mayor deuda"""
+        try:
+            # Construir dominio
+            domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]
+            
+            if date_from:
+                domain.append(('invoice_date', '>=', date_from))
+            if date_to:
+                domain.append(('invoice_date', '<=', date_to))
+            if payment_state:
+                domain.append(('payment_state', '=', payment_state))
+            
+            # Obtener facturas
+            invoices = self.odoo_client.search_read(
+                'account.move',
+                domain,
+                ['partner_id', 'amount_residual'],
+                limit=10000
+            )
+            
+            # Agrupar por cliente
+            by_partner = {}
+            for inv in invoices:
+                residual = float(inv.get('amount_residual') or 0.0)
+                if residual <= 0:
+                    continue
+                    
+                partner = inv.get('partner_id')
+                partner_name = None
+                if isinstance(partner, list) and len(partner) >= 2:
+                    partner_name = str(partner[1])
+                elif isinstance(partner, str):
+                    partner_name = partner
+                else:
+                    partner_name = "(Sin nombre)"
+                    
+                by_partner[partner_name] = by_partner.get(partner_name, 0.0) + residual
+            
+            # Ordenar y tomar top 15
+            sorted_items = sorted(by_partner.items(), key=lambda x: x[1], reverse=True)[:15]
+            clientes = [name for name, _ in sorted_items]
+            montos = [round(amount, 2) for _, amount in sorted_items]
+            
+            return {
+                'clientes': clientes,
+                'montos': montos
+            }
+            
+        except Exception as e:
+            print(f"Error obteniendo top 15 cobranza: {e}")
+            return {'clientes': [], 'montos': []}
+
+    def get_top15_cobranza_details(self, date_from=None, date_to=None, payment_state=None):
+        """Obtener detalles del top 15 clientes"""
+        try:
+            # Construir dominio
+            domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]
+            
+            if date_from:
+                domain.append(('invoice_date', '>=', date_from))
+            if date_to:
+                domain.append(('invoice_date', '<=', date_to))
+            if payment_state:
+                domain.append(('payment_state', '=', payment_state))
+            
+            # Obtener facturas con más detalles
+            invoices = self.odoo_client.search_read(
+                'account.move',
+                domain,
+                ['partner_id', 'name', 'invoice_date', 'invoice_date_due', 
+                 'amount_total', 'amount_residual', 'payment_state', 'invoice_origin'],
+                limit=1000
+            )
+            
+            # Formatear datos para la tabla
+            rows = []
+            for inv in invoices:
+                residual = float(inv.get('amount_residual') or 0.0)
+                if residual <= 0:
+                    continue
+                    
+                partner = inv.get('partner_id')
+                partner_name = None
+                if isinstance(partner, list) and len(partner) >= 2:
+                    partner_name = str(partner[1])
+                elif isinstance(partner, str):
+                    partner_name = partner
+                else:
+                    partner_name = "(Sin nombre)"
+                
+                rows.append({
+                    'cliente': partner_name,
+                    'documento': inv.get('name', ''),
+                    'fecha': inv.get('invoice_date', ''),
+                    'vence': inv.get('invoice_date_due', ''),
+                    'monto': float(inv.get('amount_total') or 0.0),
+                    'saldo': residual,
+                    'estado': inv.get('payment_state', 'not_paid'),
+                    'origen': inv.get('invoice_origin', '')
+                })
+            
+            # Ordenar por saldo descendente y tomar top 15
+            rows.sort(key=lambda x: x['saldo'], reverse=True)
+            rows = rows[:15]
+            
+            return {'rows': rows}
+            
+        except Exception as e:
+            print(f"Error obteniendo detalles top 15: {e}")
+            return {'rows': []}
+
+    def get_cobranza_por_linea(self, date_from=None, date_to=None, payment_state=None, linea_id=None):
+        """Obtener cobranza agrupada por línea comercial"""
+        try:
+            # Construir dominio
+            domain = [('move_type', 'in', ['out_invoice', 'out_refund'])]
+            
+            if date_from:
+                domain.append(('invoice_date', '>=', date_from))
+            if date_to:
+                domain.append(('invoice_date', '<=', date_to))
+            if payment_state:
+                domain.append(('payment_state', '=', payment_state))
+            if linea_id:
+                domain.append(('commercial_line_id', '=', int(linea_id)))
+            
+            # Obtener facturas con línea comercial
+            invoices = self.odoo_client.search_read(
+                'account.move',
+                domain,
+                ['commercial_line_id', 'amount_total', 'amount_residual', 'invoice_date_due'],
+                limit=10000
+            )
+            
+            # Agrupar por línea comercial
+            by_linea = {}
+            for inv in invoices:
+                residual = float(inv.get('amount_residual') or 0.0)
+                if residual <= 0:
+                    continue
+                    
+                linea = inv.get('commercial_line_id')
+                linea_name = None
+                if isinstance(linea, list) and len(linea) >= 2:
+                    linea_name = str(linea[1])
+                elif isinstance(linea, str):
+                    linea_name = linea
+                else:
+                    linea_name = "Sin Línea"
+                
+                if linea_name not in by_linea:
+                    by_linea[linea_name] = {
+                        'facturas_total': 0,
+                        'monto_vigente': 0.0,
+                        'monto_vencido': 0.0,
+                        'total_por_cobrar': 0.0
+                    }
+                
+                by_linea[linea_name]['facturas_total'] += 1
+                by_linea[linea_name]['total_por_cobrar'] += residual
+                
+                # Clasificar como vigente o vencido
+                due_date = inv.get('invoice_date_due')
+                if due_date:
+                    try:
+                        from datetime import date
+                        today = date.today()
+                        due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+                        if due_date_obj < today:
+                            by_linea[linea_name]['monto_vencido'] += residual
+                        else:
+                            by_linea[linea_name]['monto_vigente'] += residual
+                    except:
+                        by_linea[linea_name]['monto_vigente'] += residual
+                else:
+                    by_linea[linea_name]['monto_vigente'] += residual
+            
+            # Convertir a lista para la tabla
+            rows = []
+            for linea_name, data in by_linea.items():
+                rows.append({
+                    'linea_comercial': linea_name,
+                    'facturas_total': data['facturas_total'],
+                    'monto_vigente': round(data['monto_vigente'], 2),
+                    'monto_vencido': round(data['monto_vencido'], 2),
+                    'total_por_cobrar': round(data['total_por_cobrar'], 2)
+                })
+            
+            # Ordenar por total por cobrar descendente
+            rows.sort(key=lambda x: x['total_por_cobrar'], reverse=True)
+            
+            return {'rows': rows}
+            
+        except Exception as e:
+            print(f"Error obteniendo cobranza por línea: {e}")
+            return {'rows': []}

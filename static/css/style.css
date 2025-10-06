@@ -783,3 +783,286 @@ tr:hover {
     line-height: 1;
     margin: 0;
 }
+
+/* --- ESTILOS ESPECÍFICOS PARA DASHBOARD COBRANZA INTERNACIONAL --- */
+
+/* KPIs con estilo Odoo */
+.dashboard-cobranza .kpi-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-cobranza .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--odoo-primary) 0%, var(--odoo-accent) 100%);
+}
+
+.dashboard-cobranza .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dashboard-cobranza .kpi-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-cobranza .kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--odoo-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.dashboard-cobranza .kpi-value.currency {
+    color: var(--odoo-accent);
+}
+
+.dashboard-cobranza .kpi-value.danger {
+    color: #dc3545;
+}
+
+.dashboard-cobranza .kpi-value.warning {
+    color: #ffc107;
+}
+
+/* Cards de gráficos con estilo Odoo */
+.dashboard-cobranza .chart-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.dashboard-cobranza .chart-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dashboard-cobranza .chart-card .card-header {
+    background: linear-gradient(135deg, var(--odoo-primary) 0%, var(--odoo-primary-dark) 100%);
+    color: white;
+    padding: 16px 24px;
+    font-weight: 600;
+    font-size: 16px;
+    border: none;
+    margin: 0;
+}
+
+.dashboard-cobranza .chart-card .card-body {
+    padding: 24px;
+}
+
+/* Tabla con estilo Odoo */
+.dashboard-cobranza .table-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.dashboard-cobranza .table-card .card-header {
+    background: linear-gradient(135deg, var(--odoo-primary) 0%, var(--odoo-primary-dark) 100%);
+    color: white;
+    padding: 16px 24px;
+    font-weight: 600;
+    font-size: 16px;
+    border: none;
+    margin: 0;
+}
+
+.dashboard-cobranza .table {
+    margin-bottom: 0;
+    font-size: 14px;
+}
+
+.dashboard-cobranza .table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    padding: 12px 16px;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-cobranza .table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: middle;
+}
+
+.dashboard-cobranza .table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Badges de estado con colores Odoo */
+.dashboard-cobranza .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-cobranza .badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.dashboard-cobranza .badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.dashboard-cobranza .badge.bg-success {
+    background-color: #28a745 !important;
+    color: white;
+}
+
+.dashboard-cobranza .badge.bg-info {
+    background-color: #17a2b8 !important;
+    color: white;
+}
+
+.dashboard-cobranza .badge.bg-secondary {
+    background-color: #6c757d !important;
+    color: white;
+}
+
+/* Filtros con estilo Odoo */
+.dashboard-cobranza .filter-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 24px;
+}
+
+.dashboard-cobranza .filter-card .card-body {
+    padding: 20px;
+}
+
+.dashboard-cobranza .form-label {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-cobranza .form-control {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.dashboard-cobranza .form-control:focus {
+    border-color: var(--odoo-primary);
+    box-shadow: 0 0 0 3px rgba(135, 90, 123, 0.1);
+    outline: none;
+}
+
+.dashboard-cobranza .btn-primary {
+    background: linear-gradient(135deg, var(--odoo-primary) 0%, var(--odoo-primary-dark) 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.dashboard-cobranza .btn-primary:hover {
+    background: linear-gradient(135deg, var(--odoo-primary-dark) 0%, var(--odoo-primary) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(135, 90, 123, 0.3);
+}
+
+/* Loading indicator mejorado */
+.dashboard-cobranza .loading-indicator {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+}
+
+.dashboard-cobranza .loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--odoo-primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+.dashboard-cobranza .loading-indicator div:last-child {
+    margin-top: 16px;
+    font-weight: 600;
+    color: var(--odoo-primary);
+    font-size: 16px;
+}
+
+/* Animaciones suaves */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dashboard-cobranza .kpi-card,
+.dashboard-cobranza .chart-card,
+.dashboard-cobranza .table-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.dashboard-cobranza .kpi-card:nth-child(1) { animation-delay: 0.1s; }
+.dashboard-cobranza .kpi-card:nth-child(2) { animation-delay: 0.2s; }
+.dashboard-cobranza .kpi-card:nth-child(3) { animation-delay: 0.3s; }
+.dashboard-cobranza .kpi-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Responsive para dashboard de cobranza */
+@media (max-width: 768px) {
+    .dashboard-cobranza .kpi-value {
+        font-size: 24px;
+    }
+    
+    .dashboard-cobranza .chart-card .card-body {
+        padding: 16px;
+    }
+    
+    .dashboard-cobranza .table-card .card-body {
+        padding: 0;
+    }
+    
+    .dashboard-cobranza .table-responsive {
+        font-size: 12px;
+    }
+}

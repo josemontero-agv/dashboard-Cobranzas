@@ -1,6 +1,6 @@
 # app.py - Dashboard de Ventas Farmacéuticas
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from dotenv import load_dotenv
 from odoo_manager import OdooManager
 from google_sheets_manager import GoogleSheetsManager
@@ -49,7 +49,7 @@ def login():
         if data_manager.authenticate_user(username, password):
             session['username'] = username
             flash('¡Inicio de sesión exitoso!', 'success')
-            return redirect(url_for('sales'))
+            return redirect(url_for('dashboard'))
         else:
             flash('Usuario o contraseña incorrectos.', 'danger')
     return render_template('login.html')
@@ -979,8 +979,200 @@ def export_dashboard_details():
         return redirect(url_for('dashboard'))
 
 
+# --- NUEVA RUTA PARA REPORTE CxC GENERAL ---
+@app.route('/reporte_cxc_general', methods=['GET', 'POST'])
+def reporte_cxc_general():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener filtros de la request
+        selected_filters = {
+            'date_from': request.form.get('date_from') or request.args.get('date_from'),
+            'date_to': request.form.get('date_to') or request.args.get('date_to'),
+            'customer': request.form.get('customer') or request.args.get('customer'),
+            'account_codes': request.form.get('account_codes') or request.args.get('account_codes')
+        }
+        
+        # Convertir strings vacíos a None
+        for key, value in selected_filters.items():
+            if value == '':
+                selected_filters[key] = None
+        
+        # Obtener datos de CxC usando el método del bi_creditos_cobranzas
+        cxc_data = data_manager.get_report_lines(
+            start_date=selected_filters['date_from'],
+            end_date=selected_filters['date_to'],
+            customer=selected_filters['customer'],
+            account_codes=selected_filters['account_codes'],
+            limit=1000
+        )
+        
+        return render_template('reporte_cxc_general.html', 
+                             cxc_data=cxc_data,
+                             selected_filters=selected_filters,
+                             fecha_actual=datetime.now())
+    
+    except Exception as e:
+        flash(f'Error al obtener datos de CxC: {str(e)}', 'danger')
+        return render_template('reporte_cxc_general.html', 
+                             cxc_data=[],
+                             selected_filters={},
+                             fecha_actual=datetime.now())
+
+# --- NUEVA RUTA PARA DASHBOARD COBRANZA INTERNACIONAL ---
+@app.route('/dashboard_cobranza_internacional')
+def dashboard_cobranza_internacional():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('dashboard_cobranza_internacional.html')
+
+# --- API RUTAS PARA COBRANZA ---
+@app.route('/api/cobranza/kpis')
+def api_cobranza_kpis():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Obtener filtros
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        payment_state = request.args.get('payment_state')
+        
+        # Obtener datos de cobranza
+        kpis_data = data_manager.get_cobranza_kpis(date_from, date_to, payment_state)
+        
+        return jsonify(kpis_data)
+    
+    except Exception as e:
+        print(f"Error en api_cobranza_kpis: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza/top15')
+def api_cobranza_top15():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Obtener filtros
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        payment_state = request.args.get('payment_state')
+        
+        # Obtener top 15 clientes
+        top15_data = data_manager.get_top15_cobranza(date_from, date_to, payment_state)
+        
+        return jsonify(top15_data)
+    
+    except Exception as e:
+        print(f"Error en api_cobranza_top15: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza/top15/details')
+def api_cobranza_top15_details():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Obtener filtros
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        payment_state = request.args.get('payment_state')
+        
+        # Obtener detalles del top 15
+        details_data = data_manager.get_top15_cobranza_details(date_from, date_to, payment_state)
+        
+        return jsonify(details_data)
+    
+    except Exception as e:
+        print(f"Error en api_cobranza_top15_details: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza/lineas')
+def api_cobranza_lineas():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Obtener líneas comerciales
+        lineas_data = data_manager.get_commercial_lines()
+        return jsonify(lineas_data)
+    
+    except Exception as e:
+        print(f"Error en api_cobranza_lineas: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza/linea')
+def api_cobranza_linea():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Obtener filtros
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        payment_state = request.args.get('payment_state')
+        linea_id = request.args.get('linea_id')
+        
+        # Obtener cobranza por línea
+        linea_data = data_manager.get_cobranza_por_linea(date_from, date_to, payment_state, linea_id)
+        
+        return jsonify(linea_data)
+    
+    except Exception as e:
+        print(f"Error en api_cobranza_linea: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# --- RUTA DE EXPORTACIÓN PARA CxC ---
+@app.route('/export/excel/cxc')
+def export_excel_cxc():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener filtros de la URL
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        customer = request.args.get('customer')
+        account_codes = request.args.get('account_codes')
+        
+        # Obtener datos de CxC
+        cxc_data = data_manager.get_report_lines(
+            start_date=date_from,
+            end_date=date_to,
+            customer=customer,
+            account_codes=account_codes,
+            limit=10000  # Más datos para export
+        )
+        
+        # Crear DataFrame
+        df = pd.DataFrame(cxc_data)
+        
+        # Crear archivo Excel en memoria
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='CxC General', index=False)
+        
+        output.seek(0)
+        
+        # Generar nombre de archivo con timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'reporte_cxc_general_{timestamp}.xlsx'
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        flash(f'Error al exportar datos de CxC: {str(e)}', 'danger')
+        return redirect(url_for('reporte_cxc_general'))
+
 if __name__ == '__main__':
-    print("🚀 Iniciando Dashboard de Ventas Farmacéuticas...")
-    print("📊 Disponible en: http://127.0.0.1:5000")
+    print("🚀 Iniciando Dashboard de Cobranzas...")
+    print("📊 Disponible en: http://127.0.0.1:5002")
     print("🔐 Usuario: configurado en .env")
-    app.run(debug=True)
+    print("🔧 Debug: ON")
+    app.run(debug=True, port=5002)
