@@ -12,6 +12,7 @@
         </div>
     </div>
     <div class="header-nav">
+        <button onclick="exportToExcel && exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
         <a href="{{ url_for('reporte_cxc_general') }}" class="btn-nav"><i class="bi bi-file-text"></i> Reporte CxC</a>
         <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
