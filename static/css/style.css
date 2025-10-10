@@ -1066,3 +1066,201 @@ tr:hover {
         font-size: 12px;
     }
 }
+
+/* ============================================
+   NAVBAR DESPLEGABLE CON MENUS POR AREA (CLICK)
+   ============================================ */
+
+.header-nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Contenedor de menú desplegable */
+.nav-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.nav-dropdown-toggle {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.nav-dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.nav-dropdown-toggle i {
+    font-size: 16px;
+}
+
+.nav-dropdown-toggle .bi-chevron-down {
+    font-size: 12px;
+    transition: transform 0.2s ease;
+}
+
+.nav-dropdown.active .nav-dropdown-toggle .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Menú desplegable */
+.nav-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 250px;
+    padding: 8px 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.nav-dropdown.active .nav-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.nav-dropdown-menu a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: #212529;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.nav-dropdown-menu a:hover {
+    background-color: #f8f9fa;
+    border-left-color: var(--odoo-primary);
+    padding-left: 24px;
+}
+
+.nav-dropdown-menu a i {
+    font-size: 18px;
+    color: var(--odoo-primary);
+    width: 20px;
+    text-align: center;
+}
+
+.nav-dropdown-menu a:hover i {
+    transform: scale(1.1);
+}
+
+/* Separador en menú */
+.nav-dropdown-divider {
+    height: 1px;
+    background-color: #dee2e6;
+    margin: 8px 0;
+}
+
+/* Botón de salir (sin dropdown) */
+.btn-salir {
+    background-color: rgba(220, 53, 69, 0.9);
+    border: 1px solid rgba(220, 53, 69, 1);
+    color: white;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-salir:hover {
+    background-color: rgba(220, 53, 69, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Botón nav estándar (sin dropdown) */
+.btn-nav {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-nav:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-nav i {
+    font-size: 16px;
+}
+
+/* Responsive navbar */
+@media (max-width: 1024px) {
+    .header-nav {
+        gap: 6px;
+    }
+    
+    .nav-dropdown-toggle,
+    .btn-nav,
+    .btn-salir {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .nav-dropdown-menu {
+        min-width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .header-nav {
+        margin-top: 12px;
+        justify-content: center;
+    }
+    
+    .nav-dropdown-menu {
+        right: auto;
+        left: 0;
+    }
+}

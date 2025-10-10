@@ -26,13 +26,71 @@
             </option>
             {% endfor %}
         </select>
-        <a href="{{ url_for('dashboard_cobranza_internacional') }}" class="btn-nav"><i class="bi bi-globe"></i> Cobranza Internacional</a>
-        <a href="{{ url_for('reporte_cxc_general') }}" class="btn-nav"><i class="bi bi-credit-card"></i> CxC General</a>
-        <a href="{{ url_for('meta') }}" class="btn-nav"><i class="bi bi-bullseye"></i> Metas</a>
-        <a href="{{ url_for('metas_vendedor') }}" class="btn-nav"><i class="bi bi-people"></i> Metas Vendedor</a>
+        
+        <!-- Dropdown Ventas -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle">
+                <i class="bi bi-graph-up-arrow"></i> Ventas <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="nav-dropdown-menu">
+                <a href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard General</a>
+                <a href="{{ url_for('dashboard_linea') }}"><i class="bi bi-bar-chart-line"></i> Dashboard por Línea</a>
+                <a href="{{ url_for('sales') }}"><i class="bi bi-table"></i> Líneas de Venta</a>
+            </div>
+        </div>
+        
+        <!-- Dropdown Cobranza -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle">
+                <i class="bi bi-cash-coin"></i> Cobranza <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="nav-dropdown-menu">
+                <a href="{{ url_for('dashboard_cobranza_internacional') }}"><i class="bi bi-globe-americas"></i> Dashboard Internacional</a>
+                <a href="{{ url_for('reporte_cxc_general') }}"><i class="bi bi-credit-card"></i> Reporte CxC General</a>
+                <a href="{{ url_for('reporte_internacional') }}"><i class="bi bi-file-earmark-text"></i> Reporte Internacional</a>
+            </div>
+        </div>
+        
+        <!-- Dropdown Metas -->
+        <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle">
+                <i class="bi bi-bullseye"></i> Metas <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="nav-dropdown-menu">
+                <a href="{{ url_for('meta') }}"><i class="bi bi-grid-3x3-gap"></i> Metas por Línea</a>
+                <a href="{{ url_for('metas_vendedor') }}"><i class="bi bi-people-fill"></i> Metas por Vendedor</a>
+            </div>
+        </div>
+        
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
 </div>
+
+<script>
+// Script para manejar dropdowns con click
+document.addEventListener('DOMContentLoaded', function() {
+    const dropdowns = document.querySelectorAll('.nav-dropdown');
+    
+    dropdowns.forEach(dropdown => {
+        const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+        
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            // Cerrar otros dropdowns
+            dropdowns.forEach(d => {
+                if (d !== dropdown) d.classList.remove('active');
+            });
+            // Toggle el actual
+            dropdown.classList.toggle('active');
+        });
+    });
+    
+    // Cerrar dropdowns al hacer click fuera
+    document.addEventListener('click', function() {
+        dropdowns.forEach(d => d.classList.remove('active'));
+    });
+});
+</script>
 
 <!-- Dashboard principal -->
 <div class="dashboard-container">

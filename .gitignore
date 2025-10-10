@@ -28,3 +28,6 @@ credentials.json
 metas.json
 equipos_ventas.json
 metas_vendedores.json
+
+# Carpeta de instancia (puede contener datos sensibles)
+instance/

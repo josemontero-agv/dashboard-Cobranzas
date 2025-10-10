@@ -1,71 +1,32 @@
-# odoo_manager.py - Versión Completa Restaurada
+# -*- coding: utf-8 -*-
+# odoo_manager.py - Wrapper para servicios
 
 import xmlrpc.client
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+from services.odoo_connection import OdooConnection
+from services.report_service import ReportService
+from services.cobranza_service import CobranzaService
 
 class OdooManager:
     def __init__(self):
-        # Configurar conexión a Odoo - Usar directamente credenciales del .env
-        try:
-            # Usar directamente las credenciales que funcionan
-            self.url = os.getenv('ODOO_URL', 'https://amah-test.odoo.com')
-            self.db = os.getenv('ODOO_DB', 'amah-staging-23367866')
-            self.username = os.getenv('ODOO_USER', 'AMAHOdoo@agrovetmarket.com')
-            self.password = os.getenv('ODOO_PASSWORD', 'Agrovet25**')
-            
-            # Establecer conexión
-            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            self.uid = common.authenticate(self.db, self.username, self.password, {})
-            
-            if self.uid:
-                self.models = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/object')
-                print("✅ Conexión a Odoo establecida exitosamente.")
-            else:
-                print("❌ Advertencia: No se pudo autenticar. Continuando en modo offline.")
-                self.uid = None
-                self.models = None
-                
-        except Exception as e:
-            print(f"Error en la conexión a Odoo: {e}")
-            print("Continuando en modo offline.")
-            self.uid = None
-            self.models = None
+        # Inicializar servicios
+        self.connection = OdooConnection()
+        self.reports = ReportService(self.connection)
+        self.cobranza = CobranzaService(self.connection)
+        
+        # Mantener atributos para retrocompatibilidad
+        self.url = self.connection.url
+        self.db = self.connection.db
+        self.username = self.connection.username
+        self.password = self.connection.password
+        self.uid = self.connection.uid
+        self.models = self.connection.models
 
     def authenticate_user(self, username, password):
-        """Autenticar usuario contra Odoo usando las credenciales de la base de datos"""
-        try:
-            # Intentar autenticación contra Odoo con las credenciales proporcionadas
-            import xmlrpc.client
-            
-            # Crear conexión temporal para autenticación
-            common = xmlrpc.client.ServerProxy(f'{self.url}/xmlrpc/2/common')
-            
-            # Intentar autenticar con las credenciales proporcionadas
-            uid = common.authenticate(self.db, username, password, {})
-            
-            if uid:
-                print(f"✅ Autenticación exitosa para usuario: {username}")
-                return True
-            else:
-                print(f"❌ Credenciales incorrectas para usuario: {username}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Error en autenticación contra Odoo: {e}")
-            
-            # Fallback: verificar si las credenciales coinciden con las del .env
-            try:
-                if username == self.user and password == self.password:
-                    print(f"✅ Autenticación exitosa usando credenciales del .env")
-                    return True
-                else:
-                    print(f"❌ Credenciales no coinciden con las configuradas")
-                    return False
-            except Exception as fallback_error:
-                print(f"❌ Error en fallback de autenticación: {fallback_error}")
-                return False
+        """Delegar autenticación al servicio de conexión."""
+        return self.connection.authenticate_user(username, password)
 
     def get_sales_filter_options(self):
         """Obtener opciones para filtros de ventas"""
@@ -347,7 +308,6 @@ class OdooManager:
             
             # Procesar y combinar todos los datos para las 27 columnas
             sales_lines = []
-            ecommerce_reassigned = 0
             print(f"🚀 Procesando {len(sales_lines_base)} líneas con 27 columnas...")
             
             for line in sales_lines_base:
@@ -375,18 +335,8 @@ class OdooManager:
                 imp_str = ', '.join(imp_list) if imp_list else ''
                 # Filtrar por impuestos IGV o IGV_INC
                 if 'IGV' in imp_list or 'IGV_INC' in imp_list:
-                    # APLICAR CAMBIO: Reemplazar línea comercial para usuarios ECOMMERCE específicos
-                    # Se hace aquí para que el commercial_line_national_id original esté disponible para otros cálculos si es necesario
+                    # Obtener línea comercial sin modificaciones ECOMMERCE
                     commercial_line_id = product.get('commercial_line_national_id')
-                    invoice_user = move.get('invoice_user_id')
-                    
-                    if invoice_user and isinstance(invoice_user, list) and len(invoice_user) >= 2:
-                        # Verificar si es uno de los usuarios ECOMMERCE específicos
-                        if ((invoice_user[0] == 34 and invoice_user[1] == 'HUAMAN CORDOVA, SAMIRE ANDREA') or
-                            (invoice_user[0] == 35 and invoice_user[1] == 'LA ROSA BONIFACIO, JULIAN TONY')):
-                            # Cambiar la línea comercial a ECOMMERCE
-                            commercial_line_id = [9, 'ECOMMERCE']
-                            ecommerce_reassigned += 1
 
                     # Crear registro completo con las 27 columnas
                     sales_lines.append({
@@ -496,7 +446,6 @@ class OdooManager:
                     })
             
             print(f"✅ Procesadas {len(sales_lines)} líneas con 27 columnas completas")
-            print(f"🔄 Reasignadas {ecommerce_reassigned} líneas a ECOMMERCE (usuarios específicos)")
             
             # Si se solicita paginación, devolver tupla (datos, paginación)
             if page is not None and per_page is not None:
@@ -721,167 +670,272 @@ class OdooManager:
         }
 
     def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None):
+        """Delegar al servicio de reportes."""
+        return self.reports.get_report_lines(start_date, end_date, customer, limit, account_codes)
+    
+    def get_report_internacional(self, start_date=None, end_date=None, customer=None, payment_state=None, limit=0):
+        """Obtener reporte internacional con campos calculados."""
+        return self.reports.get_report_internacional(start_date, end_date, customer, payment_state, limit)
+    
+    def _legacy_get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None):
         """
-        Obtener líneas de reporte de CxC usando la lógica eficaz del bi_creditos_cobranzas
-        Campos extraídos según especificaciones del usuario
+        LEGACY: Método original mantenido como backup.
+        Obtener líneas de reporte de CxC siguiendo la cadena de relaciones.
         """
         try:
-            print(f"🔍 Obteniendo líneas de reporte CxC...")
+            print(f"[INFO] Obteniendo lineas de reporte CxC...")
             
             # Verificar conexión
             if not self.uid or not self.models:
-                print("❌ No hay conexión a Odoo disponible")
+                print("[ERROR] No hay conexion a Odoo disponible")
                 return []
             
-            # Query account.move.line focused on receivable lines (with fallbacks)
-            # SIN FILTRO DE CANAL - Para reportes CxC 12 y 13 necesitamos TODOS los canales
-            base_domain = [
-                ['reconciled', '=', False],
-                ['move_id.state', '=', 'posted']
-            ]
-            if start_date:
-                base_domain.append(['date', '>=', start_date])
-            if end_date:
-                base_domain.append(['date', '<=', end_date])
-            if customer:
-                base_domain.append(['partner_id', 'ilike', customer])
-
-            fields = [
-                'date',
-                'move_name',
-                'ref',
-                'name',
-                'date_maturity',
-                'amount_currency',
-                'amount_residual_currency',
-                'partner_id',
-                'account_id',
-                'move_id',
-            ]
+            # PASO 1: Consultar account.move.line (líneas de asiento contable)
+            # Esta es la tabla principal que contiene los códigos de cuenta
             
-            # Filtros de negocio (Odoo 16):
-            # (account_id.code like '12%' OR like '13%')
-            # AND NOT contiene '10', '123', '133'
-            # AND tipo de cuenta por cobrar
-            # Si vienen códigos por parámetro, usarlos; si no, los predeterminados para CxC 12 y 13
+            # Códigos de cuenta a buscar
             if account_codes:
                 codes = [c.strip() for c in account_codes.split(',') if c.strip()]
             else:
-                codes = ['1212', '122', '1312', '132']
-
-            # Construir OR plano de Odoo: ['|', cond1, '|', cond2, cond3]
-            code_clauses = [[ 'account_id.code', 'like', f"{c}%" ] for c in codes]
-            account_code_tokens = []
-            for i, clause in enumerate(code_clauses):
-                if i > 0:
-                    account_code_tokens.append('|')
-                account_code_tokens.append(clause)
-
-            # Dominio final
-            final_domain = base_domain + account_code_tokens + [['account_id.account_type', '=', 'asset_receivable']]
+                codes = ['12']  # Cuenta 12 por defecto
+            
+            # Construir dominio base
+            line_domain = [
+                ('parent_state', '=', 'posted'),  # Solo facturas confirmadas
+                ('reconciled', '=', True),  # Solo no conciliadas (pendientes)
+            ]
+            
+            # Construir OR para códigos de cuenta de forma correcta
+            # En Odoo, los OR deben estar al principio del dominio
+            if len(codes) > 1:
+                # Múltiples códigos: agregar operadores OR
+                or_operators = ['|'] * (len(codes) - 1)
+                code_conditions = []
+                for code in codes:
+                    code_conditions.append(('account_id.code', '=like', f'{code}%'))
+                # Insertar OR al inicio
+                line_domain = or_operators + code_conditions + line_domain
+            else:
+                # Un solo código
+                line_domain.insert(0, ('account_id.code', '=like', f'{codes[0]}%'))
+            
+            print(f"[DEBUG] Dominio de busqueda: {line_domain}")
+            
+            # Filtros adicionales
+            if start_date:
+                line_domain.append(('date', '>=', start_date))
+            if end_date:
+                line_domain.append(('date', '<=', end_date))
+            if customer:
+                line_domain.append(('partner_id.name', 'ilike', customer))
+            
+            # Campos a extraer de account.move.line
+            line_fields = [
+                'id',
+                'move_id',          # ID de la factura (account.move)
+                'partner_id',       # ID del cliente
+                'account_id',       # ID de la cuenta contable
+                'name',             # Descripción de la línea
+                'date',             # Fecha
+                'date_maturity',    # Fecha de vencimiento
+                'amount_currency',  # Monto en moneda
+                'amount_residual',  # Saldo pendiente
+                'currency_id',      # Moneda
+            ]
+            
+            print(f"[PASO 1] Consultando account.move.line...")
             lines = self.models.execute_kw(
                 self.db, self.uid, self.password, 'account.move.line', 'search_read',
-                [final_domain],
-                {'fields': fields, 'limit': limit}
+                [line_domain],
+                {'fields': line_fields, 'limit': limit if limit > 0 else 10000}
             )
-
-            # Collect related ids to batch read partners, accounts, moves
-            partner_ids = sorted({l['partner_id'][0] for l in lines if isinstance(l.get('partner_id'), list)})
-            account_ids = sorted({l['account_id'][0] for l in lines if isinstance(l.get('account_id'), list)})
-            move_ids = sorted({l['move_id'][0] for l in lines if isinstance(l.get('move_id'), list)})
-
-            partner_map = {}
-            account_map = {}
+            
+            print(f"[OK] Obtenidas {len(lines)} lineas de asiento contable")
+            
+            if not lines:
+                print("[WARN] No se encontraron lineas con los filtros especificados")
+                return []
+            
+            # Extraer IDs únicos para las siguientes consultas
+            move_ids = list(set([l['move_id'][0] for l in lines if l.get('move_id')]))
+            partner_ids = list(set([l['partner_id'][0] for l in lines if l.get('partner_id')]))
+            account_ids = list(set([l['account_id'][0] for l in lines if l.get('account_id')]))
+            
+            print(f"[INFO] IDs unicos: {len(move_ids)} facturas, {len(partner_ids)} clientes, {len(account_ids)} cuentas")
+            
+            # PASO 2: Obtener datos de account.move (facturas)
             move_map = {}
-
-            if partner_ids:
-                partner_map = {}
-                # Campos completos para partners (clientes) según especificaciones
-                partner_fields_full = ['vat', 'state_id', 'l10n_pe_district', 'country_id', 'contact_address', 'cod_client_sap', 'country_code']
-                try:
-                    partner_recs = self.models.execute_kw(self.db, self.uid, self.password, 'res.partner', 'read', [partner_ids], {'fields': partner_fields_full})
-                except Exception as e:
-                    print(f"⚠️ Error extrayendo todos los campos del partner, usando campos básicos: {e}")
-                    # Fallback without custom fields
-                    partner_recs = self.models.execute_kw(self.db, self.uid, self.password, 'res.partner', 'read', [partner_ids], {'fields': ['vat', 'state_id', 'l10n_pe_district', 'country_id', 'contact_address']})
-                partner_map = {p['id']: p for p in partner_recs}
-
-            if account_ids:
-                acc_fields = ['code', 'name']
-                acc_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.account', 'read', [account_ids], {'fields': acc_fields})
-                account_map = {a['id']: a for a in acc_recs}
-
             if move_ids:
-                move_map = {}
-                # Intentar obtener todos los campos necesarios para CxC 12 y 13 (todos los canales)
-                move_fields_base = ['invoice_origin', 'invoice_user_id', 'team_id', 'l10n_latam_document_type_id', 'name', 'ref', 'state']
-                move_fields_optional = ['sales_type_id', 'amount_total', 'invoice_date', 'invoice_date_due', 'currency_id', 'move_type', 'payment_state']
+                print(f"[PASO 2] Consultando account.move (facturas)...")
+                move_fields = [
+                    'id',
+                    'name',                         # Número de factura
+                    'payment_state',                # Estado de pago
+                    'invoice_date',                 # Fecha de factura
+                    'invoice_date_due',             # Fecha de vencimiento
+                    'invoice_origin',               # Origen
+                    'l10n_latam_document_type_id',  # Tipo de documento
+                    'amount_total',                 # Total
+                    'amount_residual',              # Saldo pendiente
+                    'currency_id',                  # Moneda
+                    'ref',                          # Referencia
+                    'invoice_payment_term_id',      # Condición de pago
+                    'invoice_user_id',              # Vendedor
+                    'sales_channel_id',             # Canal de venta
+                    'sale_type_id',                 # Tipo de venta
+                ]
                 
+                moves = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'account.move', 'read',
+                    [move_ids], {'fields': move_fields}
+                )
+                move_map = {m['id']: m for m in moves}
+                print(f"[OK] Obtenidas {len(moves)} facturas")
+            
+            # PASO 3: Obtener datos de res.partner (clientes)
+            partner_map = {}
+            if partner_ids:
+                print(f"[PASO 3] Consultando res.partner (clientes)...")
+                partner_fields = [
+                    'id',
+                    'name',             # Nombre del cliente
+                    'vat',              # RUC/DNI
+                    'state_id',         # Provincia
+                    'l10n_pe_district', # Distrito
+                    'country_code',     # Código de país
+                    'country_id',       # País
+                ]
+                
+                partners = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'res.partner', 'read',
+                    [partner_ids], {'fields': partner_fields}
+                )
+                partner_map = {p['id']: p for p in partners}
+                print(f"[OK] Obtenidos {len(partners)} clientes")
+            
+            # PASO 4: Obtener datos de account.account (cuentas contables)
+            account_map = {}
+            if account_ids:
+                print(f"[PASO 4] Consultando account.account (cuentas)...")
+                accounts = self.models.execute_kw(
+                    self.db, self.uid, self.password, 'account.account', 'read',
+                    [account_ids], {'fields': ['id', 'code', 'name']}
+                )
+                account_map = {a['id']: a for a in accounts}
+                
+                # Mostrar códigos de cuenta encontrados
+                account_codes_found = [a.get('code', 'N/A') for a in accounts]
+                print(f"[OK] Obtenidas {len(accounts)} cuentas contables")
+                print(f"[DEBUG] Codigos de cuenta encontrados: {sorted(set(account_codes_found))}")
+            
+            # PASO 5: Obtener datos de agr.credit.customer (información de crédito)
+            credit_map = {}
+            if partner_ids:
+                print(f"[PASO 5] Consultando agr.credit.customer...")
                 try:
-                    # Intentar con todos los campos
-                    all_move_fields = move_fields_base + move_fields_optional
-                    move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': all_move_fields})
-                    print(f"✅ Extraídos todos los campos del move: {len(all_move_fields)} campos")
+                    credit_customers = self.models.execute_kw(
+                        self.db, self.uid, self.password, 'agr.credit.customer', 'search_read',
+                        [[('partner_id', 'in', partner_ids)]],
+                        {'fields': ['partner_id', 'sub_channel_id']}
+                    )
+                    credit_map = {cc['partner_id'][0]: cc for cc in credit_customers}
+                    print(f"[OK] Obtenidos {len(credit_customers)} registros de credito")
                 except Exception as e:
-                    print(f"⚠️ Error extrayendo campos opcionales del move: {e}")
-                    try:
-                        # Fallback sin campos opcionales
-                        move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': move_fields_base})
-                        print(f"✅ Extraídos campos básicos del move: {len(move_fields_base)} campos")
-                    except Exception as e2:
-                        print(f"❌ Error crítico extrayendo campos del move: {e2}")
-                        move_recs = self.models.execute_kw(self.db, self.uid, self.password, 'account.move', 'read', [move_ids], {'fields': ['invoice_origin', 'invoice_user_id', 'team_id']})
-                move_map = {m['id']: m for m in move_recs}
-
-            # Build rows per requested schema
+                    print(f"[WARN] No se pudo obtener agr.credit.customer: {e}")
+            
+            # PASO 6: Combinar todos los datos siguiendo las relaciones
+            print(f"[PASO 6] Combinando datos...")
             rows = []
-            for l in lines:
-                partner = partner_map.get(l['partner_id'][0]) if isinstance(l.get('partner_id'), list) else {}
-                account = account_map.get(l['account_id'][0]) if isinstance(l.get('account_id'), list) else {}
-                move = move_map.get(l['move_id'][0]) if isinstance(l.get('move_id'), list) else {}
-
-                def m2o_name(val):
-                    if isinstance(val, list) and len(val) >= 2:
-                        return val[1]
-                    return ''
-
-                rows.append({
-                    # Campos exactos según especificaciones del usuario
-                    'date': l.get('date'),
+            
+            # Función auxiliar para extraer nombre de campo many2one
+            def m2o_name(val):
+                if isinstance(val, list) and len(val) >= 2:
+                    return val[1]
+                return ''
+            
+            for line in lines:
+                # Obtener IDs de las relaciones
+                move_id = line['move_id'][0] if line.get('move_id') else None
+                partner_id = line['partner_id'][0] if line.get('partner_id') else None
+                account_id = line['account_id'][0] if line.get('account_id') else None
+                
+                # Obtener datos relacionados
+                move = move_map.get(move_id, {})
+                partner = partner_map.get(partner_id, {})
+                account = account_map.get(account_id, {})
+                credit = credit_map.get(partner_id, {})
+                
+                # Determinar Sub Canal con lógica condicional
+                sub_channel_raw = m2o_name(credit.get('sub_channel_id'))
+                country_code = partner.get('country_code', '')
+                
+                # Si Sub Canal está vacío o es N/A, aplicar lógica basada en país
+                if not sub_channel_raw or sub_channel_raw == 'N/A' or sub_channel_raw.strip() == '':
+                    if country_code == 'PE':
+                        sub_channel_final = 'NACIONAL'
+                    elif country_code and country_code != '':
+                        sub_channel_final = 'INTERNACIONAL'
+                    else:
+                        sub_channel_final = 'N/A'
+                else:
+                    sub_channel_final = sub_channel_raw
+                
+                row = {
+                    # De account.move (factura)
+                    'payment_state': move.get('payment_state', ''),
+                    'invoice_date': move.get('invoice_date', ''),
                     'I10nn_latam_document_type_id': m2o_name(move.get('l10n_latam_document_type_id')),
-                    'move_name': l.get('move_name'),
-                    'invoice_origin': move.get('invoice_origin') or '',
-                    'account_id/code': account.get('code') or '',
-                    'account_id/name': account.get('name') or m2o_name(l.get('account_id')),
-                    'patner_id/cod_client_sap': partner.get('cod_client_sap') or '',
-                    'patner_id/vat': partner.get('vat') or '',
-                    'patner_id': m2o_name(l.get('partner_id')),
-                    'amount_currency': l.get('amount_currency') or 0.0,
-                    'amount_residual_currency': l.get('amount_residual_currency') or 0.0,
-                    'date_maturity': l.get('date_maturity'),
-                    'ref': l.get('ref') or '',
-                    'name': l.get('name') or '',
-                    'move_id/invoice_user_id': m2o_name(move.get('invoice_user_id')),
+                    'move_name': move.get('name', ''),
+                    'invoice_origin': move.get('invoice_origin', ''),
+                    
+                    # De account.account (cuenta contable)
+                    'account_id/code': account.get('code', ''),
+                    'account_id/name': account.get('name', ''),
+                    
+                    # De res.partner (cliente)
+                    'patner_id/vat': partner.get('vat', ''),
+                    'patner_id': partner.get('name', ''),
                     'patner_id/state_id': m2o_name(partner.get('state_id')),
-                    'patner_id/l10n_pe_district': partner.get('l10n_pe_district') or '',
-                    'patner_id/contact_adress': partner.get('contact_address') or '',
-                    'patner_id/country_code': partner.get('country_code') or '',
+                    'patner_id/l10n_pe_district': partner.get('l10n_pe_district', ''),
+                    'patner_id/country_code': country_code,
                     'patner_id/country_id': m2o_name(partner.get('country_id')),
-                    'move_id/sales_channel_id': m2o_name(move.get('team_id')),
-                    'move_id/sales_type_id': m2o_name(move.get('sales_type_id')),
-                    'move_id/payment_state': move.get('payment_state') or '',
-                    # Campos adicionales para completar las especificaciones
-                    'currency_id': move.get('currency_id') or '',
-                    'invoice_payment_term_id': move.get('invoice_payment_term_id') or '',
-                    'patner_groups_ids': '',  # Campo adicional si existe
-                    'sub_channel_id': '',  # Campo adicional si existe
-                })
-
-            print(f"✅ Procesadas {len(rows)} líneas de CxC con todos los campos")
+                    
+                    # Campos financieros (combinación de move.line y move)
+                    'currency_id': m2o_name(line.get('currency_id') or move.get('currency_id')),
+                    'amount_total': move.get('amount_total', 0.0),
+                    'amount_residual': move.get('amount_residual', 0.0),
+                    'amount_currency': line.get('amount_currency', 0.0),
+                    'amount_residual_currency': line.get('amount_residual', 0.0),
+                    
+                    # Fechas
+                    'date': line.get('date', ''),
+                    'date_maturity': line.get('date_maturity', ''),
+                    'invoice_date_due': move.get('invoice_date_due', ''),
+                    
+                    # Referencias
+                    'ref': move.get('ref', ''),
+                    'invoice_payment_term_id': m2o_name(move.get('invoice_payment_term_id')),
+                    'name': line.get('name', ''),
+                    
+                    # Vendedor y canales (de account.move)
+                    'move_id/invoice_user_id': m2o_name(move.get('invoice_user_id')),
+                    'move_id/sales_channel_id': m2o_name(move.get('sales_channel_id')),
+                    'move_id/sales_type_id': m2o_name(move.get('sale_type_id')),
+                    'move_id/payment_state': move.get('payment_state', ''),
+                    
+                    # De agr.credit.customer (con lógica condicional)
+                    'sub_channel_id': sub_channel_final,
+                }
+                
+                rows.append(row)
+            
+            print(f"[OK] Procesadas {len(rows)} lineas de CxC con TODOS los campos")
             return rows
-
+            
         except Exception as e:
-            print(f"Error al obtener las líneas de reporte CxC: {e}")
+            print(f"[ERROR] Error al obtener las lineas de reporte CxC: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_cobranza_kpis(self, date_from=None, date_to=None, payment_state=None):

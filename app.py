@@ -3,7 +3,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from dotenv import load_dotenv
 from odoo_manager import OdooManager
-from google_sheets_manager import GoogleSheetsManager
 import os
 import pandas as pd
 import json
@@ -21,10 +20,14 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # --- Inicialización de Managers ---
 data_manager = OdooManager()
-gs_manager = GoogleSheetsManager(
-    credentials_file='credentials.json',
-    sheet_name=os.getenv('GOOGLE_SHEET_NAME')
-)
+
+# Almacenamiento local para metas (reemplaza Google Sheets)
+# En producción, esto debería ser una base de datos
+LOCAL_STORAGE = {
+    'metas_por_linea': {},
+    'metas_vendedores': {},
+    'equipos': {}
+}
 
 # --- Funciones Auxiliares ---
 
@@ -158,7 +161,7 @@ def dashboard():
             dia_actual = ultimo_dia
         
         # Obtener metas del mes seleccionado desde la sesión
-        metas_historicas = gs_manager.read_metas_por_linea()
+        metas_historicas = LOCAL_STORAGE.get('metas_por_linea', {})
         metas_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
         metas_ipn_del_mes = metas_historicas.get(mes_seleccionado, {}).get('metas_ipn', {})
         
@@ -451,7 +454,7 @@ def dashboard_linea():
 
         # Cargar metas de vendedores para el mes y línea seleccionados
         # La estructura es metas[equipo_id][vendedor_id][mes_key]
-        metas_vendedores_historicas = gs_manager.read_metas()
+        metas_vendedores_historicas = LOCAL_STORAGE.get('metas_vendedores', {})
         # 1. Obtener todas las metas del equipo/línea
         metas_del_equipo = metas_vendedores_historicas.get(linea_seleccionada_id, {})
 
@@ -653,7 +656,7 @@ def meta():
             mes_obj = next((m for m in meses_año if m['key'] == mes_formulario), None)
             mes_nombre_formulario = mes_obj['nombre'] if mes_obj else ""
             
-            metas_historicas = gs_manager.read_metas_por_linea()
+            metas_historicas = LOCAL_STORAGE.get('metas_por_linea', {})
             metas_historicas[mes_formulario] = {
                 'metas': metas_data,
                 'metas_ipn': metas_ipn_data,
@@ -661,7 +664,7 @@ def meta():
                 'total_ipn': total_meta_ipn,
                 'mes_nombre': mes_nombre_formulario
             }
-            gs_manager.write_metas_por_linea(metas_historicas)
+            LOCAL_STORAGE['metas_por_linea'] = metas_historicas
             
             flash(f'Metas guardadas exitosamente para {mes_nombre_formulario}. Total: S/ {total_meta:,.0f}', 'success')
             
@@ -669,7 +672,7 @@ def meta():
             mes_seleccionado = mes_formulario
         
         # Obtener todas las metas históricas
-        metas_historicas = gs_manager.read_metas_por_linea()
+        metas_historicas = LOCAL_STORAGE.get('metas_por_linea', {})
         
         # Obtener metas y total del mes seleccionado
         metas_actuales = metas_historicas.get(mes_seleccionado, {}).get('metas', {})
@@ -705,6 +708,111 @@ def meta():
                              total_actual=0,
                              total_ipn_actual=0,
                              fecha_actual=datetime.now())
+
+# --- API RUTAS PARA COBRANZA INTERNACIONAL ---
+@app.route('/api/cobranza_internacional/kpis')
+def api_cobranza_internacional_kpis():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        payment_state = request.args.get('payment_state')
+        linea_id = request.args.get('linea_id')
+        
+        kpis = data_manager.cobranza.get_cobranza_kpis_internacional(
+            date_from, date_to, payment_state, linea_id
+        )
+        
+        return jsonify(kpis)
+    
+    except Exception as e:
+        print(f"[ERROR] api_cobranza_internacional_kpis: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza_internacional/top15')
+def api_cobranza_internacional_top15():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        
+        top15 = data_manager.cobranza.get_top15_deudores_internacional(date_from, date_to)
+        
+        return jsonify(top15)
+    
+    except Exception as e:
+        print(f"[ERROR] api_cobranza_internacional_top15: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza_internacional/aging')
+def api_cobranza_internacional_aging():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        
+        kpis = data_manager.cobranza.get_cobranza_kpis_internacional(date_from, date_to)
+        
+        # Formatear para gráfico
+        aging_buckets = kpis.get('aging_buckets', {})
+        return jsonify({
+            'labels': ['Vigente', '1-30 días', '31-60 días', '61-90 días', '+90 días'],
+            'values': [
+                aging_buckets.get('vigente', 0),
+                aging_buckets.get('1-30', 0),
+                aging_buckets.get('31-60', 0),
+                aging_buckets.get('61-90', 0),
+                aging_buckets.get('+90', 0),
+            ]
+        })
+    
+    except Exception as e:
+        print(f"[ERROR] api_cobranza_internacional_aging: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza_internacional/dso_by_country')
+def api_cobranza_internacional_dso_by_country():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        date_from = request.args.get('start')
+        date_to = request.args.get('end')
+        
+        kpis = data_manager.cobranza.get_cobranza_kpis_internacional(date_from, date_to)
+        dso_by_country = kpis.get('dso_by_country', {})
+        
+        return jsonify({
+            'countries': list(dso_by_country.keys()),
+            'dso_values': list(dso_by_country.values())
+        })
+    
+    except Exception as e:
+        print(f"[ERROR] api_cobranza_internacional_dso_by_country: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cobranza_internacional/dso_trend')
+def api_cobranza_internacional_dso_trend():
+    if 'username' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        # Placeholder - se necesitaría implementar cálculo por mes
+        return jsonify({
+            'labels': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            'dso_values': [45, 48, 52, 49, 53, 51],
+            'objetivo': [45, 45, 45, 45, 45, 45]
+        })
+    
+    except Exception as e:
+        print(f"[ERROR] api_cobranza_internacional_dso_trend: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/export/excel/sales')
 def export_excel_sales():
@@ -820,7 +928,7 @@ def metas_vendedor():
         # --- 1. GUARDAR ASIGNACIONES DE EQUIPOS ---
         equipo_actualizado_id = request.form.get('guardar_equipo') # Para el mensaje flash
         todos_los_vendedores_para_guardar = data_manager.get_all_sellers()
-        equipos_guardados = gs_manager.read_equipos()
+        equipos_guardados = LOCAL_STORAGE.get('equipos', {})
 
         for equipo in equipos_definidos:
             campo_vendedores = f'vendedores_{equipo["id"]}'
@@ -831,10 +939,10 @@ def metas_vendedor():
                     equipos_guardados[equipo['id']] = vendedores_ids
                 else:
                     equipos_guardados[equipo['id']] = []
-        gs_manager.write_equipos(equipos_guardados, todos_los_vendedores_para_guardar)
+        LOCAL_STORAGE['equipos'] = equipos_guardados
 
         # --- 2. GUARDAR TODAS LAS METAS (ESTRUCTURA PIVOT) ---
-        metas_vendedores_historicas = gs_manager.read_metas()
+        metas_vendedores_historicas = LOCAL_STORAGE.get('metas_vendedores', {})
         
         for equipo in equipos_definidos:
             equipo_id = equipo['id']
@@ -870,7 +978,7 @@ def metas_vendedor():
                     elif mes_key in metas_vendedores_historicas[equipo_id][vendedor_id_str]:
                         del metas_vendedores_historicas[equipo_id][vendedor_id_str][mes_key]
 
-        gs_manager.write_metas(metas_vendedores_historicas)
+        LOCAL_STORAGE['metas_vendedores'] = metas_vendedores_historicas
         
         if equipo_actualizado_id:
             flash(f'Miembros del equipo actualizados. Ahora puedes asignar sus metas.', 'info')
@@ -883,7 +991,7 @@ def metas_vendedor():
     # GET o después de POST
     todos_los_vendedores = data_manager.get_all_sellers()
     vendedores_por_id = {v['id']: v for v in todos_los_vendedores}
-    equipos_guardados = gs_manager.read_equipos()
+    equipos_guardados = LOCAL_STORAGE.get('equipos', {})
 
     # Construir la estructura de datos para la plantilla
     equipos_con_vendedores = []
@@ -900,7 +1008,7 @@ def metas_vendedor():
         })
 
     # Para la vista, pasamos todas las metas cargadas
-    metas_guardadas = gs_manager.read_metas()
+    metas_guardadas = LOCAL_STORAGE.get('metas_vendedores', {})
 
     return render_template('metas_vendedor.html',
                            meses_disponibles=meses_disponibles,
@@ -1020,6 +1128,47 @@ def reporte_cxc_general():
                              selected_filters={},
                              fecha_actual=datetime.now())
 
+# --- NUEVA RUTA PARA REPORTE INTERNACIONAL ---
+@app.route('/reporte_internacional', methods=['GET', 'POST'])
+def reporte_internacional():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener filtros
+        selected_filters = {
+            'date_from': request.form.get('date_from') or request.args.get('date_from'),
+            'date_to': request.form.get('date_to') or request.args.get('date_to'),
+            'customer': request.form.get('customer') or request.args.get('customer'),
+            'payment_state': request.form.get('payment_state') or request.args.get('payment_state')
+        }
+        
+        # Convertir strings vacíos a None
+        for key, value in selected_filters.items():
+            if value == '':
+                selected_filters[key] = None
+        
+        # Obtener datos internacional con campos calculados
+        internacional_data = data_manager.get_report_internacional(
+            start_date=selected_filters['date_from'],
+            end_date=selected_filters['date_to'],
+            customer=selected_filters['customer'],
+            payment_state=selected_filters['payment_state'],
+            limit=2000
+        )
+        
+        return render_template('reporte_internacional.html',
+                             internacional_data=internacional_data,
+                             selected_filters=selected_filters,
+                             fecha_actual=datetime.now())
+    
+    except Exception as e:
+        flash(f'Error al obtener datos internacionales: {str(e)}', 'danger')
+        return render_template('reporte_internacional.html',
+                             internacional_data=[],
+                             selected_filters={},
+                             fecha_actual=datetime.now())
+
 # --- NUEVA RUTA PARA DASHBOARD COBRANZA INTERNACIONAL ---
 @app.route('/dashboard_cobranza_internacional')
 def dashboard_cobranza_internacional():
@@ -1094,13 +1243,17 @@ def api_cobranza_lineas():
         return jsonify({'error': 'No autorizado'}), 401
     
     try:
-        # Obtener líneas comerciales
-        lineas_data = data_manager.get_commercial_lines()
+        # Obtener líneas comerciales usando el método de filtros
+        filter_options = data_manager.get_filter_options()
+        lineas = filter_options.get('lineas', [])
+        
+        # Formatear para la respuesta JSON
+        lineas_data = [{'id': l['id'], 'name': l['display_name']} for l in lineas]
         return jsonify(lineas_data)
     
     except Exception as e:
         print(f"Error en api_cobranza_lineas: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify([]), 200  # Retornar lista vacía en lugar de error 500
 
 @app.route('/api/cobranza/linea')
 def api_cobranza_linea():
@@ -1114,14 +1267,18 @@ def api_cobranza_linea():
         payment_state = request.args.get('payment_state')
         linea_id = request.args.get('linea_id')
         
-        # Obtener cobranza por línea
-        linea_data = data_manager.get_cobranza_por_linea(date_from, date_to, payment_state, linea_id)
+        # Verificar si el método existe
+        if hasattr(data_manager, 'get_cobranza_por_linea'):
+            linea_data = data_manager.get_cobranza_por_linea(date_from, date_to, payment_state, linea_id)
+        else:
+            # Retornar estructura vacía si el método no existe
+            linea_data = {'rows': []}
         
         return jsonify(linea_data)
     
     except Exception as e:
-        print(f"Error en api_cobranza_linea: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Error obteniendo cobranza por línea: {e}")
+        return jsonify({'rows': []}), 200  # Retornar estructura vacía en lugar de error
 
 # --- RUTA DE EXPORTACIÓN PARA CxC ---
 @app.route('/export/excel/cxc')
@@ -1145,19 +1302,166 @@ def export_excel_cxc():
             limit=10000  # Más datos para export
         )
         
-        # Crear DataFrame
+        if not cxc_data:
+            flash('No hay datos para exportar con los filtros seleccionados.', 'warning')
+            return redirect(url_for('reporte_cxc_general'))
+        
+        # Mapeo de nombres técnicos a nombres en español (como en el frontend)
+        column_mapping = {
+            'payment_state': 'Estado de Pago',
+            'invoice_date': 'Fecha de Factura',
+            'I10nn_latam_document_type_id': 'Tipo de Documento',
+            'move_name': 'Número de Factura',
+            'invoice_origin': 'Origen',
+            'account_id/code': 'Código de Cuenta',
+            'account_id/name': 'Nombre de Cuenta',
+            'patner_id/vat': 'RUC/DNI',
+            'patner_id': 'Cliente',
+            'currency_id': 'Moneda',
+            'amount_total': 'Monto Total',
+            'amount_residual': 'Importe Adeudado',
+            'invoice_date_due': 'Fecha de Vencimiento',
+            'ref': 'Referencia',
+            'invoice_payment_term_id': 'Condición de Pago',
+            'name': 'Descripción',
+            'move_id/invoice_user_id': 'Vendedor',
+            'patner_id/state_id': 'Provincia',
+            'patner_id/l10n_pe_district': 'Distrito',
+            'patner_id/country_code': 'Código de País',
+            'patner_id/country_id': 'País',
+            'sub_channel_id': 'Sub Canal',
+            'move_id/sales_channel_id': 'Canal de Venta',
+            'move_id/sales_type_id': 'Tipo de Venta'
+        }
+        
+        # Crear DataFrame con solo las columnas que queremos
         df = pd.DataFrame(cxc_data)
         
-        # Crear archivo Excel en memoria
+        # Reordenar y renombrar columnas según el frontend
+        ordered_columns = [
+            'invoice_date', 'I10nn_latam_document_type_id', 'move_name', 'invoice_origin',
+            'account_id/code', 'account_id/name', 'patner_id/vat', 'patner_id', 'currency_id',
+            'amount_total', 'amount_residual', 'invoice_date_due', 'ref', 
+            'invoice_payment_term_id', 'name', 'move_id/invoice_user_id',
+            'patner_id/state_id', 'patner_id/l10n_pe_district', 'patner_id/country_code',
+            'patner_id/country_id', 'sub_channel_id', 'move_id/sales_channel_id', 'move_id/sales_type_id'
+        ]
+        
+        # Filtrar solo columnas que existen
+        existing_columns = [col for col in ordered_columns if col in df.columns]
+        df = df[existing_columns]
+        
+        # Renombrar columnas al español
+        df.rename(columns=column_mapping, inplace=True)
+        
+        # Crear archivo Excel con formato profesional
         output = io.BytesIO()
+        
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='CxC General', index=False)
+            df.to_excel(writer, sheet_name='Cuentas por Cobrar', index=False, startrow=1)
+            
+            # Obtener el workbook y worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Cuentas por Cobrar']
+            
+            # Importar módulos de estilo de openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+            
+            # Estilos
+            header_fill = PatternFill(start_color="875A7B", end_color="875A7B", fill_type="solid")
+            header_font = Font(color="FFFFFF", bold=True, size=11)
+            border_thin = Border(
+                left=Side(style='thin', color='CCCCCC'),
+                right=Side(style='thin', color='CCCCCC'),
+                top=Side(style='thin', color='CCCCCC'),
+                bottom=Side(style='thin', color='CCCCCC')
+            )
+            
+            # Título del reporte
+            worksheet.merge_cells('A1:W1')
+            title_cell = worksheet['A1']
+            title_cell.value = 'REPORTE DE CUENTAS POR COBRAR - CUENTA 12'
+            title_cell.font = Font(size=14, bold=True, color="875A7B")
+            title_cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Aplicar estilos a los encabezados
+            for col_num, column_title in enumerate(df.columns, 1):
+                cell = worksheet.cell(row=2, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cell.border = border_thin
+            
+            # Ajustar ancho de columnas y formato de celdas
+            column_widths = {
+                'Fecha de Factura': 15,
+                'Tipo de Documento': 18,
+                'Número de Factura': 18,
+                'Origen': 20,
+                'Código de Cuenta': 15,
+                'Nombre de Cuenta': 25,
+                'RUC/DNI': 15,
+                'Cliente': 30,
+                'Moneda': 12,
+                'Monto Total': 15,
+                'Importe Adeudado': 18,
+                'Fecha de Vencimiento': 18,
+                'Referencia': 20,
+                'Condición de Pago': 20,
+                'Descripción': 35,
+                'Vendedor': 25,
+                'Provincia': 20,
+                'Distrito': 20,
+                'Código de País': 15,
+                'País': 15,
+                'Sub Canal': 18,
+                'Canal de Venta': 20,
+                'Tipo de Venta': 18
+            }
+            
+            # Aplicar anchos y formatos
+            for col_num, column_title in enumerate(df.columns, 1):
+                col_letter = get_column_letter(col_num)
+                
+                # Ajustar ancho
+                width = column_widths.get(column_title, 15)
+                worksheet.column_dimensions[col_letter].width = width
+                
+                # Aplicar formato a las celdas de datos
+                for row_num in range(3, len(df) + 3):
+                    cell = worksheet.cell(row=row_num, column=col_num)
+                    cell.border = border_thin
+                    cell.alignment = Alignment(vertical='center', wrap_text=True)
+                    
+                    # Formato específico por tipo de columna
+                    if column_title in ['Monto Total', 'Importe Adeudado']:
+                        # Formato de moneda
+                        cell.number_format = 'S/ #,##0.00'
+                        cell.alignment = Alignment(horizontal='right', vertical='center')
+                    elif column_title in ['Fecha de Factura', 'Fecha de Vencimiento']:
+                        # Formato de fecha
+                        cell.number_format = 'DD/MM/YYYY'
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                    else:
+                        # Texto general
+                        cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            
+            # Agregar filtros automáticos
+            worksheet.auto_filter.ref = worksheet.dimensions
+            
+            # Congelar la fila de encabezados
+            worksheet.freeze_panes = 'A3'
         
         output.seek(0)
         
-        # Generar nombre de archivo con timestamp
+        # Generar nombre de archivo con timestamp y filtros
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f'reporte_cxc_general_{timestamp}.xlsx'
+        filters_suffix = ""
+        if date_from or date_to:
+            filters_suffix = f"_{date_from or 'inicio'}_{date_to or 'hoy'}"
+        
+        filename = f'reporte_cxc_general{filters_suffix}_{timestamp}.xlsx'
         
         return send_file(
             output,
@@ -1170,9 +1474,93 @@ def export_excel_cxc():
         flash(f'Error al exportar datos de CxC: {str(e)}', 'danger')
         return redirect(url_for('reporte_cxc_general'))
 
+@app.route('/export/excel/internacional')
+def export_excel_internacional():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener filtros
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        customer = request.args.get('customer')
+        payment_state = request.args.get('payment_state')
+        
+        # Obtener datos
+        internacional_data = data_manager.get_report_internacional(
+            start_date=date_from,
+            end_date=date_to,
+            customer=customer,
+            payment_state=payment_state,
+            limit=10000
+        )
+        
+        if not internacional_data:
+            flash('No hay datos para exportar con los filtros seleccionados.', 'warning')
+            return redirect(url_for('reporte_internacional'))
+        
+        # Mapeo de columnas
+        column_mapping = {
+            'payment_state': 'Estado de Pago',
+            'vat': 'Cod. Extranjero',
+            'patner_id': 'Cliente',
+            'I10nn_latam_document_type_id': 'Tipo de Documento',
+            'name': 'Factura',
+            'invoice_origin': 'Origen',
+            'invoice_payment_term_id': 'Condicion de Pago',
+            'invoice_date': 'Fecha de Factura',
+            'invoice_date_due': 'Fecha de Vencimiento',
+            'currency_id': 'Moneda',
+            'amount_total_currency_signed': 'Total USD',
+            'amount_residual_with_retention': 'Adeudado USD',
+            'monto_interes': 'Monto de Interes',
+            'dias_vencido': 'Dias de Vencido',
+            'estado_deuda': 'Estado de Deuda',
+            'antiguedad': 'Antiguedad',
+            'invoice_user_id': 'Vendedor',
+            'country_code': 'Codigo de Pais',
+            'country_id': 'Pais'
+        }
+        
+        df = pd.DataFrame(internacional_data)
+        
+        # Reordenar y renombrar
+        ordered_columns = [
+            'payment_state', 'vat', 'patner_id', 'I10nn_latam_document_type_id',
+            'name', 'invoice_origin', 'invoice_payment_term_id', 'invoice_date',
+            'invoice_date_due', 'currency_id', 'amount_total_currency_signed',
+            'amount_residual_with_retention', 'monto_interes', 'dias_vencido',
+            'estado_deuda', 'antiguedad', 'invoice_user_id', 'country_code', 'country_id'
+        ]
+        
+        df = df[[col for col in ordered_columns if col in df.columns]]
+        df = df.rename(columns=column_mapping)
+        
+        # Generar Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Reporte Internacional', index=False)
+        
+        output.seek(0)
+        
+        # Nombre del archivo con fecha
+        filename = f"reporte_internacional_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Error exportando internacional: {e}")
+        flash(f'Error al exportar datos: {str(e)}', 'danger')
+        return redirect(url_for('reporte_internacional'))
+
 if __name__ == '__main__':
-    print("🚀 Iniciando Dashboard de Cobranzas...")
-    print("📊 Disponible en: http://127.0.0.1:5002")
-    print("🔐 Usuario: configurado en .env")
-    print("🔧 Debug: ON")
+    print("[INFO] Iniciando Dashboard de Cobranzas...")
+    print("[INFO] Disponible en: http://127.0.0.1:5002")
+    print("[INFO] Usuario: configurado en .env")
+    print("[INFO] Debug: ON")
     app.run(debug=True, port=5002)

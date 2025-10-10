@@ -12,71 +12,11 @@
     </div>
     <div class="header-nav">
         <button onclick="exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
-        
-        <!-- Dropdown Ventas -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-graph-up-arrow"></i> Ventas <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard General</a>
-                <a href="{{ url_for('dashboard_linea') }}"><i class="bi bi-bar-chart-line"></i> Dashboard por Línea</a>
-                <a href="{{ url_for('sales') }}"><i class="bi bi-table"></i> Líneas de Venta</a>
-            </div>
-        </div>
-        
-        <!-- Dropdown Cobranza -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-cash-coin"></i> Cobranza <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('dashboard_cobranza_internacional') }}"><i class="bi bi-globe-americas"></i> Dashboard Internacional</a>
-                <a href="{{ url_for('reporte_cxc_general') }}"><i class="bi bi-credit-card"></i> Reporte CxC General</a>
-                <a href="{{ url_for('reporte_internacional') }}"><i class="bi bi-file-earmark-text"></i> Reporte Internacional</a>
-            </div>
-        </div>
-        
-        <!-- Dropdown Metas -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-bullseye"></i> Metas <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('meta') }}"><i class="bi bi-grid-3x3-gap"></i> Metas por Línea</a>
-                <a href="{{ url_for('metas_vendedor') }}"><i class="bi bi-people-fill"></i> Metas por Vendedor</a>
-            </div>
-        </div>
-        
+        <a href="{{ url_for('sales') }}" class="btn-nav"><i class="bi bi-graph-up"></i> Ventas</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
 </div>
-
-<script>
-// Script para manejar dropdowns con click
-document.addEventListener('DOMContentLoaded', function() {
-    const dropdowns = document.querySelectorAll('.nav-dropdown');
-    
-    dropdowns.forEach(dropdown => {
-        const toggle = dropdown.querySelector('.nav-dropdown-toggle');
-        
-        toggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            // Cerrar otros dropdowns
-            dropdowns.forEach(d => {
-                if (d !== dropdown) d.classList.remove('active');
-            });
-            // Toggle el actual
-            dropdown.classList.toggle('active');
-        });
-    });
-    
-    // Cerrar dropdowns al hacer click fuera
-    document.addEventListener('click', function() {
-        dropdowns.forEach(d => d.classList.remove('active'));
-    });
-});
-</script>
 
 <div class="filter-bar">
     <div class="filter-bar__content">
@@ -107,11 +47,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="text" name="search_term" placeholder="Factura, cliente, referencia..." value="{{ selected_filters.search_term or '' }}" class="form-control">
             </div>
             
-            <button type="submit" class="btn btn--primary"><i class="bi bi-search"></i> Buscar</button>
-            <a href="{{ url_for('reporte_cxc_general') }}" class="btn"><i class="bi bi-x-circle"></i> Limpiar</a>
+            <div>
+                <label for="per_page">Resultados</label>
+                <select name="per_page" id="per_page" class="form-select">
+                    <option value="500" {% if request.values.get('per_page', '1000') == '500' %}selected{% endif %}>500</option>
+                    <option value="1000" {% if request.values.get('per_page', '1000') == '1000' %}selected{% endif %}>1,000</option>
+                    <option value="2000" {% if request.values.get('per_page', '1000') == '2000' %}selected{% endif %}>2,000</option>
+                    <option value="5000" {% if request.values.get('per_page', '1000') == '5000' %}selected{% endif %}>5,000</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn--primary">Buscar</button>
+            <a href="{{ url_for('reporte_cxc_general') }}" class="btn">Limpiar</a>
         </form>
     </div>
 </div>
+
+<!-- Información de resultados -->
+{% if cxc_data %}
+<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <div>
+        <strong>📊 Reporte CxC General:</strong> 
+        Mostrando {{ cxc_data|length }} registros de cuentas por cobrar
+    </div>
+</div>
+{% endif %}
 
 <div class="table-container">
     <table class="table">
@@ -137,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <th>Distrito</th>
                 <th>Código País</th>
                 <th>País</th>
+                <th>Grupo de Venta</th>
                 <th>Sub Canal</th>
                 <th>Canal de Venta</th>
                 <th>Tipo de Venta</th>
@@ -165,13 +126,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>{{ line['patner_id/l10n_pe_district'] or 'N/A' }}</td>
                 <td>{{ line['patner_id/country_code'] or 'N/A' }}</td>
                 <td>{{ line['patner_id/country_id'] or 'N/A' }}</td>
+                <td>{{ line.patner_groups_ids or 'N/A' }}</td>
                 <td>{{ line.sub_channel_id or 'N/A' }}</td>
                 <td>{{ line['move_id/sales_channel_id'] or 'N/A' }}</td>
                 <td>{{ line['move_id/sales_type_id'] or 'N/A' }}</td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="23" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
+                <td colspan="24" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
             </tr>
             {% endfor %}
         </tbody>

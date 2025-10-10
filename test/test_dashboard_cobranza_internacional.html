@@ -12,74 +12,12 @@
         </div>
     </div>
     <div class="header-nav">
-        <button onclick="window.location.href='{{ url_for('reporte_internacional') }}'" class="btn-nav">
-            <i class="bi bi-file-earmark-excel"></i> Ver Reporte
-        </button>
-        
-        <!-- Dropdown Ventas -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-graph-up-arrow"></i> Ventas <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard General</a>
-                <a href="{{ url_for('dashboard_linea') }}"><i class="bi bi-bar-chart-line"></i> Dashboard por Línea</a>
-                <a href="{{ url_for('sales') }}"><i class="bi bi-table"></i> Líneas de Venta</a>
-            </div>
-        </div>
-        
-        <!-- Dropdown Cobranza -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-cash-coin"></i> Cobranza <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('dashboard_cobranza_internacional') }}"><i class="bi bi-globe-americas"></i> Dashboard Internacional</a>
-                <a href="{{ url_for('reporte_cxc_general') }}"><i class="bi bi-credit-card"></i> Reporte CxC General</a>
-                <a href="{{ url_for('reporte_internacional') }}"><i class="bi bi-file-earmark-text"></i> Reporte Internacional</a>
-            </div>
-        </div>
-        
-        <!-- Dropdown Metas -->
-        <div class="nav-dropdown">
-            <button class="nav-dropdown-toggle">
-                <i class="bi bi-bullseye"></i> Metas <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="nav-dropdown-menu">
-                <a href="{{ url_for('meta') }}"><i class="bi bi-grid-3x3-gap"></i> Metas por Línea</a>
-                <a href="{{ url_for('metas_vendedor') }}"><i class="bi bi-people-fill"></i> Metas por Vendedor</a>
-            </div>
-        </div>
-        
+        <button onclick="exportToExcel && exportToExcel()" class="btn-nav"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
+        <a href="{{ url_for('reporte_cxc_general') }}" class="btn-nav"><i class="bi bi-file-text"></i> Reporte CxC</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-nav"><i class="bi bi-speedometer2"></i> Dashboard</a>
         <a href="{{ url_for('logout') }}" class="btn-salir"><i class="bi bi-box-arrow-right"></i> Salir</a>
     </div>
 </div>
-
-<script>
-// Script para manejar dropdowns con click
-document.addEventListener('DOMContentLoaded', function() {
-    const dropdowns = document.querySelectorAll('.nav-dropdown');
-    
-    dropdowns.forEach(dropdown => {
-        const toggle = dropdown.querySelector('.nav-dropdown-toggle');
-        
-        toggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            // Cerrar otros dropdowns
-            dropdowns.forEach(d => {
-                if (d !== dropdown) d.classList.remove('active');
-            });
-            // Toggle el actual
-            dropdown.classList.toggle('active');
-        });
-    });
-    
-    // Cerrar dropdowns al hacer click fuera
-    document.addEventListener('click', function() {
-        dropdowns.forEach(d => d.classList.remove('active'));
-    });
-});
-</script>
 
 <!-- Loading Indicator -->
 <div id="loading-indicator" class="loading-indicator">
@@ -87,110 +25,68 @@ document.addEventListener('DOMContentLoaded', function() {
     <div>Cargando KPIs de cobranza internacional...</div>
 </div>
 
-<div class="filter-bar">
-    <div class="filter-bar__content">
-        <div style="display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; width: 100%;">
-            
-            <div>
-                <label for="start">Desde</label>
-                <input type="date" class="form-control" id="start" />
-            </div>
-            
-            <div>
-                <label for="end">Hasta</label>
-                <input type="date" class="form-control" id="end" />
-            </div>
-            
-            <div>
-                <label for="payment_state">Estado de Pago</label>
-                <select class="form-select" id="payment_state">
-                    <option value="">Todos</option>
-                    <option value="not_paid">No Pagado</option>
-                    <option value="in_payment">En Pago</option>
-                    <option value="paid">Pagado</option>
-                    <option value="partial">Parcial</option>
-                    <option value="reversed">Reversado</option>
-                </select>
-            </div>
-            
-            <div>
-                <label for="linea_id">Línea Comercial</label>
-                <select class="form-select" id="linea_id">
-                    <option value="">Todas</option>
-                    <!-- Se llenará dinámicamente -->
-                </select>
-            </div>
-            
-            <button class="btn btn--primary" id="btnFiltrar" type="button"><i class="bi bi-search"></i> Buscar</button>
-        </div>
-    </div>
-</div>
-
 <div class="container py-4">
-
-    <!-- KPIs Principales - Fila 1 -->
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <div class="kpi-card kpi-primary">
-                <div class="kpi-icon"><i class="bi bi-clock-history"></i></div>
-                <div class="kpi-title">DSO Promedio</div>
-                <div id="kpi-dso" class="kpi-value">-</div>
-                <div class="kpi-subtitle">días</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card kpi-success">
-                <div class="kpi-icon"><i class="bi bi-check-circle"></i></div>
-                <div class="kpi-title">CEI (Efectividad)</div>
-                <div id="kpi-cei" class="kpi-value">-</div>
-                <div class="kpi-subtitle">%</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card kpi-danger">
-                <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                <div class="kpi-title">Deuda Vencida</div>
-                <div id="kpi-porcentaje-vencido" class="kpi-value">-</div>
-                <div id="kpi-monto-vencido" class="kpi-subtitle">-</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card kpi-info">
-                <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
-                <div class="kpi-title">Deuda Vigente</div>
-                <div id="kpi-monto-vigente" class="kpi-value">-</div>
-                <div class="kpi-subtitle">USD</div>
+    <!-- Filtros -->
+    <div class="filter-card">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" id="start" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" id="end" />
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Estado de Pago</label>
+                    <select class="form-control" id="payment_state">
+                        <option value="">Todos</option>
+                        <option value="not_paid">No Pagado</option>
+                        <option value="in_payment">En Pago</option>
+                        <option value="paid">Pagado</option>
+                        <option value="partial">Parcial</option>
+                        <option value="reversed">Reversado</option>
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Línea Comercial</label>
+                    <select class="form-control" id="linea_id">
+                        <option value="">Todas</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <button class="btn btn-primary w-100" id="btnFiltrar" type="button">Aplicar</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- KPIs Principales - Fila 2 -->
-    <div class="row g-3 mb-3">
+    <!-- KPIs Principales -->
+    <div class="row g-3">
         <div class="col-md-3">
             <div class="kpi-card">
-                <div class="kpi-title">Total Facturas</div>
-                <div id="kpi-total-facturas" class="kpi-value">-</div>
+                <div class="kpi-title">Facturas por Cobrar Total</div>
+                <div id="kpi-total-cobrar" class="kpi-value currency">-</div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="kpi-card kpi-warning">
+            <div class="kpi-card">
+                <div class="kpi-title">Monto Facturas Vencidas</div>
+                <div id="kpi-vencido" class="kpi-value danger">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-title">Monto Facturas Vigentes</div>
+                <div id="kpi-vigente" class="kpi-value">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="kpi-card">
                 <div class="kpi-title">Prom. Días Morosidad</div>
-                <div id="kpi-morosidad" class="kpi-value">-</div>
-                <div class="kpi-subtitle">días</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card">
-                <div class="kpi-title">Tasa Recuperación</div>
-                <div id="kpi-tasa-recuperacion" class="kpi-value">-</div>
-                <div class="kpi-subtitle">%</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card">
-                <div class="kpi-title">Plazo Prom. Cobranza</div>
-                <div id="kpi-plazo-promedio" class="kpi-value">-</div>
-                <div class="kpi-subtitle">días</div>
+                <div id="kpi-morosidad" class="kpi-value warning">-</div>
             </div>
         </div>
     </div>
@@ -314,22 +210,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar KPIs
     async function loadKpis() {
         const qs = buildQuery();
-        const res = await fetch('/api/cobranza_internacional/kpis' + (qs ? ('?' + qs) : ''));
+        const res = await fetch('/api/cobranza/kpis' + (qs ? ('?' + qs) : ''));
         if (!res.ok) return;
         const data = await res.json();
         
-        // Actualizar KPIs - Fila 1
-        document.getElementById('kpi-dso').textContent = formatNumber(data.dso_promedio, 1);
-        document.getElementById('kpi-cei').textContent = formatNumber(data.cei, 1) + '%';
-        document.getElementById('kpi-porcentaje-vencido').textContent = formatNumber(data.porcentaje_vencido, 1) + '%';
-        document.getElementById('kpi-monto-vencido').textContent = '$' + formatNumber(data.monto_vencido);
-        document.getElementById('kpi-monto-vigente').textContent = '$' + formatNumber(data.monto_vigente);
-        
-        // Actualizar KPIs - Fila 2
-        document.getElementById('kpi-total-facturas').textContent = data.total_facturas || 0;
-        document.getElementById('kpi-morosidad').textContent = formatNumber(data.promedio_dias_morosidad, 1);
-        document.getElementById('kpi-tasa-recuperacion').textContent = formatNumber(data.tasa_recuperacion, 1) + '%';
-        document.getElementById('kpi-plazo-promedio').textContent = formatNumber(data.plazo_promedio_cobranza, 1);
+        // Actualizar KPIs
+        const totalCobrar = (data.monto_vigente || 0) + (data.monto_vencido || 0);
+        document.getElementById('kpi-total-cobrar').textContent = formatNumber(totalCobrar);
+        document.getElementById('kpi-vencido').textContent = formatNumber(data.monto_vencido);
+        document.getElementById('kpi-vigente').textContent = formatNumber(data.monto_vigente);
+        document.getElementById('kpi-morosidad').textContent = formatNumber(data.promedio_dias_morosidad);
         
         // Renderizar gráficos
         renderCobranzaLineaChart(data.cobranza_por_linea);
@@ -360,12 +250,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar Top 15
     async function loadTop15() {
         const qs = buildQuery();
-        const res = await fetch('/api/cobranza_internacional/top15' + (qs ? ('?' + qs) : ''));
+        const res = await fetch('/api/cobranza/top15' + (qs ? ('?' + qs) : ''));
         if (!res.ok) return;
         const data = await res.json();
         
         renderTop15Chart(data.clientes || [], data.montos || []);
-        renderTop15Table(data.detalles || []);
+        
+        // Cargar detalle
+        const det = await fetch('/api/cobranza/top15/details' + (qs ? ('?' + qs) : ''));
+        if (det.ok) {
+            const j = await det.json();
+            renderTop15Table(j.rows || []);
+        }
     }
 
     // Cargar tabla de cobranza por línea

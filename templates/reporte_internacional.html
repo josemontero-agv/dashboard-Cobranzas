@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Reporte CxC General{% endblock %}
+{% block title %}Reporte Internacional{% endblock %}
 
 {% block content %}
 <!-- Header estilo Odoo -->
 <div class="dashboard-header">
     <div class="header-left">
         <div class="header-info">
-            <h1>REPORTE CxC GENERAL - CUENTA 12</h1>
+            <h1>REPORTE INTERNACIONAL - FACTURAS NO PAGADAS</h1>
         </div>
     </div>
     <div class="header-nav">
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="filter-bar">
     <div class="filter-bar__content">
-        <form method="GET" action="{{ url_for('reporte_cxc_general') }}" style="display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; width: 100%;">
+        <form method="GET" action="{{ url_for('reporte_internacional') }}" style="display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; width: 100%;">
             
             <div>
                 <label for="date_from">Desde</label>
@@ -98,17 +98,17 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             
             <div>
-                <label for="account_codes">Códigos de Cuenta</label>
-                <input type="text" name="account_codes" id="account_codes" placeholder="1212,122,1312,132" value="{{ selected_filters.account_codes or '' }}" class="form-control">
-            </div>
-            
-            <div style="flex-grow: 1;">
-                <label for="search_term">Búsqueda</label>
-                <input type="text" name="search_term" placeholder="Factura, cliente, referencia..." value="{{ selected_filters.search_term or '' }}" class="form-control">
+                <label for="payment_state">Estado de Pago</label>
+                <select name="payment_state" id="payment_state" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="not_paid" {% if selected_filters.payment_state == 'not_paid' %}selected{% endif %}>No Pagado</option>
+                    <option value="partial" {% if selected_filters.payment_state == 'partial' %}selected{% endif %}>Parcial</option>
+                    <option value="in_payment" {% if selected_filters.payment_state == 'in_payment' %}selected{% endif %}>En Pago</option>
+                </select>
             </div>
             
             <button type="submit" class="btn btn--primary"><i class="bi bi-search"></i> Buscar</button>
-            <a href="{{ url_for('reporte_cxc_general') }}" class="btn"><i class="bi bi-x-circle"></i> Limpiar</a>
+            <a href="{{ url_for('reporte_internacional') }}" class="btn"><i class="bi bi-x-circle"></i> Limpiar</a>
         </form>
     </div>
 </div>
@@ -117,61 +117,98 @@ document.addEventListener('DOMContentLoaded', function() {
     <table class="table">
         <thead>
             <tr>
-                <th>Fecha</th>
+                <th>Estado de Pago</th>
+                <th>Cod. Extranjero</th>
+                <th>Cliente</th>
                 <th>Tipo Documento</th>
                 <th>Factura</th>
                 <th>Origen</th>
-                <th>Código Cuenta</th>
-                <th>Nombre Cuenta</th>
-                <th>RUC/DNI</th>
-                <th>Cliente</th>
-                <th>Moneda</th>
-                <th>Total</th>
-                <th>Importe Adeudado</th>
-                <th>Fecha Vencimiento</th>
-                <th>Referencia</th>
                 <th>Condición Pago</th>
-                <th>Descripción</th>
+                <th>Fecha Factura</th>
+                <th>Fecha Vencimiento</th>
+                <th>Moneda</th>
+                <th>Total USD</th>
+                <th>Adeudado USD</th>
+                <th>Monto Interés</th>
+                <th>Días Vencido</th>
+                <th>Estado Deuda</th>
+                <th>Antigüedad</th>
                 <th>Vendedor</th>
-                <th>Provincia</th>
-                <th>Distrito</th>
                 <th>Código País</th>
                 <th>País</th>
-                <th>Sub Canal</th>
-                <th>Canal de Venta</th>
-                <th>Tipo de Venta</th>
             </tr>
         </thead>
         <tbody>
-            {% for line in cxc_data %}
+            {% for line in internacional_data %}
             <tr>
-                <td>{{ line.date or 'N/A' }}</td>
-                <td>{{ line.I10nn_latam_document_type_id or 'N/A' }}</td>
-                <td>{{ line.move_name or 'N/A' }}</td>
-                <td>{{ line.invoice_origin or 'N/A' }}</td>
-                <td>{{ line['account_id/code'] or 'N/A' }}</td>
-                <td>{{ line['account_id/name'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/vat'] or 'N/A' }}</td>
+                <td>
+                    {% set payment_state = line.payment_state %}
+                    {% if payment_state == 'paid' %}
+                        <span class="status-green">Pagado</span>
+                    {% elif payment_state == 'partial' %}
+                        <span class="status-yellow">Parcial</span>
+                    {% elif payment_state == 'not_paid' %}
+                        <span class="status-red">No Pagado</span>
+                    {% else %}
+                        <span class="status-grey">{{ payment_state or 'N/A' }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ line.vat or 'N/A' }}</td>
                 <td>{{ line.patner_id or 'N/A' }}</td>
-                <td>{{ line.currency_id or 'N/A' }}</td>
-                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_currency if line.amount_currency else 0) }}</td>
-                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_residual_currency if line.amount_residual_currency else 0) }}</td>
-                <td>{{ line.date_maturity or 'N/A' }}</td>
-                <td>{{ line.ref or 'N/A' }}</td>
-                <td>{{ line.invoice_payment_term_id or 'N/A' }}</td>
+                <td>{{ line.I10nn_latam_document_type_id or 'N/A' }}</td>
                 <td>{{ line.name or 'N/A' }}</td>
-                <td>{{ line['move_id/invoice_user_id'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/state_id'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/l10n_pe_district'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/country_code'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/country_id'] or 'N/A' }}</td>
-                <td>{{ line.sub_channel_id or 'N/A' }}</td>
-                <td>{{ line['move_id/sales_channel_id'] or 'N/A' }}</td>
-                <td>{{ line['move_id/sales_type_id'] or 'N/A' }}</td>
+                <td>{{ line.invoice_origin or 'N/A' }}</td>
+                <td>{{ line.invoice_payment_term_id or 'N/A' }}</td>
+                <td>{{ line.invoice_date or 'N/A' }}</td>
+                <td>{{ line.invoice_date_due or 'N/A' }}</td>
+                <td>{{ line.currency_id or 'N/A' }}</td>
+                <td class="text-right">$ {{ "{:,.2f}".format(line.amount_total_currency_signed if line.amount_total_currency_signed else 0) }}</td>
+                <td class="text-right">$ {{ "{:,.2f}".format(line.amount_residual_with_retention if line.amount_residual_with_retention else 0) }}</td>
+                <td class="text-right">
+                    {% if line.monto_interes > 0 %}
+                        <span class="badge-interes">$ {{ "{:,.2f}".format(line.monto_interes) }}</span>
+                    {% else %}
+                        <span class="text-muted">$ 0.00</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if line.dias_vencido > 0 %}
+                        <span class="badge-vencido">{{ line.dias_vencido }} días</span>
+                    {% elif line.dias_vencido == 0 %}
+                        <span class="badge-vigente">Hoy</span>
+                    {% else %}
+                        <span class="badge-vigente">{{ line.dias_vencido|abs }} días</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if line.estado_deuda == 'VENCIDO' %}
+                        <span class="badge-estado-vencido">{{ line.estado_deuda }}</span>
+                    {% else %}
+                        <span class="badge-estado-vigente">{{ line.estado_deuda }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if 'Vigente' in line.antiguedad %}
+                        <span class="badge-vigente">{{ line.antiguedad }}</span>
+                    {% elif 'Corto' in line.antiguedad %}
+                        <span class="badge-atraso-corto">{{ line.antiguedad }}</span>
+                    {% elif 'Medio' in line.antiguedad %}
+                        <span class="badge-atraso-medio">{{ line.antiguedad }}</span>
+                    {% elif 'Prolongado' in line.antiguedad %}
+                        <span class="badge-atraso-prolongado">{{ line.antiguedad }}</span>
+                    {% elif 'Judicial' in line.antiguedad %}
+                        <span class="badge-judicial">{{ line.antiguedad }}</span>
+                    {% else %}
+                        <span>{{ line.antiguedad }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ line.invoice_user_id or 'N/A' }}</td>
+                <td>{{ line.country_code or 'N/A' }}</td>
+                <td>{{ line.country_id or 'N/A' }}</td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="23" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
+                <td colspan="19" style="text-align: center; padding: var(--space-4);">No se encontraron facturas internacionales no pagadas.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -243,15 +280,102 @@ document.addEventListener('DOMContentLoaded', function() {
 .btn-salir { background: #e74c3c; color: white; }
 .btn-salir:hover { background-color: #c0392b; transform: translateY(-1px); }
 
-/* Estilos para tabla con muchas columnas */
+/* Badges */
+.badge-vigente {
+    background: #d4edda;
+    color: #155724;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.badge-vencido {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.badge-estado-vigente {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.badge-estado-vencido {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.badge-atraso-corto {
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.badge-atraso-medio {
+    background: #ffeaa7;
+    color: #d63031;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.badge-atraso-prolongado {
+    background: #fab1a0;
+    color: #b71540;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.badge-judicial {
+    background: #d63031;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.badge-interes {
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.status-red { background-color: #ffe5e5; color: #b94a48; padding: 4px 8px; border-radius: 4px; }
+.status-yellow { background-color: #fff7e0; color: #bfa243; padding: 4px 8px; border-radius: 4px; }
+.status-green { background-color: #e3f9ed; color: #3a7d5d; padding: 4px 8px; border-radius: 4px; }
+.status-grey { background-color: #f0f0f0; color: #888; padding: 4px 8px; border-radius: 4px; }
+
+/* Estilos para tabla */
 .table-container {
     overflow-x: auto;
     max-width: 100%;
 }
 
 .table {
-    min-width: 3000px; /* Ancho mínimo para acomodar todas las columnas */
-    font-size: 0.85rem; /* Reducir tamaño de fuente */
+    min-width: 2500px;
+    font-size: 0.85rem;
 }
 
 .table th, .table td {
@@ -268,33 +392,6 @@ document.addEventListener('DOMContentLoaded', function() {
     z-index: 10;
 }
 
-/* Columnas específicas con ancho fijo */
-.table th:nth-child(1), .table td:nth-child(1) { min-width: 100px; } /* Fecha */
-.table th:nth-child(3), .table td:nth-child(3) { min-width: 120px; } /* Factura */
-.table th:nth-child(8), .table td:nth-child(8) { min-width: 150px; } /* Cliente */
-.table th:nth-child(10), .table td:nth-child(10) { min-width: 100px; } /* Total */
-.table th:nth-child(11), .table td:nth-child(11) { min-width: 120px; } /* Importe Adeudado */
-
-/* Hacer que las columnas de texto largo sean scrollables horizontalmente */
-.table td {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Expandir al hacer hover */
-.table td:hover {
-    overflow: visible;
-    white-space: normal;
-    word-wrap: break-word;
-    max-width: none;
-    background-color: #f0f8ff;
-    z-index: 5;
-    position: relative;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-/* Optimización de tabla para grandes datasets */
 .table-container {
     max-height: 70vh;
     overflow-y: auto;
@@ -302,7 +399,6 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
 }
 
-/* Lazy loading para filas */
 .table tbody tr {
     transition: background-color 0.1s ease;
 }
@@ -314,29 +410,33 @@ document.addEventListener('DOMContentLoaded', function() {
 .text-right {
     text-align: right;
 }
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #6c757d;
+}
 </style>
 
 <script>
 // Función para exportar a Excel
 function exportToExcel() {
-    // Obtener filtros actuales
     const dateFrom = document.querySelector('input[name="date_from"]')?.value || '';
     const dateTo = document.querySelector('input[name="date_to"]')?.value || '';
     const customer = document.querySelector('input[name="customer"]')?.value || '';
-    const accountCodes = document.querySelector('input[name="account_codes"]')?.value || '';
+    const paymentState = document.querySelector('select[name="payment_state"]')?.value || '';
     
-    // Construir URL de exportación con parámetros
     const params = new URLSearchParams();
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
     if (customer) params.append('customer', customer);
-    if (accountCodes) params.append('account_codes', accountCodes);
+    if (paymentState) params.append('payment_state', paymentState);
     
-    // Redirigir a la URL de exportación
-    const exportUrl = `/export/excel/cxc?${params.toString()}`;
-    console.log('📊 Exportando CxC a Excel:', exportUrl);
+    const exportUrl = `/export/excel/internacional?${params.toString()}`;
+    console.log('[INFO] Exportando reporte internacional a Excel:', exportUrl);
     
-    // Crear enlace temporal para descarga
     window.location.href = exportUrl;
 }
 
@@ -344,10 +444,8 @@ function exportToExcel() {
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     
-    // Mostrar indicador al enviar formulario
     if (form) {
         form.addEventListener('submit', function() {
-            // Deshabilitar botón de envío para evitar doble envío
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -359,3 +457,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+

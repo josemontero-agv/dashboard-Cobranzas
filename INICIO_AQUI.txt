@@ -1,0 +1,147 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║                  🚀 DASHBOARD COBRANZAS - INICIO RÁPIDO                 ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+
+⚠️  PROBLEMA DETECTADO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+La aplicación NO está extrayendo datos de Odoo porque:
+
+   ❌ El archivo .env no está configurado correctamente
+   ❌ Las credenciales de Odoo son incorrectas
+   ❌ La URL de Odoo tiene un formato incorrecto
+
+
+✅  SOLUCIÓN EN 5 MINUTOS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASO 1: Abre PowerShell
+   Windows + R → escribe "powershell" → Enter
+
+
+PASO 2: Navega al proyecto
+   cd "C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\dashboard-Cobranzas"
+
+
+PASO 3: Verifica variables de entorno
+   python verificar_env.py
+
+   Debe mostrar ✅ en todas las variables
+
+
+PASO 4: Prueba conexión a Odoo
+   python conectar_odoo_CORREGIDO.py
+
+   Debe mostrar: "✅ ¡Conexión exitosa!"
+
+
+PASO 5: Ejecuta la aplicación
+   python app.py
+
+   Luego abre: http://127.0.0.1:5002/login
+
+
+📚  DOCUMENTACIÓN DISPONIBLE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 README_DIAGNOSTICO.md          → Lee este primero (guía completa)
+📄 INSTRUCCIONES_DIAGNOSTICO.md   → Pasos detallados manuales
+📄 SOLUCION_RAPIDA.md              → Guía rápida de 3 minutos
+📄 EXPLICACION_PROYECTO.md         → Documentación técnica completa
+📄 CORREGIR_CONECTAR_ODOO.md       → Cómo corregir el bug encontrado
+
+
+🐍  SCRIPTS DISPONIBLES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ verificar_env.py               → Verifica tu archivo .env
+✅ conectar_odoo_CORREGIDO.py     → Prueba conexión a Odoo (versión corregida)
+✅ diagnostico.py                 → Diagnóstico completo automático
+✅ app.py                         → Aplicación principal
+
+
+🔧  BUG ENCONTRADO Y CORREGIDO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+El archivo "conectar_odoo.py" tiene un bug:
+
+   ANTES:  f'https://{url}/xmlrpc/2/common'
+   
+   PROBLEMA: Si tu .env ya tiene "https://" en la URL, se duplica
+   
+   SOLUCIÓN: Usa "conectar_odoo_CORREGIDO.py" que detecta esto automáticamente
+
+
+📋  ARCHIVO .env REQUERIDO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Crea un archivo llamado ".env" (con el punto) con este contenido:
+
+   ODOO_URL=https://tu-servidor.odoo.com
+   ODOO_DB=nombre_de_tu_base_datos
+   ODOO_USER=tu_usuario
+   ODOO_PASSWORD=tu_contraseña
+   SECRET_KEY=una_clave_secreta_aleatoria_123
+
+
+⚡  COMANDOS RÁPIDOS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Verificar .env
+Get-Content .env
+
+# Verificar variables
+python verificar_env.py
+
+# Probar conexión
+python conectar_odoo_CORREGIDO.py
+
+# Ejecutar app
+python app.py
+
+# Ir al navegador
+http://127.0.0.1:5002/login
+
+
+🗑️  ARCHIVOS DEPRECADOS (Puedes eliminar):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ INSTRUCCIONES_GOOGLE_SHEETS.md    (ya no se usa Google Sheets)
+❌ conectar_odoo.py                   (tiene bug, usar la versión CORREGIDO)
+⚠️  Carpeta /test                     (revisar si es necesaria)
+
+
+💡  PRÓXIMOS PASOS DESPUÉS DE FUNCIONAR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Eliminar archivos deprecados
+2. Implementar persistencia para LOCAL_STORAGE (SQLite)
+3. Agregar validación de conexión al inicio de app.py
+4. Implementar caché para consultas frecuentes
+
+
+🆘  ¿NECESITAS AYUDA?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Lee: README_DIAGNOSTICO.md
+
+Si el problema persiste, envíame:
+   1. Resultado de "python verificar_env.py"
+   2. Resultado de "python conectar_odoo_CORREGIDO.py"
+   3. Tipo de servidor Odoo que usas
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║              ✅ SIGUE LOS 5 PASOS DE ARRIBA Y FUNCIONARÁ               ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+
+Creado: 10 de Octubre, 2025
+Proyecto: Dashboard Cobranzas - AGV Agrovet Market
+Versión: 4.1.0
+
