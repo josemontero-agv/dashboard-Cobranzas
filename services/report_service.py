@@ -24,7 +24,7 @@ class ReportService:
         """
         self.connection = connection
     
-    def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None):
+    def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None, search_term=None):
         """
         Obtener líneas de reporte de CxC siguiendo la cadena de relaciones.
         
@@ -34,6 +34,7 @@ class ReportService:
             customer (str): Nombre de cliente a filtrar
             limit (int): Límite de registros
             account_codes (str): Códigos de cuenta separados por coma
+            search_term (str): Término de búsqueda general
         
         Returns:
             list: Líneas de reporte CxC
@@ -74,6 +75,13 @@ class ReportService:
                 line_domain.append(('date', '<=', end_date))
             if customer:
                 line_domain.append(('partner_id.name', 'ilike', customer))
+            if search_term:
+                # Búsqueda general en múltiples campos
+                line_domain.append('|')
+                line_domain.append('|')
+                line_domain.append(('name', 'ilike', search_term))
+                line_domain.append(('partner_id.name', 'ilike', search_term))
+                line_domain.append(('move_id.name', 'ilike', search_term))
             
             # Campos a extraer
             line_fields = [

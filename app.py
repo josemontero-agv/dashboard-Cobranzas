@@ -1099,7 +1099,8 @@ def reporte_cxc_general():
             'date_from': request.form.get('date_from') or request.args.get('date_from'),
             'date_to': request.form.get('date_to') or request.args.get('date_to'),
             'customer': request.form.get('customer') or request.args.get('customer'),
-            'account_codes': request.form.get('account_codes') or request.args.get('account_codes')
+            'account_codes': request.form.get('account_codes') or request.args.get('account_codes'),
+            'search_term': request.form.get('search_term') or request.args.get('search_term')
         }
         
         # Convertir strings vacíos a None
@@ -1113,6 +1114,7 @@ def reporte_cxc_general():
             end_date=selected_filters['date_to'],
             customer=selected_filters['customer'],
             account_codes=selected_filters['account_codes'],
+            search_term=selected_filters['search_term'],
             limit=1000
         )
         
@@ -1156,6 +1158,14 @@ def reporte_internacional():
             payment_state=selected_filters['payment_state'],
             limit=2000
         )
+        
+        # Ordenar por días vencidos (descendente - mayor a menor)
+        if internacional_data:
+            internacional_data = sorted(
+                internacional_data, 
+                key=lambda x: x.get('dias_vencido', 0), 
+                reverse=True
+            )
         
         return render_template('reporte_internacional.html',
                              internacional_data=internacional_data,
@@ -1499,6 +1509,9 @@ def export_excel_internacional():
             flash('No hay datos para exportar con los filtros seleccionados.', 'warning')
             return redirect(url_for('reporte_internacional'))
         
+        # Ordenar por días vencidos (descendente)
+        internacional_data = sorted(internacional_data, key=lambda x: x.get('dias_vencido', 0), reverse=True)
+        
         # Mapeo de columnas
         column_mapping = {
             'payment_state': 'Estado de Pago',
@@ -1536,10 +1549,68 @@ def export_excel_internacional():
         df = df[[col for col in ordered_columns if col in df.columns]]
         df = df.rename(columns=column_mapping)
         
-        # Generar Excel
+        # Crear Excel con formato profesional usando openpyxl
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Reporte Internacional', index=False)
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Reporte Internacional', index=False, startrow=1)
+            
+            workbook = writer.book
+            worksheet = writer.sheets['Reporte Internacional']
+            
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+            
+            # Estilos (igual que reporte_cxc_general)
+            header_fill = PatternFill(start_color="875A7B", end_color="875A7B", fill_type="solid")
+            header_font = Font(color="FFFFFF", bold=True, size=11)
+            border_thin = Border(
+                left=Side(style='thin', color='CCCCCC'),
+                right=Side(style='thin', color='CCCCCC'),
+                top=Side(style='thin', color='CCCCCC'),
+                bottom=Side(style='thin', color='CCCCCC')
+            )
+            
+            # Título
+            worksheet.merge_cells('A1:S1')
+            title_cell = worksheet['A1']
+            title_cell.value = 'REPORTE INTERNACIONAL - FACTURAS NO PAGADAS'
+            title_cell.font = Font(size=14, bold=True, color="875A7B")
+            title_cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Aplicar estilos a encabezados
+            for col_num, column_title in enumerate(df.columns, 1):
+                cell = worksheet.cell(row=2, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                cell.border = border_thin
+            
+            # Ajustar anchos y formatos de celdas
+            for col_num, column_title in enumerate(df.columns, 1):
+                col_letter = get_column_letter(col_num)
+                worksheet.column_dimensions[col_letter].width = 18
+                
+                for row_num in range(3, len(df) + 3):
+                    cell = worksheet.cell(row=row_num, column=col_num)
+                    cell.border = border_thin
+                    cell.alignment = Alignment(vertical='center', wrap_text=True)
+                    
+                    # Formato específico por tipo de columna
+                    if 'USD' in column_title or 'Interes' in column_title:
+                        cell.number_format = '$ #,##0.00'
+                        cell.alignment = Alignment(horizontal='right', vertical='center')
+                    elif 'Fecha' in column_title:
+                        cell.number_format = 'DD/MM/YYYY'
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                    else:
+                        cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            
+            # Agregar filtros automáticos
+            worksheet.auto_filter.ref = worksheet.dimensions
+            
+            # Congelar la fila de encabezados
+            worksheet.freeze_panes = 'A3'
         
         output.seek(0)
         

@@ -669,9 +669,9 @@ class OdooManager:
             'kpi_total_quantity': 0
         }
 
-    def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None):
+    def get_report_lines(self, start_date=None, end_date=None, customer=None, limit=0, account_codes=None, search_term=None):
         """Delegar al servicio de reportes."""
-        return self.reports.get_report_lines(start_date, end_date, customer, limit, account_codes)
+        return self.reports.get_report_lines(start_date, end_date, customer, limit, account_codes, search_term)
     
     def get_report_internacional(self, start_date=None, end_date=None, customer=None, payment_state=None, limit=0):
         """Obtener reporte internacional con campos calculados."""

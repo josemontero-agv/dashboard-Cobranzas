@@ -121,16 +121,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
             </div>
             
-            <button class="btn btn--primary" id="btnFiltrar" type="button"><i class="bi bi-search"></i> Buscar</button>
+            <button class="btn btn--primary" id="btnFiltrar" type="button" title="Buscar">
+                <i class="bi bi-search"></i>
+            </button>
+            <button class="btn btn--secondary" id="btnLimpiar" type="button" title="Limpiar filtros">
+                <i class="bi bi-eraser"></i>
+            </button>
         </div>
     </div>
 </div>
 
-<div class="container py-4">
-
-    <!-- KPIs Principales - Fila 1 -->
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
+<!-- Dashboard Grid Container -->
+<div class="dashboard-grid-container">
+    <!-- Grid Layout -->
+    <div class="dashboard-grid">
+        
+        <!-- KPI 1: DSO Promedio -->
+        <div class="grid-item grid-kpi-1">
             <div class="kpi-card kpi-primary">
                 <div class="kpi-icon"><i class="bi bi-clock-history"></i></div>
                 <div class="kpi-title">DSO Promedio</div>
@@ -138,7 +145,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="kpi-subtitle">días</div>
             </div>
         </div>
-        <div class="col-md-3">
+
+        <!-- KPI 2: CEI -->
+        <div class="grid-item grid-kpi-2">
             <div class="kpi-card kpi-success">
                 <div class="kpi-icon"><i class="bi bi-check-circle"></i></div>
                 <div class="kpi-title">CEI (Efectividad)</div>
@@ -146,7 +155,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="kpi-subtitle">%</div>
             </div>
         </div>
-        <div class="col-md-3">
+
+        <!-- KPI 3: Deuda Vencida -->
+        <div class="grid-item grid-kpi-3">
             <div class="kpi-card kpi-danger">
                 <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
                 <div class="kpi-title">Deuda Vencida</div>
@@ -154,7 +165,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div id="kpi-monto-vencido" class="kpi-subtitle">-</div>
             </div>
         </div>
-        <div class="col-md-3">
+
+        <!-- KPI 4: Deuda Vigente -->
+        <div class="grid-item grid-kpi-4">
             <div class="kpi-card kpi-info">
                 <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
                 <div class="kpi-title">Deuda Vigente</div>
@@ -162,73 +175,56 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="kpi-subtitle">USD</div>
             </div>
         </div>
-    </div>
 
-    <!-- KPIs Principales - Fila 2 -->
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
+        <!-- KPI 5: Total Facturas -->
+        <div class="grid-item grid-kpi-5">
             <div class="kpi-card">
+                <div class="kpi-icon"><i class="bi bi-file-text"></i></div>
                 <div class="kpi-title">Total Facturas</div>
                 <div id="kpi-total-facturas" class="kpi-value">-</div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="kpi-card kpi-warning">
-                <div class="kpi-title">Prom. Días Morosidad</div>
-                <div id="kpi-morosidad" class="kpi-value">-</div>
-                <div class="kpi-subtitle">días</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card">
-                <div class="kpi-title">Tasa Recuperación</div>
-                <div id="kpi-tasa-recuperacion" class="kpi-value">-</div>
-                <div class="kpi-subtitle">%</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="kpi-card">
-                <div class="kpi-title">Plazo Prom. Cobranza</div>
-                <div id="kpi-plazo-promedio" class="kpi-value">-</div>
-                <div class="kpi-subtitle">días</div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Gráficos Principales -->
-    <div class="row g-3 mt-1">
-        <div class="col-12">
+        <!-- Gráfico 1: Cobranza por Línea -->
+        <div class="grid-item grid-chart-1">
             <div class="chart-card">
-                <div class="card-header">Cobranza por Línea Comercial</div>
+                <div class="card-header">
+                    <i class="bi bi-bar-chart-line"></i> Cobranza por Línea Comercial
+                </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div id="cobranzaLineaChart" style="height:300px"></div>
-                        </div>
-                        <div class="col-md-6">
-                            <div id="estadosPagoChart" style="height:300px"></div>
-                        </div>
-                    </div>
+                    <div id="cobranzaLineaChart" style="height:100%; min-height:280px"></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Tabla de Cobranza por Línea Comercial -->
-    <div class="row g-3 mt-1">
-        <div class="col-12">
+        <!-- Gráfico 2: Estados de Pago -->
+        <div class="grid-item grid-chart-2">
+            <div class="chart-card">
+                <div class="card-header">
+                    <i class="bi bi-pie-chart"></i> Estados de Pago
+                </div>
+                <div class="card-body">
+                    <div id="estadosPagoChart" style="height:100%; min-height:280px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla: Detalle por Línea -->
+        <div class="grid-item grid-table-1">
             <div class="table-card">
-                <div class="card-header">Detalle de Cobranza por Línea Comercial</div>
+                <div class="card-header">
+                    <i class="bi bi-table"></i> Detalle de Cobranza por Línea
+                </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle" id="tblCobranzaLinea">
                             <thead>
                                 <tr>
                                     <th>Línea Comercial</th>
-                                    <th class="text-end">Facturas Total</th>
-                                    <th class="text-end">Monto Vigente</th>
-                                    <th class="text-end">Monto Vencido</th>
-                                    <th class="text-end">Total por Cobrar</th>
+                                    <th class="text-end">Facturas</th>
+                                    <th class="text-end">Vigente</th>
+                                    <th class="text-end">Vencido</th>
+                                    <th class="text-end">Total</th>
                                     <th class="text-end">% Vencido</th>
                                 </tr>
                             </thead>
@@ -238,28 +234,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Gráfico de Morosidad por Días -->
-    <div class="row g-3 mt-1">
-        <div class="col-12">
+        <!-- Gráfico 3: Morosidad -->
+        <div class="grid-item grid-chart-3">
             <div class="chart-card">
-                <div class="card-header">Análisis de Morosidad por Días</div>
+                <div class="card-header">
+                    <i class="bi bi-graph-down"></i> Análisis de Morosidad
+                </div>
                 <div class="card-body">
-                    <div id="morosidadChart" style="height:300px"></div>
+                    <div id="morosidadChart" style="height:100%; min-height:250px"></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Top 15 Clientes con Mayor Deuda -->
-    <div class="row g-3 mt-1">
-        <div class="col-12">
+        <!-- Top 15 Clientes -->
+        <div class="grid-item grid-top15">
             <div class="chart-card">
-                <div class="card-header">Top 15 Clientes con Mayor Deuda</div>
+                <div class="card-header">
+                    <i class="bi bi-trophy"></i> Top 15 Clientes con Mayor Deuda
+                </div>
                 <div class="card-body">
-                    <div id="top15Chart" style="height:400px"></div>
-                    <div class="table-responsive mt-4">
+                    <div id="top15Chart" style="height:350px"></div>
+                    <div class="table-responsive mt-3">
                         <table class="table table-sm table-striped align-middle" id="tblTop15">
                             <thead>
                                 <tr>
@@ -279,6 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -570,11 +567,23 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnFiltrar').addEventListener('click', function() {
         showLoading();
         this.disabled = true;
-        this.textContent = 'Cargando...';
         
         Promise.all([loadKpis(), loadTop15(), loadCobranzaLinea()]).finally(() => {
             this.disabled = false;
-            this.textContent = 'Aplicar';
+            hideLoading();
+        });
+    });
+
+    // Limpiar filtros
+    document.getElementById('btnLimpiar').addEventListener('click', function() {
+        document.getElementById('start').value = '';
+        document.getElementById('end').value = '';
+        document.getElementById('payment_state').value = '';
+        document.getElementById('linea_id').value = '';
+        
+        // Recargar datos
+        showLoading();
+        Promise.all([loadKpis(), loadTop15(), loadCobranzaLinea()]).finally(() => {
             hideLoading();
         });
     });
@@ -597,6 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+/* Loading Indicator */
 .loading-indicator {
     position: fixed;
     top: 0;
@@ -623,7 +633,204 @@ document.addEventListener('DOMContentLoaded', function() {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Dashboard Grid Container */
+.dashboard-grid-container {
+    padding: 20px;
+    max-width: 1800px;
+    margin: 0 auto;
+}
+
+/* Grid Layout Principal */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, minmax(120px, auto));
+    gap: 16px;
+}
+
+/* Grid Items - KPIs */
+.grid-kpi-1,
+.grid-kpi-2,
+.grid-kpi-3,
+.grid-kpi-4,
+.grid-kpi-5 {
+    grid-row: 1;
+}
+
+.grid-kpi-1 { grid-column: 1; }
+.grid-kpi-2 { grid-column: 2; }
+.grid-kpi-3 { grid-column: 3; }
+.grid-kpi-4 { grid-column: 4; }
+.grid-kpi-5 { grid-column: 5; }
+
+/* Gráfico Cobranza por Línea - 3 columnas */
+.grid-chart-1 {
+    grid-column: span 3;
+    grid-row: 2;
+}
+
+/* Gráfico Estados de Pago - 2 columnas */
+.grid-chart-2 {
+    grid-column: span 2;
+    grid-column-start: 4;
+    grid-row: 2;
+}
+
+/* Tabla Detalle - 3 columnas, 2 filas */
+.grid-table-1 {
+    grid-column: span 3;
+    grid-row: span 2;
+    grid-row-start: 3;
+}
+
+/* Gráfico Morosidad - 2 columnas, 2 filas */
+.grid-chart-3 {
+    grid-column: span 2;
+    grid-row: span 2;
+    grid-column-start: 4;
+    grid-row-start: 3;
+}
+
+/* Top 15 - 5 columnas (ancho completo) */
+.grid-top15 {
+    grid-column: span 5;
+    grid-row: 5;
+}
+
+/* Estilos para los items del grid */
+.grid-item {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-item .kpi-card,
+.grid-item .chart-card,
+.grid-item .table-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.grid-item .kpi-card:hover,
+.grid-item .chart-card:hover,
+.grid-item .table-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.grid-item .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-item .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 16px;
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.grid-item .card-header i {
+    font-size: 1.1em;
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(4, 1fr);
     }
+    
+    .grid-kpi-5 {
+        grid-column: 1;
+        grid-row: 2;
+    }
+    
+    .grid-chart-1 {
+        grid-column: span 2;
+        grid-row: 2;
+        grid-column-start: 2;
+    }
+    
+    .grid-chart-2 {
+        grid-column: span 2;
+        grid-column-start: 4;
+        grid-row: 2;
+    }
+    
+    .grid-table-1 {
+        grid-column: span 4;
+        grid-row: 3;
+    }
+    
+    .grid-chart-3 {
+        grid-column: span 4;
+        grid-row: 4;
+    }
+    
+    .grid-top15 {
+        grid-column: span 4;
+        grid-row: 5;
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .grid-kpi-1,
+    .grid-kpi-2,
+    .grid-kpi-3,
+    .grid-kpi-4,
+    .grid-kpi-5 {
+        grid-column: span 1;
+    }
+    
+    .grid-kpi-1 { grid-row: 1; grid-column: 1; }
+    .grid-kpi-2 { grid-row: 1; grid-column: 2; }
+    .grid-kpi-3 { grid-row: 2; grid-column: 1; }
+    .grid-kpi-4 { grid-row: 2; grid-column: 2; }
+    .grid-kpi-5 { grid-row: 3; grid-column: 1; }
+    
+    .grid-chart-1,
+    .grid-chart-2,
+    .grid-table-1,
+    .grid-chart-3,
+    .grid-top15 {
+        grid-column: span 2;
+        grid-row: auto;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .grid-kpi-1,
+    .grid-kpi-2,
+    .grid-kpi-3,
+    .grid-kpi-4,
+    .grid-kpi-5,
+    .grid-chart-1,
+    .grid-chart-2,
+    .grid-table-1,
+    .grid-chart-3,
+    .grid-top15 {
+        grid-column: span 1;
+    }
+}
 </style>
 </div> <!-- Cierre del div dashboard-cobranza -->
 {% endblock %}

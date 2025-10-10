@@ -103,12 +103,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="">Todos</option>
                     <option value="not_paid" {% if selected_filters.payment_state == 'not_paid' %}selected{% endif %}>No Pagado</option>
                     <option value="partial" {% if selected_filters.payment_state == 'partial' %}selected{% endif %}>Parcial</option>
-                    <option value="in_payment" {% if selected_filters.payment_state == 'in_payment' %}selected{% endif %}>En Pago</option>
                 </select>
             </div>
             
-            <button type="submit" class="btn btn--primary"><i class="bi bi-search"></i> Buscar</button>
-            <a href="{{ url_for('reporte_internacional') }}" class="btn"><i class="bi bi-x-circle"></i> Limpiar</a>
+            <button type="submit" class="btn btn--primary" title="Buscar">
+                <i class="bi bi-search"></i>
+            </button>
+            <a href="{{ url_for('reporte_internacional') }}" class="btn btn--secondary" title="Limpiar filtros">
+                <i class="bi bi-eraser"></i>
+            </a>
         </form>
     </div>
 </div>
