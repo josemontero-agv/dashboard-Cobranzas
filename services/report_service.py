@@ -46,16 +46,18 @@ class ReportService:
                 print("[ERROR] No hay conexion a Odoo disponible")
                 return []
             
-            # Códigos de cuenta a buscar
+            # Códigos de cuenta a buscar - Específicamente para CxC General
             if account_codes:
                 codes = [c.strip() for c in account_codes.split(',') if c.strip()]
             else:
-                codes = ['12']  # Cuenta 12 por defecto
+                codes = ['122', '1212','123', '1312', '132']  # Cuentas específicas CxC por defecto
             
             # Construir dominio base
             line_domain = [
                 ('parent_state', '=', 'posted'),
-                ('reconciled', '=', True),
+                #('reconciled', '=', False),  # False = pendientes por cobrar
+                # Incluir facturas, notas de crédito y letras de cambio
+                #('move_id.move_type', 'in', ['out_invoice', 'out_refund', 'out_bill']),
             ]
             
             # Construir OR para códigos de cuenta
@@ -67,6 +69,9 @@ class ReportService:
                 line_domain = or_operators + code_conditions + line_domain
             else:
                 line_domain.insert(0, ('account_id.code', '=like', f'{codes[0]}%'))
+
+            # Excluir cuenta específica de letras
+            line_domain.append(('account_id.code', '!=', '1239001'))
             
             # Filtros adicionales
             if start_date:
@@ -110,8 +115,10 @@ class ReportService:
                 move_fields = [
                     'id', 'name', 'payment_state', 'invoice_date', 'invoice_date_due',
                     'invoice_origin', 'l10n_latam_document_type_id', 'amount_total',
-                    'amount_residual', 'currency_id', 'ref', 'invoice_payment_term_id',
-                    'invoice_user_id', 'sales_channel_id', 'sale_type_id',
+                    'amount_residual', 'amount_residual_with_retention', 'currency_id',
+                    'l10n_latam_boe_number',
+                    'ref', 'invoice_payment_term_id', 'invoice_user_id',
+                    'sales_channel_id', 'sale_type_id',
                 ]
                 moves = self.connection.read('account.move', move_ids, move_fields)
                 move_map = {m['id']: m for m in moves}
@@ -182,6 +189,7 @@ class ReportService:
                     'I10nn_latam_document_type_id': m2o_name(move.get('l10n_latam_document_type_id')),
                     'move_name': move.get('name', ''),
                     'invoice_origin': move.get('invoice_origin', ''),
+                    'l10n_latam_boe_number': move.get('l10n_latam_boe_number', ''),
                     'account_id/code': account.get('code', ''),
                     'account_id/name': account.get('name', ''),
                     'patner_id/vat': partner.get('vat', ''),
@@ -192,7 +200,7 @@ class ReportService:
                     'patner_id/country_id': m2o_name(partner.get('country_id')),
                     'currency_id': m2o_name(line.get('currency_id') or move.get('currency_id')),
                     'amount_total': move.get('amount_total', 0.0),
-                    'amount_residual': move.get('amount_residual', 0.0),
+                    'amount_residual_with_retention': move.get('amount_residual_with_retention', 0.0),
                     'amount_currency': line.get('amount_currency', 0.0),
                     'amount_residual_currency': line.get('amount_residual', 0.0),
                     'date': line.get('date', ''),
@@ -257,7 +265,7 @@ class ReportService:
             # Campos a extraer (incluir amount_residual_with_retention)
             line_fields = [
                 'id', 'move_id', 'partner_id', 'account_id', 'name', 'date',
-                'date_maturity', 'amount_currency', 'amount_residual', 'currency_id',
+                'date_maturity', 'amount_currency', 'amount_residual', 'currency_id','amount_residual_with_retention',
             ]
             
             lines = self.connection.search_read(
@@ -279,7 +287,7 @@ class ReportService:
                     'id', 'name', 'payment_state', 'invoice_date', 'invoice_date_due',
                     'invoice_origin', 'l10n_latam_document_type_id', 'amount_total',
                     'amount_residual', 'currency_id', 'invoice_payment_term_id',
-                    'invoice_user_id', 'amount_total_signed',
+                    'invoice_user_id', 'amount_total_signed','amount_residual_with_retention',
                 ]
                 moves = self.connection.read('account.move', move_ids, move_fields)
                 move_map = {m['id']: m for m in moves}
@@ -324,7 +332,7 @@ class ReportService:
                 
                 # Calcular campos
                 invoice_date_due = move.get('invoice_date_due', '')
-                amount_residual = move.get('amount_residual', 0.0)
+                amount_residual = move.get('amount_residual_with_retention', 0.0)
                 
                 # Días de vencido
                 dias_vencido = calcular_dias_vencido(invoice_date_due, today) if invoice_date_due else 0
@@ -349,7 +357,7 @@ class ReportService:
                     'invoice_date': move.get('invoice_date', ''),
                     'invoice_date_due': invoice_date_due,
                     'currency_id': m2o_name(move.get('currency_id')),
-                    'amount_total_currency_signed': move.get('amount_total_signed', move.get('amount_total', 0.0)),
+                    'amount_total_currency_signed': move.get('amount_total_currency_signed', move.get('amount_total', 0.0)),
                     'amount_residual_with_retention': amount_residual,
                     'monto_interes': monto_interes,
                     'dias_vencido': dias_vencido,

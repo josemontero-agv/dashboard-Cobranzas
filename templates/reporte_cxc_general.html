@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div>
                 <label for="account_codes">Códigos de Cuenta</label>
-                <input type="text" name="account_codes" id="account_codes" placeholder="1212,122,1312,132" value="{{ selected_filters.account_codes or '' }}" class="form-control">
+                <input type="text" name="account_codes" id="account_codes" placeholder="12,13" value="{{ selected_filters.account_codes or '12,13' }}" class="form-control">
             </div>
             
             <div style="flex-grow: 1;">
@@ -121,17 +121,19 @@ document.addEventListener('DOMContentLoaded', function() {
     <table class="table">
         <thead>
             <tr>
-                <th>Fecha</th>
+                <th>Fecha Factura</th>
+                <th>Fecha Contabilización</th>
                 <th>Tipo Documento</th>
-                <th>Factura</th>
+                <th>Número Documento</th>
+                <th>Número Letra</th>
                 <th>Origen</th>
-                <th>Código Cuenta</th>
+                <th>Cuenta</th>
                 <th>Nombre Cuenta</th>
                 <th>RUC/DNI</th>
                 <th>Cliente</th>
                 <th>Moneda</th>
-                <th>Total</th>
-                <th>Importe Adeudado</th>
+                <th>Total Moneda Origen</th>
+                <th>Adeudado Moneda Origen</th>
                 <th>Fecha Vencimiento</th>
                 <th>Referencia</th>
                 <th>Condición Pago</th>
@@ -149,33 +151,41 @@ document.addEventListener('DOMContentLoaded', function() {
         <tbody>
             {% for line in cxc_data %}
             <tr>
-                <td>{{ line.date or 'N/A' }}</td>
-                <td>{{ line.I10nn_latam_document_type_id or 'N/A' }}</td>
-                <td>{{ line.move_name or 'N/A' }}</td>
-                <td>{{ line.invoice_origin or 'N/A' }}</td>
-                <td>{{ line['account_id/code'] or 'N/A' }}</td>
-                <td>{{ line['account_id/name'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/vat'] or 'N/A' }}</td>
-                <td>{{ line.patner_id or 'N/A' }}</td>
-                <td>{{ line.currency_id or 'N/A' }}</td>
-                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_currency if line.amount_currency else 0) }}</td>
-                <td class="text-right">S/ {{ "{:,.2f}".format(line.amount_residual_currency if line.amount_residual_currency else 0) }}</td>
-                <td>{{ line.date_maturity or 'N/A' }}</td>
-                <td>{{ line.ref or 'N/A' }}</td>
-                <td>{{ line.invoice_payment_term_id or 'N/A' }}</td>
-                <td>{{ line.name or 'N/A' }}</td>
-                <td>{{ line['move_id/invoice_user_id'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/state_id'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/l10n_pe_district'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/country_code'] or 'N/A' }}</td>
-                <td>{{ line['patner_id/country_id'] or 'N/A' }}</td>
-                <td>{{ line.sub_channel_id or 'N/A' }}</td>
-                <td>{{ line['move_id/sales_channel_id'] or 'N/A' }}</td>
-                <td>{{ line['move_id/sales_type_id'] or 'N/A' }}</td>
+                <td>{{ line.invoice_date or 'No aplica' }}</td>
+                <td>{{ line.date or 'No aplica' }}</td>
+                <td>{{ line.I10nn_latam_document_type_id or '(00)' }}</td>
+                <td>{{ line.move_name or 'No aplica' }}</td>
+                <td>{{ line.l10n_latam_boe_number or 'No aplica' }}</td>
+                <td>{{ line.invoice_origin or 'No aplica' }}</td>
+                <td>{{ line['account_id/code'] or 'No aplica' }}</td>
+                <td>{{ line['account_id/name'] or 'No aplica' }}</td>
+                <td>{{ line['patner_id/vat'] or 'No aplica' }}</td>
+                <td>{{ line.patner_id or 'No aplica' }}</td>
+                <td>{{ line.currency_id or 'No aplica' }}</td>
+                <td class="text-right">
+                    {{ 'S/' if line.currency_id == 'PEN' else '$' if line.currency_id == 'USD' else '' }}
+                    {{ "{:,.2f}".format(line.amount_currency if line.amount_currency else 0) }}
+                </td>
+                <td class="text-right">
+                    {{ 'S/' if line.currency_id == 'PEN' else '$' if line.currency_id == 'USD' else '' }}
+                    {{ "{:,.2f}".format(line.amount_residual_with_retention if line.amount_residual_with_retention else 0) }}
+                </td>
+                <td>{{ line.date_maturity or 'No aplica' }}</td>
+                <td>{{ line.ref or 'No aplica' }}</td>
+                <td>{{ line.invoice_payment_term_id or 'No aplica' }}</td>
+                <td>{{ line.name or 'No aplica' }}</td>
+                <td>{{ line['move_id/invoice_user_id'] or 'No aplica' }}</td>
+                <td>{{ line['patner_id/state_id'] or 'No aplica' }}</td>
+                <td>{{ line['patner_id/l10n_pe_district'] or 'No aplica' }}</td>
+                <td>{{ line['patner_id/country_code'] or 'No aplica' }}</td>
+                <td>{{ line['patner_id/country_id'] or 'No aplica' }}</td>
+                <td>{{ line.sub_channel_id or 'No aplica' }}</td>
+                <td>{{ line['move_id/sales_channel_id'] or 'No aplica' }}</td>
+                <td>{{ line['move_id/sales_type_id'] or 'No aplica' }}</td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="23" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
+                <td colspan="26" style="text-align: center; padding: var(--space-4);">No se encontraron registros de cuentas por cobrar.</td>
             </tr>
             {% endfor %}
         </tbody>
